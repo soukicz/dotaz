@@ -69,7 +69,7 @@
 |-------|-------|--------|-------|
 | DOTAZ-025 | QueryExecutor service with cancellation | done | |
 | DOTAZ-026 | SQL console RPC handlers (execute, cancel, format) | done | |
-| DOTAZ-027 | Editor store (SQL console state) | not started | |
+| DOTAZ-027 | Editor store (SQL console state) | done | |
 | DOTAZ-028 | SqlEditor with CodeMirror 6 | not started | |
 | DOTAZ-029 | QueryToolbar (run/cancel/tx controls) | not started | |
 | DOTAZ-030 | SqlResultPanel (query results) | not started | |
@@ -176,6 +176,8 @@
 | 2026-02-28 | DOTAZ-026 | Frontend-generated `queryId` passed to `executeQuery` | Frontend knows the queryId before calling execute, enabling cancellation via `query.cancel({ queryId })` while execute is in-flight |
 | 2026-02-28 | DOTAZ-026 | RPC `query.execute` returns `QueryResult[]` (not single) | Multi-statement SQL returns array of results; matches `QueryExecutor.executeQuery` return type |
 | 2026-02-28 | DOTAZ-026 | Simple tokenizer-based SQL formatter | Keyword uppercasing + clause-level line breaks; respects quoted strings and parenthesized subqueries; no external dependency |
+| 2026-02-28 | DOTAZ-027 | Fixed RPC client `query.execute` and `query.cancel` signatures | Added missing `queryId` param to execute; changed cancel to use `queryId` not `connectionId`; fixed return type to `QueryResult[]` |
+| 2026-02-28 | DOTAZ-027 | Frontend-generated `queryId` via `crypto.randomUUID()` in editor store | Consistent with tab ID pattern; enables cancellation while execute is in-flight |
 
 ---
 
@@ -233,4 +235,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-026)*
+*Last updated: 2026-02-28 (DOTAZ-027)*
