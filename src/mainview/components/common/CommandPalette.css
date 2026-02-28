@@ -1,0 +1,107 @@
+.command-palette-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: 15vh;
+	z-index: 1100;
+}
+
+.command-palette {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-color);
+	border-radius: 6px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+	width: 480px;
+	max-height: 400px;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.command-palette__input-wrap {
+	padding: var(--spacing-sm) var(--spacing-md);
+	border-bottom: 1px solid var(--border-color);
+}
+
+.command-palette__input {
+	width: 100%;
+	background: var(--bg-input);
+	border: 1px solid var(--border-color);
+	border-radius: 4px;
+	color: var(--text-primary);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-base);
+	padding: var(--spacing-sm) var(--spacing-md);
+	outline: none;
+}
+
+.command-palette__input:focus {
+	border-color: var(--border-focus);
+}
+
+.command-palette__list {
+	overflow-y: auto;
+	flex: 1;
+}
+
+.command-palette__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--spacing-sm) var(--spacing-md);
+	cursor: pointer;
+	gap: var(--spacing-md);
+}
+
+.command-palette__item:hover {
+	background: var(--bg-hover);
+}
+
+.command-palette__item--selected {
+	background: var(--bg-selection);
+	color: var(--text-primary);
+}
+
+.command-palette__item-left {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+	min-width: 0;
+}
+
+.command-palette__label {
+	color: var(--text-primary);
+	font-size: var(--font-size-base);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.command-palette__category {
+	color: var(--text-muted);
+	font-size: var(--font-size-xs);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.command-palette__shortcut {
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	white-space: nowrap;
+	flex-shrink: 0;
+	background: var(--bg-input);
+	padding: 2px var(--spacing-xs);
+	border-radius: 3px;
+	border: 1px solid var(--border-color);
+}
+
+.command-palette__empty {
+	padding: var(--spacing-lg);
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-size-sm);
+}

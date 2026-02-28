@@ -98,7 +98,7 @@
 ### Phase 7 — Polish
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-044 | CommandPalette | not started | |
+| DOTAZ-044 | CommandPalette | done | Command registry in lib/commands.ts; fuzzy search with recent-first ordering; 12 commands registered in AppShell |
 | DOTAZ-045 | Keyboard shortcut system | not started | |
 | DOTAZ-046 | Context menus (grid, editor, tabs) | not started | |
 | DOTAZ-047 | Transaction management UI | not started | |
@@ -231,6 +231,9 @@
 | 2026-02-28 | DOTAZ-043 | FK links open target table schema in new tab (not same tab navigation) | Schema viewing is read-only; opening new tabs preserves browsing history and allows comparing schemas side by side |
 | 2026-02-28 | DOTAZ-043 | Schema button in DataGrid toolbar alongside Export | Consistent with existing toolbar pattern; quick access from data view to schema view |
 | 2026-02-28 | DOTAZ-043 | Parallel fetch of columns, indexes, and FKs via Promise.all | Independent RPC calls; faster than sequential; single loading state |
+| 2026-02-28 | DOTAZ-044 | Command registry as module-level singleton with Map storage | Simple pattern consistent with existing store singletons; fuzzy search with recent-first sorting |
+| 2026-02-28 | DOTAZ-044 | Commands registered in AppShell `onMount` | AppShell has access to all stores and local signals (sidebar, dialogs); avoids circular dependencies |
+| 2026-02-28 | DOTAZ-044 | CommandPalette as custom overlay (not Dialog wrapper) | Command palettes need different UX: top-positioned, no header/close button, search-focused; z-index 1100 above Dialog's 1000 |
 
 ---
 
@@ -288,4 +291,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-043)*
+*Last updated: 2026-02-28 (DOTAZ-044)*
