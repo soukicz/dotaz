@@ -78,7 +78,7 @@
 ### Phase 5 — Data Editing
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-032 | Data editing backend (INSERT/UPDATE/DELETE generation) | not started | |
+| DOTAZ-032 | Data editing backend (INSERT/UPDATE/DELETE generation) | done | |
 | DOTAZ-033 | InlineEditor (cell editing in grid) | not started | |
 | DOTAZ-034 | RowDetailDialog (form view of row detail) | not started | |
 | DOTAZ-035 | PendingChanges panel + apply/revert workflow | not started | |
@@ -191,6 +191,8 @@
 | 2026-02-28 | DOTAZ-031 | Use `@codemirror/lang-sql` `schema` param for completions | Built-in `sql()` config handles table/column/schema completions context-dependently; no custom completion source needed |
 | 2026-02-28 | DOTAZ-031 | `Compartment` for dynamic SQL language reconfiguration | Allows updating schema completions at runtime when schema tree changes without recreating the editor |
 | 2026-02-28 | DOTAZ-031 | Parallel column fetching with version guard | All table columns fetched via `Promise.all` for speed; version counter prevents stale results from overwriting newer ones |
+| 2026-02-28 | DOTAZ-032 | SQL generation in query-executor.ts alongside existing query builders | Keeps all SQL building logic in one module; `generateInsert/Update/Delete` + `generateChangeSql` for parameterized execution, `generateChangePreview/generateChangesPreview` for readable SQL with inlined values |
+| 2026-02-28 | DOTAZ-032 | Transaction wrapping in RPC handler, not in SQL generation | `data.applyChanges` handler calls `beginTransaction/commit/rollback` on the driver; SQL generators are pure functions returning `{ sql, params }` |
 
 ---
 
@@ -248,4 +250,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-031)*
+*Last updated: 2026-02-28 (DOTAZ-032)*

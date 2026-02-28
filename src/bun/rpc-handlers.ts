@@ -1,8 +1,8 @@
 import type { BrowserWindow } from "electrobun/bun";
-import type { DotazRPC, ExecuteQueryParams, OpenDialogParams, SaveDialogParams } from "../shared/types/rpc";
+import type { DotazRPC, ExecuteQueryParams, ApplyChangesParams, GenerateSqlParams, OpenDialogParams, SaveDialogParams } from "../shared/types/rpc";
 import type { ConnectionManager } from "./services/connection-manager";
 import type { GridDataRequest } from "../shared/types/grid";
-import { buildSelectQuery, buildCountQuery, QueryExecutor } from "./services/query-executor";
+import { buildSelectQuery, buildCountQuery, QueryExecutor, generateChangeSql, generateChangesPreview } from "./services/query-executor";
 import { formatSql } from "./services/sql-formatter";
 
 function notImplemented(method: string): never {
@@ -98,12 +98,27 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor) {
 			notImplemented("data.getColumnStats");
 		},
 
-		// ── Data Editing (stub) ──────────────────────────
-		"data.applyChanges": () => {
-			notImplemented("data.applyChanges");
+		// ── Data Editing ─────────────────────────────────
+		"data.applyChanges": async ({ connectionId, changes }: ApplyChangesParams) => {
+			const driver = cm.getDriver(connectionId);
+
+			await driver.beginTransaction();
+			try {
+				for (const change of changes) {
+					const { sql, params } = generateChangeSql(change, driver);
+					await driver.execute(sql, params);
+				}
+				await driver.commit();
+				return { appliedCount: changes.length };
+			} catch (err) {
+				await driver.rollback();
+				throw err;
+			}
 		},
-		"data.generateSql": () => {
-			notImplemented("data.generateSql");
+		"data.generateSql": ({ connectionId, changes }: GenerateSqlParams) => {
+			const driver = cm.getDriver(connectionId);
+			const sql = generateChangesPreview(changes, driver);
+			return { sql };
 		},
 
 		// ── Query Execution ──────────────────────────────

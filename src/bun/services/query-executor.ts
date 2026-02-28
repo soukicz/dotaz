@@ -1,6 +1,7 @@
 import type { DatabaseDriver } from "../db/driver";
 import type { ColumnFilter, SortColumn } from "../../shared/types/grid";
 import type { QueryResult } from "../../shared/types/query";
+import type { DataChange } from "../../shared/types/rpc";
 import type { ConnectionManager } from "./connection-manager";
 
 export interface WhereClauseResult {
@@ -234,6 +235,174 @@ export function splitStatements(sql: string): string[] {
 	}
 
 	return statements;
+}
+
+// ── Data Editing SQL Generation ─────────────────────────────
+
+export interface GeneratedStatement {
+	sql: string;
+	params: unknown[];
+}
+
+/**
+ * Generate an INSERT statement from a DataChange.
+ */
+export function generateInsert(change: DataChange, driver: DatabaseDriver): GeneratedStatement {
+	const values = change.values;
+	if (!values || Object.keys(values).length === 0) {
+		throw new Error("INSERT change requires values");
+	}
+
+	const table = qualifyTable(change.schema, change.table, driver);
+	const columns = Object.keys(values);
+	const quotedCols = columns.map((c) => driver.quoteIdentifier(c));
+	const placeholders = columns.map((_, i) => `$${i + 1}`);
+	const params = columns.map((c) => values[c]);
+
+	return {
+		sql: `INSERT INTO ${table} (${quotedCols.join(", ")}) VALUES (${placeholders.join(", ")})`,
+		params,
+	};
+}
+
+/**
+ * Generate an UPDATE statement from a DataChange.
+ * Only updates the columns specified in `values`.
+ */
+export function generateUpdate(change: DataChange, driver: DatabaseDriver): GeneratedStatement {
+	const { primaryKeys, values } = change;
+	if (!primaryKeys || Object.keys(primaryKeys).length === 0) {
+		throw new Error("UPDATE change requires primaryKeys");
+	}
+	if (!values || Object.keys(values).length === 0) {
+		throw new Error("UPDATE change requires values");
+	}
+
+	const table = qualifyTable(change.schema, change.table, driver);
+	const setCols = Object.keys(values);
+	const pkCols = Object.keys(primaryKeys);
+	const params: unknown[] = [];
+	let paramIndex = 0;
+
+	const setClauses = setCols.map((col) => {
+		paramIndex++;
+		params.push(values[col]);
+		return `${driver.quoteIdentifier(col)} = $${paramIndex}`;
+	});
+
+	const whereClauses = pkCols.map((col) => {
+		paramIndex++;
+		params.push(primaryKeys[col]);
+		return `${driver.quoteIdentifier(col)} = $${paramIndex}`;
+	});
+
+	return {
+		sql: `UPDATE ${table} SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")}`,
+		params,
+	};
+}
+
+/**
+ * Generate a DELETE statement from a DataChange.
+ */
+export function generateDelete(change: DataChange, driver: DatabaseDriver): GeneratedStatement {
+	const { primaryKeys } = change;
+	if (!primaryKeys || Object.keys(primaryKeys).length === 0) {
+		throw new Error("DELETE change requires primaryKeys");
+	}
+
+	const table = qualifyTable(change.schema, change.table, driver);
+	const pkCols = Object.keys(primaryKeys);
+	const params: unknown[] = [];
+
+	const whereClauses = pkCols.map((col, i) => {
+		params.push(primaryKeys[col]);
+		return `${driver.quoteIdentifier(col)} = $${i + 1}`;
+	});
+
+	return {
+		sql: `DELETE FROM ${table} WHERE ${whereClauses.join(" AND ")}`,
+		params,
+	};
+}
+
+/**
+ * Generate a parameterized SQL statement for a single DataChange.
+ */
+export function generateChangeSql(change: DataChange, driver: DatabaseDriver): GeneratedStatement {
+	switch (change.type) {
+		case "insert":
+			return generateInsert(change, driver);
+		case "update":
+			return generateUpdate(change, driver);
+		case "delete":
+			return generateDelete(change, driver);
+		default:
+			throw new Error(`Unknown change type: ${(change as any).type}`);
+	}
+}
+
+/**
+ * Format a value for readable SQL preview (not for execution).
+ */
+function formatValueForPreview(value: unknown): string {
+	if (value === null || value === undefined) return "NULL";
+	if (typeof value === "number") return String(value);
+	if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+	if (typeof value === "string") {
+		return `'${value.replace(/'/g, "''")}'`;
+	}
+	if (typeof value === "object") {
+		return `'${JSON.stringify(value).replace(/'/g, "''")}'`;
+	}
+	return String(value);
+}
+
+/**
+ * Generate a human-readable SQL string for a single DataChange (for preview).
+ * Values are inlined rather than parameterized.
+ */
+export function generateChangePreview(change: DataChange, driver: DatabaseDriver): string {
+	const table = qualifyTable(change.schema, change.table, driver);
+
+	switch (change.type) {
+		case "insert": {
+			const values = change.values!;
+			const columns = Object.keys(values);
+			const quotedCols = columns.map((c) => driver.quoteIdentifier(c));
+			const formattedVals = columns.map((c) => formatValueForPreview(values[c]));
+			return `INSERT INTO ${table} (${quotedCols.join(", ")}) VALUES (${formattedVals.join(", ")});`;
+		}
+		case "update": {
+			const { primaryKeys, values } = change;
+			const setCols = Object.keys(values!);
+			const pkCols = Object.keys(primaryKeys!);
+			const setClauses = setCols.map(
+				(col) => `${driver.quoteIdentifier(col)} = ${formatValueForPreview(values![col])}`,
+			);
+			const whereClauses = pkCols.map(
+				(col) => `${driver.quoteIdentifier(col)} = ${formatValueForPreview(primaryKeys![col])}`,
+			);
+			return `UPDATE ${table} SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")};`;
+		}
+		case "delete": {
+			const { primaryKeys } = change;
+			const pkCols = Object.keys(primaryKeys!);
+			const whereClauses = pkCols.map(
+				(col) => `${driver.quoteIdentifier(col)} = ${formatValueForPreview(primaryKeys![col])}`,
+			);
+			return `DELETE FROM ${table} WHERE ${whereClauses.join(" AND ")};`;
+		}
+		default:
+			throw new Error(`Unknown change type: ${(change as any).type}`);
+	}
+}
+
+/**
+ * Generate a readable SQL preview for multiple changes.
+ */
+export function generateChangesPreview(changes: DataChange[], driver: DatabaseDriver): string {
+	return changes.map((c) => generateChangePreview(c, driver)).join("\n");
 }
 
 // ── QueryExecutor ──────────────────────────────────────────

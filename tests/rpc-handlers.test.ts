@@ -406,8 +406,6 @@ describe("RPC Handlers", () => {
 	describe("stub handlers", () => {
 		const stubs = [
 			"data.getColumnStats",
-			"data.applyChanges",
-			"data.generateSql",
 			"tx.begin",
 			"tx.commit",
 			"tx.rollback",
