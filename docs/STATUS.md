@@ -56,7 +56,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-017 | getTableData RPC with pagination, sort, filter | done | |
-| DOTAZ-018 | Grid store (data grid state) | not started | |
+| DOTAZ-018 | Grid store (data grid state) | done | |
 | DOTAZ-019 | DataGrid container + GridHeader | not started | |
 | DOTAZ-020 | Virtual scrolling + GridRow + GridCell | not started | |
 | DOTAZ-021 | Pagination + total count | not started | |
@@ -214,4 +214,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-017)*
+*Last updated: 2026-02-28 (DOTAZ-018)*
