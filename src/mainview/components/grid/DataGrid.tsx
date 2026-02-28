@@ -3,6 +3,7 @@ import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
 import GridHeader from "./GridHeader";
 import VirtualScroller from "./VirtualScroller";
+import Pagination from "./Pagination";
 import "./DataGrid.css";
 
 interface DataGridProps {
@@ -107,12 +108,14 @@ export default function DataGrid(props: DataGridProps) {
 						</div>
 
 						<div class="data-grid__footer">
-							{/* Pagination placeholder -- DOTAZ-021 */}
-							<Show when={tabState().totalCount > 0}>
-								<span class="data-grid__footer-info">
-									{tabState().rows.length} of {tabState().totalCount} rows
-								</span>
-							</Show>
+							<Pagination
+								currentPage={tabState().currentPage}
+								pageSize={tabState().pageSize}
+								totalCount={tabState().totalCount}
+								loading={tabState().loading}
+								onPageChange={(page) => gridStore.setPage(props.tabId, page)}
+								onPageSizeChange={(size) => gridStore.setPageSize(props.tabId, size)}
+							/>
 						</div>
 					</>
 				)}

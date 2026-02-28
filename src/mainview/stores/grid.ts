@@ -125,6 +125,14 @@ async function setPage(tabId: string, page: number) {
 	await fetchData(tabId);
 }
 
+async function setPageSize(tabId: string, pageSize: number) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "pageSize", pageSize);
+	setState("tabs", tabId, "currentPage", 1);
+	setState("tabs", tabId, "selectedRows", new Set());
+	await fetchData(tabId);
+}
+
 async function toggleSort(tabId: string, column: string, multi = false) {
 	const tab = ensureTab(tabId);
 	const existing = tab.sort.find((s) => s.column === column);
@@ -249,6 +257,7 @@ export const gridStore = {
 
 	loadTableData,
 	setPage,
+	setPageSize,
 	toggleSort,
 	setFilter,
 	clearFilters,

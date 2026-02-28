@@ -189,6 +189,38 @@ describe("grid store", () => {
 			await gridStore.setPage("tab-1", 2);
 			expect(gridStore.getTab("tab-1")!.selectedRows.size).toBe(0);
 		});
+
+		test("setPageSize updates page size and resets to page 1", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 2 })));
+			await gridStore.setPage("tab-1", 2);
+
+			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 1, pageSize: 50 })));
+			await gridStore.setPageSize("tab-1", 50);
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.pageSize).toBe(50);
+			expect(tab.currentPage).toBe(1);
+		});
+
+		test("setPageSize clears row selection", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.selectAll("tab-1");
+			expect(gridStore.getTab("tab-1")!.selectedRows.size).toBe(3);
+
+			await gridStore.setPageSize("tab-1", 25);
+			expect(gridStore.getTab("tab-1")!.selectedRows.size).toBe(0);
+		});
+
+		test("setPageSize sends new page size in RPC request", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			await gridStore.setPageSize("tab-1", 250);
+
+			const lastCall = mockGetTableData.mock.calls[1][0] as any;
+			expect(lastCall.pageSize).toBe(250);
+			expect(lastCall.page).toBe(1);
+		});
 	});
 
 	describe("sorting", () => {
