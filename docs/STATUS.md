@@ -48,7 +48,7 @@
 |-------|-------|--------|-------|
 | DOTAZ-012 | Connection store (frontend state) | done | |
 | DOTAZ-013 | ConnectionDialog (add/edit form) | done | |
-| DOTAZ-014 | File dialog + save dialog RPC handlers | not started | |
+| DOTAZ-014 | File dialog + save dialog RPC handlers | done | Electrobun lacks native save dialog; used directory picker + defaultName workaround |
 | DOTAZ-015 | ConnectionTree (sidebar tree) | not started | |
 | DOTAZ-016 | Context menu for connections | not started | |
 
@@ -148,6 +148,8 @@
 | 2026-02-28 | DOTAZ-012 | Schema tree stored per-connection in connections store | `schemaTrees` keyed by connection ID; auto-loaded on `connected` status event from backend |
 | 2026-02-28 | DOTAZ-013 | SSL field as boolean checkbox (not dropdown) | `PostgresConnectionConfig.ssl` is `boolean`; dropdown modes (disable/require/prefer) would need type change, kept aligned with existing type |
 | 2026-02-28 | DOTAZ-013 | DB type switcher disabled when editing | Prevents type change on existing connections which would invalidate stored config |
+| 2026-02-28 | DOTAZ-014 | Use `Utils.openFileDialog` for both open and save dialogs | Electrobun doesn't expose a native save dialog API; save uses directory picker + `defaultName` |
+| 2026-02-28 | DOTAZ-014 | Convert `filters[].extensions` to `*.ext` glob format | Electrobun's `allowedFileTypes` expects comma-separated glob patterns like `*.db,*.sqlite` |
 
 ---
 
@@ -205,4 +207,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-013)*
+*Last updated: 2026-02-28 (DOTAZ-014)*

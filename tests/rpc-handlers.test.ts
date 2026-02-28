@@ -233,8 +233,6 @@ describe("RPC Handlers", () => {
 			"views.save",
 			"views.update",
 			"views.delete",
-			"system.showOpenDialog",
-			"system.showSaveDialog",
 			"settings.get",
 			"settings.set",
 		] as const;

@@ -1,5 +1,5 @@
 import type { BrowserWindow } from "electrobun/bun";
-import type { DotazRPC } from "../shared/types/rpc";
+import type { DotazRPC, OpenDialogParams, SaveDialogParams } from "../shared/types/rpc";
 import type { ConnectionManager } from "./services/connection-manager";
 
 function notImplemented(method: string): never {
@@ -127,12 +127,46 @@ export function createHandlers(cm: ConnectionManager) {
 			notImplemented("views.delete");
 		},
 
-		// ── System (stub) ─────────────────────────────────
-		"system.showOpenDialog": () => {
-			notImplemented("system.showOpenDialog");
+		// ── System ────────────────────────────────────────
+		"system.showOpenDialog": async ({ filters, multiple }: OpenDialogParams) => {
+			const { Utils } = require("electrobun/bun") as typeof import("electrobun/bun");
+
+			const allowedFileTypes = filters && filters.length > 0
+				? filters.flatMap(f => f.extensions.map(ext => `*.${ext}`)).join(",")
+				: "*";
+
+			const result = await Utils.openFileDialog({
+				startingFolder: "~/",
+				allowedFileTypes,
+				canChooseFiles: true,
+				canChooseDirectory: false,
+				allowsMultipleSelection: multiple ?? false,
+			});
+
+			// Utils.openFileDialog returns [""] when cancelled
+			const paths = result.filter(p => p !== "");
+			return { paths, cancelled: paths.length === 0 };
 		},
-		"system.showSaveDialog": () => {
-			notImplemented("system.showSaveDialog");
+		"system.showSaveDialog": async ({ defaultName }: SaveDialogParams) => {
+			const { Utils } = require("electrobun/bun") as typeof import("electrobun/bun");
+
+			// Electrobun doesn't expose a native save dialog yet;
+			// use directory picker + defaultName as workaround
+			const result = await Utils.openFileDialog({
+				startingFolder: "~/",
+				allowedFileTypes: "*",
+				canChooseFiles: false,
+				canChooseDirectory: true,
+				allowsMultipleSelection: false,
+			});
+
+			const dir = result[0];
+			if (!dir || dir === "") {
+				return { path: null, cancelled: true };
+			}
+
+			const path = defaultName ? `${dir}/${defaultName}` : dir;
+			return { path, cancelled: false };
 		},
 		"settings.get": () => {
 			notImplemented("settings.get");
