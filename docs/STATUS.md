@@ -36,7 +36,7 @@
 |-------|-------|--------|-------|
 | DOTAZ-004 | Local app SQLite database with migrations | done | |
 | DOTAZ-005 | DatabaseDriver interface + SQLite driver | done | |
-| DOTAZ-006 | PostgreSQL driver | not started | |
+| DOTAZ-006 | PostgreSQL driver | done | |
 | DOTAZ-007 | ConnectionManager service | not started | |
 | DOTAZ-008 | Complete RPC schema + wiring | not started | |
 | DOTAZ-009 | Frontend RPC client (Electroview) | not started | |
@@ -134,6 +134,9 @@
 | 2026-02-28 | DOTAZ-004 | Lazy import of `electrobun/bun` Utils in `getDefaultDbPath()` | Avoids Electrobun dependency in tests; tests pass custom `:memory:` path |
 | 2026-02-28 | DOTAZ-005 | Use `Bun.SQL` (`new SQL("sqlite:path")`) for SQLite driver | Unified API per ARCHITECTURE.md; supports tagged templates and `unsafe()` for raw SQL |
 | 2026-02-28 | DOTAZ-005 | Detect `isAutoIncrement` via single INTEGER PRIMARY KEY heuristic | SQLite's `INTEGER PRIMARY KEY` is a ROWID alias; only applies for single-column PKs |
+| 2026-02-28 | DOTAZ-006 | Use `reserve()` for transactions in PostgresDriver | Bun.SQL with pooled connections (`max > 1`) rejects raw `BEGIN`/`COMMIT`/`ROLLBACK` via `unsafe()`; `reserve()` pins a single connection |
+| 2026-02-28 | DOTAZ-006 | Use `SQL.Query.cancel()` for query cancellation | Bun.SQL's native cancel mechanism; sets `cancelled` flag but may not interrupt PG backend in Bun 1.3.9 |
+| 2026-02-28 | DOTAZ-006 | Detect PG `isAutoIncrement` via `nextval(` in `column_default` | SERIAL/BIGSERIAL columns have default `nextval('sequence_name'::regclass)` |
 
 ---
 
@@ -157,6 +160,10 @@
 - Both `?` and `$1` param styles work for SQLite via Bun.SQL
 - PRAGMA queries accept double-quoted identifiers: `PRAGMA table_info("tablename")`
 - `PRAGMA foreign_keys = ON` must be set per connection (not persistent in SQLite)
+- Bun.SQL PostgreSQL connection pool rejects raw `BEGIN`/`COMMIT`/`ROLLBACK` via `unsafe()` — use `db.reserve()` for transaction-pinned connections
+- `SQL.Query.cancel()` sets `cancelled: true` but the promise may not resolve/reject in Bun 1.3.9 — PG backend process not actually interrupted
+- PG `information_schema.columns` returns `data_type` as `'ARRAY'` for array types and `'USER-DEFINED'` for custom types (jsonb, etc.) — map using `udt_name`
+- PG `array_agg()` results from Bun.SQL may be returned as native JS arrays or `{a,b,c}` strings — handle both
 
 ### Testing & Debugging
 <!-- What works, what doesn't, useful debugging techniques, etc. -->
