@@ -18,6 +18,8 @@ import { connectionsStore } from "../../stores/connections";
 import { editorStore } from "../../stores/editor";
 import { gridStore } from "../../stores/grid";
 import { commandRegistry } from "../../lib/commands";
+import { keyboardManager } from "../../lib/keyboard";
+import type { ShortcutContext } from "../../lib/keyboard";
 import "./AppShell.css";
 
 const MIN_WIDTH = 150;
@@ -50,21 +52,20 @@ export default function AppShell() {
 		setDialogOpen(true);
 	}
 
-	// ── Global Ctrl+Shift+P shortcut ──────────────────────
-	function handleGlobalKeyDown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "p") {
-			e.preventDefault();
-			setPaletteOpen((v) => !v);
-		}
-	}
-
 	onMount(() => {
-		document.addEventListener("keydown", handleGlobalKeyDown);
 		registerCommands();
+		registerShortcuts();
+		keyboardManager.setContextProvider((): ShortcutContext => {
+			const tab = tabsStore.activeTab;
+			if (tab?.type === "data-grid") return "data-grid";
+			if (tab?.type === "sql-console") return "sql-console";
+			return "global";
+		});
+		keyboardManager.init();
 	});
 
 	onCleanup(() => {
-		document.removeEventListener("keydown", handleGlobalKeyDown);
+		keyboardManager.destroy();
 	});
 
 	// ── Command registration ──────────────────────────────
@@ -74,12 +75,13 @@ export default function AppShell() {
 			label: "Command Palette",
 			shortcut: "Ctrl+Shift+P",
 			category: "Navigation",
-			handler: () => setPaletteOpen(true),
+			handler: () => setPaletteOpen((v) => !v),
 		});
 
 		commandRegistry.register({
 			id: "new-sql-console",
 			label: "New SQL Console",
+			shortcut: "Ctrl+N",
 			category: "Query",
 			handler: () => {
 				const conn = connectionsStore.activeConnection;
@@ -109,6 +111,22 @@ export default function AppShell() {
 			label: "Close All Tabs",
 			category: "Navigation",
 			handler: () => tabsStore.closeAllTabs(),
+		});
+
+		commandRegistry.register({
+			id: "next-tab",
+			label: "Next Tab",
+			shortcut: "Ctrl+Tab",
+			category: "Navigation",
+			handler: () => tabsStore.activateNextTab(),
+		});
+
+		commandRegistry.register({
+			id: "prev-tab",
+			label: "Previous Tab",
+			shortcut: "Ctrl+Shift+Tab",
+			category: "Navigation",
+			handler: () => tabsStore.activatePrevTab(),
 		});
 
 		commandRegistry.register({
@@ -175,6 +193,32 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "commit-transaction",
+			label: "Commit Transaction",
+			shortcut: "Ctrl+Shift+Enter",
+			category: "Query",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "sql-console") {
+					editorStore.commitTransaction(tab.id);
+				}
+			},
+		});
+
+		commandRegistry.register({
+			id: "rollback-transaction",
+			label: "Rollback Transaction",
+			shortcut: "Ctrl+Shift+R",
+			category: "Query",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "sql-console") {
+					editorStore.rollbackTransaction(tab.id);
+				}
+			},
+		});
+
+		commandRegistry.register({
 			id: "refresh-data",
 			label: "Refresh Data",
 			shortcut: "F5",
@@ -201,9 +245,39 @@ export default function AppShell() {
 			shortcut: "Ctrl+S",
 			category: "Grid",
 			handler: () => {
-				// Ctrl+S is handled directly in DataGrid for view saving;
-				// dispatching the native shortcut event to trigger it
-				document.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true }));
+				// Dispatched as custom event so DataGrid (which owns the save dialog) can handle it
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "data-grid") {
+					window.dispatchEvent(new CustomEvent("dotaz:save-view", { detail: { tabId: tab.id } }));
+				}
+			},
+		});
+
+		commandRegistry.register({
+			id: "inline-edit",
+			label: "Edit Cell",
+			shortcut: "F2",
+			category: "Grid",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type !== "data-grid") return;
+				const gridTab = gridStore.getTab(tab.id);
+				if (!gridTab?.focusedCell) return;
+				if (gridStore.isRowDeleted(tab.id, gridTab.focusedCell.row)) return;
+				gridStore.startEditing(tab.id, gridTab.focusedCell.row, gridTab.focusedCell.column);
+			},
+		});
+
+		commandRegistry.register({
+			id: "delete-rows",
+			label: "Delete Selected Rows",
+			shortcut: "Delete",
+			category: "Grid",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "data-grid") {
+					gridStore.deleteSelectedRows(tab.id);
+				}
 			},
 		});
 
@@ -213,9 +287,31 @@ export default function AppShell() {
 			category: "Grid",
 			handler: () => {
 				// Export is managed by the ExportDialog within DataGrid
-				// This provides a discoverable entry point
 			},
 		});
+	}
+
+	// ── Shortcut registration ──────────────────────────────
+	function registerShortcuts() {
+		// Global shortcuts
+		keyboardManager.register("Ctrl+Shift+P", "command-palette");
+		keyboardManager.register("Ctrl+N", "new-sql-console");
+		keyboardManager.register("Ctrl+W", "close-tab");
+		keyboardManager.register("Ctrl+Tab", "next-tab");
+		keyboardManager.register("Ctrl+Shift+Tab", "prev-tab");
+		keyboardManager.register("Ctrl+B", "toggle-sidebar");
+
+		// SQL console context
+		keyboardManager.register("Ctrl+Enter", "run-query", "sql-console");
+		keyboardManager.register("Ctrl+Shift+F", "format-sql", "sql-console");
+		keyboardManager.register("Ctrl+Shift+Enter", "commit-transaction", "sql-console");
+		keyboardManager.register("Ctrl+Shift+R", "rollback-transaction", "sql-console");
+
+		// Data grid context
+		keyboardManager.register("F5", "refresh-data", "data-grid");
+		keyboardManager.register("F2", "inline-edit", "data-grid");
+		keyboardManager.register("Delete", "delete-rows", "data-grid");
+		keyboardManager.register("Ctrl+S", "save-view", "data-grid");
 	}
 
 	return (

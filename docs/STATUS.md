@@ -99,7 +99,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-044 | CommandPalette | done | Command registry in lib/commands.ts; fuzzy search with recent-first ordering; 12 commands registered in AppShell |
-| DOTAZ-045 | Keyboard shortcut system | not started | |
+| DOTAZ-045 | Keyboard shortcut system | done | KeyboardManager singleton in keyboard.ts; 16 shortcuts registered; context-aware (global/data-grid/sql-console); stopPropagation for grid-local shortcuts |
 | DOTAZ-046 | Context menus (grid, editor, tabs) | not started | |
 | DOTAZ-047 | Transaction management UI | not started | |
 | DOTAZ-048 | Error handling + toast notifications | not started | |
@@ -234,6 +234,10 @@
 | 2026-02-28 | DOTAZ-044 | Command registry as module-level singleton with Map storage | Simple pattern consistent with existing store singletons; fuzzy search with recent-first sorting |
 | 2026-02-28 | DOTAZ-044 | Commands registered in AppShell `onMount` | AppShell has access to all stores and local signals (sidebar, dialogs); avoids circular dependencies |
 | 2026-02-28 | DOTAZ-044 | CommandPalette as custom overlay (not Dialog wrapper) | Command palettes need different UX: top-positioned, no header/close button, search-focused; z-index 1100 above Dialog's 1000 |
+| 2026-02-28 | DOTAZ-045 | KeyboardManager as singleton with normalised combo strings | Combo strings like "ctrl+shift+p" normalised from both registration ("Ctrl+Shift+P") and events for O(1) Map lookup |
+| 2026-02-28 | DOTAZ-045 | Context-aware shortcuts via `ShortcutContext` type | "global" shortcuts always fire; "data-grid" and "sql-console" only fire when active tab matches; context provided by callback set in AppShell |
+| 2026-02-28 | DOTAZ-045 | `stopPropagation` for overlapping DataGrid local shortcuts | F2, Delete, Ctrl+S in DataGrid's local `createKeyHandler` call `e.stopPropagation()` to prevent the document-level KeyboardManager from double-firing |
+| 2026-02-28 | DOTAZ-045 | Custom event `dotaz:save-view` for command→component bridge | Save view command dispatches CustomEvent on window; DataGrid listens for it to open save dialog — avoids coupling command handler to component state |
 
 ---
 
@@ -291,4 +295,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-044)*
+*Last updated: 2026-02-28 (DOTAZ-045)*

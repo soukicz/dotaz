@@ -120,6 +120,22 @@ function setTabDirty(id: string, dirty: boolean) {
 	}
 }
 
+function activateNextTab() {
+	const tabs = state.openTabs;
+	if (tabs.length <= 1) return;
+	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
+	const next = (idx + 1) % tabs.length;
+	setState("activeTabId", tabs[next].id);
+}
+
+function activatePrevTab() {
+	const tabs = state.openTabs;
+	if (tabs.length <= 1) return;
+	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
+	const prev = (idx - 1 + tabs.length) % tabs.length;
+	setState("activeTabId", tabs[prev].id);
+}
+
 export const tabsStore = {
 	get openTabs() {
 		return state.openTabs;
@@ -138,4 +154,6 @@ export const tabsStore = {
 	reorderTabs,
 	renameTab,
 	setTabDirty,
+	activateNextTab,
+	activatePrevTab,
 };

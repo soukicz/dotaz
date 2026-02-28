@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onMount, onCleanup, Show } from "solid-js";
 import type { ColumnFilter } from "../../../shared/types/grid";
 import type { ForeignKeyInfo } from "../../../shared/types/database";
 import type { FkTarget } from "../../stores/grid";
@@ -411,6 +411,18 @@ export default function DataGrid(props: DataGridProps) {
 		});
 	}
 
+	// Listen for save-view events dispatched by the command registry
+	onMount(() => {
+		const onSaveView = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail?.tabId === props.tabId) {
+				handleQuickSave();
+			}
+		};
+		window.addEventListener("dotaz:save-view", onSaveView);
+		onCleanup(() => window.removeEventListener("dotaz:save-view", onSaveView));
+	});
+
 	const handleKeyDown = createKeyHandler([
 		{
 			key: "c",
@@ -432,6 +444,7 @@ export default function DataGrid(props: DataGridProps) {
 			key: "F2",
 			handler(e) {
 				e.preventDefault();
+				e.stopPropagation(); // Prevent KeyboardManager double-fire
 				startEditingFocused();
 			},
 		},
@@ -447,6 +460,7 @@ export default function DataGrid(props: DataGridProps) {
 			key: "Delete",
 			handler(e) {
 				e.preventDefault();
+				e.stopPropagation(); // Prevent KeyboardManager double-fire
 				handleDeleteSelected();
 			},
 		},
@@ -466,6 +480,7 @@ export default function DataGrid(props: DataGridProps) {
 			ctrl: true,
 			handler(e) {
 				e.preventDefault();
+				e.stopPropagation(); // Prevent KeyboardManager double-fire
 				handleQuickSave();
 			},
 		},
