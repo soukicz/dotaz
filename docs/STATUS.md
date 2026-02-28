@@ -28,7 +28,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-001 | Electrobun project initialization for Dotaz | done | |
-| DOTAZ-002 | Create shared types | not started | |
+| DOTAZ-002 | Create shared types | done | |
 | DOTAZ-003 | App shell with dark theme and basic layout | not started | |
 
 ### Phase 1 — Foundation
@@ -128,7 +128,8 @@
 
 | Date | Issue | Decision | Rationale |
 |------|-------|----------|-----------|
-| | | | |
+| 2026-02-28 | DOTAZ-002 | Use dot-notation method names in RPC schema (e.g. `connections.list`) | Matches ARCHITECTURE.md naming, keeps schema organized by domain |
+| 2026-02-28 | DOTAZ-002 | Import `RPCSchema` from `electrobun/bun` in shared types | Consistent with Electrobun template patterns; type is available from both `electrobun/bun` and `electrobun/browser` |
 
 ---
 
