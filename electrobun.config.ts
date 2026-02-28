@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
 	app: {
-		name: "solid-app",
-		identifier: "solidapp.electrobun.dev",
+		name: "Dotaz",
+		identifier: "dotaz.electrobun.dev",
 		version: "0.0.1",
 	},
 	build: {

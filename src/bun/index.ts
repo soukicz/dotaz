@@ -24,14 +24,14 @@ const url = await getMainViewUrl();
 
 // @ts-expect-error mainWindow is used by Electrobun runtime
 const mainWindow = new BrowserWindow({
-	title: "Solid App",
+	title: "Dotaz",
 	url,
 	frame: {
-		width: 900,
-		height: 700,
+		width: 1280,
+		height: 800,
 		x: 200,
 		y: 200,
 	},
 });
 
-console.log("Solid app started!");
+console.log("Dotaz started!");

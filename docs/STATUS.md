@@ -9,7 +9,7 @@
 
 | Phase | Name                  | Issues          | Status      | Notes |
 |-------|-----------------------|-----------------|-------------|-------|
-| 0     | Project Setup         | DOTAZ-001 – 003 | not started |       |
+| 0     | Project Setup         | DOTAZ-001 – 003 | in progress |       |
 | 1     | Foundation            | DOTAZ-004 – 011 | not started |       |
 | 2     | Connection Management | DOTAZ-012 – 016 | not started |       |
 | 3     | Data Grid             | DOTAZ-017 – 024 | not started |       |
@@ -27,7 +27,7 @@
 ### Phase 0 — Project Setup
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-001 | Electrobun project initialization for Dotaz | not started | |
+| DOTAZ-001 | Electrobun project initialization for Dotaz | done | |
 | DOTAZ-002 | Create shared types | not started | |
 | DOTAZ-003 | App shell with dark theme and basic layout | not started | |
 
@@ -172,4 +172,4 @@
 
 ---
 
-*Last updated: —*
+*Last updated: 2026-02-28*
