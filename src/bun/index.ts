@@ -22,6 +22,7 @@ async function getMainViewUrl(): Promise<string> {
 
 const url = await getMainViewUrl();
 
+// @ts-expect-error mainWindow is used by Electrobun runtime
 const mainWindow = new BrowserWindow({
 	title: "Solid App",
 	url,
