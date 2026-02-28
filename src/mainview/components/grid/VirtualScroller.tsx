@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig, EditingCell, FkTarget } from "../../stores/grid";
@@ -31,11 +31,19 @@ interface VirtualScrollerProps {
 }
 
 export default function VirtualScroller(props: VirtualScrollerProps) {
+	// Defer scroll element until mounted so the virtualizer doesn't try to
+	// measure a disconnected element (offsetHeight would be 0).  Without this,
+	// createComputed inside createVirtualizer runs before onMount and sets up
+	// observers on a not-yet-connected DOM node whose ResizeObserver may never
+	// fire in some webview runtimes (Electrobun/GTK).
+	const [mounted, setMounted] = createSignal(false);
+	onMount(() => setMounted(true));
+
 	const virtualizer = createVirtualizer({
 		get count() {
 			return props.rows.length;
 		},
-		getScrollElement: () => props.scrollElement() ?? null,
+		getScrollElement: () => (mounted() ? props.scrollElement() : undefined) ?? null,
 		estimateSize: () => ROW_HEIGHT,
 		overscan: OVERSCAN,
 		get scrollMargin() {
