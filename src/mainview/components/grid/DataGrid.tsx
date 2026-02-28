@@ -1,7 +1,8 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onMount, Show } from "solid-js";
 import type { ColumnFilter } from "../../../shared/types/grid";
 import type { ForeignKeyInfo } from "../../../shared/types/database";
 import { gridStore } from "../../stores/grid";
+import { tabsStore } from "../../stores/tabs";
 import { rpc } from "../../lib/rpc";
 import { createKeyHandler } from "../../lib/keyboard";
 import GridHeader from "./GridHeader";
@@ -10,6 +11,7 @@ import FilterBar from "./FilterBar";
 import ColumnManager from "./ColumnManager";
 import Pagination from "./Pagination";
 import RowDetailDialog from "../edit/RowDetailDialog";
+import PendingChanges from "../edit/PendingChanges";
 import "./DataGrid.css";
 
 interface DataGridProps {
@@ -27,11 +29,20 @@ export default function DataGrid(props: DataGridProps) {
 	const [foreignKeys, setForeignKeys] = createSignal<ForeignKeyInfo[]>([]);
 	const [copyFeedback, setCopyFeedback] = createSignal<string | null>(null);
 	const [rowDetailIndex, setRowDetailIndex] = createSignal<number | null>(null);
+	const [showPendingPanel, setShowPendingPanel] = createSignal(false);
 	let scrollRef: HTMLDivElement | undefined;
 	let gridRef: HTMLDivElement | undefined;
 	let anchorRow = -1;
 
 	const tab = () => gridStore.getTab(props.tabId);
+
+	// Sync tab dirty flag with pending changes state
+	createEffect(() => {
+		const dirty = gridStore.hasPendingChanges(props.tabId);
+		tabsStore.setTabDirty(props.tabId, dirty);
+		// Auto-hide panel when no pending changes
+		if (!dirty) setShowPendingPanel(false);
+	});
 
 	const visibleColumns = () => {
 		const t = tab();
@@ -214,6 +225,13 @@ export default function DataGrid(props: DataGridProps) {
 		gridStore.selectRow(props.tabId, rowIndex);
 	}
 
+	// ── Pending changes ──────────────────────────────────────
+
+	function handleChangesApplied() {
+		// Reload data from server after successful apply
+		gridStore.loadTableData(props.tabId, props.connectionId, props.schema, props.table);
+	}
+
 	// ── Clipboard ──────────────────────────────────────────
 
 	async function handleCopy() {
@@ -378,6 +396,14 @@ export default function DataGrid(props: DataGridProps) {
 							/>
 						</div>
 
+						<Show when={showPendingPanel() && gridStore.hasPendingChanges(props.tabId)}>
+							<PendingChanges
+								tabId={props.tabId}
+								connectionId={props.connectionId}
+								onApplied={handleChangesApplied}
+							/>
+						</Show>
+
 						<div class="data-grid__footer">
 							<Pagination
 								currentPage={tabState().currentPage}
@@ -388,9 +414,13 @@ export default function DataGrid(props: DataGridProps) {
 								onPageSizeChange={(size) => gridStore.setPageSize(props.tabId, size)}
 							/>
 							<Show when={gridStore.hasPendingChanges(props.tabId)}>
-								<div class="data-grid__pending-indicator">
-									Pending changes
-								</div>
+								<button
+									class="data-grid__pending-badge"
+									onClick={() => setShowPendingPanel((prev) => !prev)}
+									title="Toggle pending changes panel"
+								>
+									{gridStore.pendingChangesCount(props.tabId)} pending change{gridStore.pendingChangesCount(props.tabId) !== 1 ? "s" : ""}
+								</button>
 							</Show>
 						</div>
 					</>

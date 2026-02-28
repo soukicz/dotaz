@@ -1,0 +1,204 @@
+.pending-changes {
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid var(--border-color);
+	background: var(--bg-panel);
+	max-height: 200px;
+	overflow: hidden;
+}
+
+.pending-changes__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--spacing-xs) var(--spacing-md);
+	border-bottom: 1px solid var(--border-color);
+	flex-shrink: 0;
+}
+
+.pending-changes__title {
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.pending-changes__actions {
+	display: flex;
+	gap: var(--spacing-xs);
+}
+
+.pending-changes__btn {
+	padding: 2px var(--spacing-sm);
+	border: 1px solid var(--border-color);
+	border-radius: 3px;
+	font-size: var(--font-size-xs);
+	cursor: pointer;
+	background: var(--bg-input);
+	color: var(--text-primary);
+}
+
+.pending-changes__btn:hover:not(:disabled) {
+	background: var(--bg-hover);
+}
+
+.pending-changes__btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.pending-changes__btn--apply {
+	background: var(--accent);
+	color: var(--accent-fg);
+	border-color: var(--accent);
+}
+
+.pending-changes__btn--apply:hover:not(:disabled) {
+	background: var(--accent-hover);
+}
+
+.pending-changes__btn--revert {
+	color: var(--color-warning);
+	border-color: var(--color-warning);
+	background: transparent;
+}
+
+.pending-changes__btn--revert:hover:not(:disabled) {
+	background: rgba(204, 167, 0, 0.1);
+}
+
+.pending-changes__error {
+	padding: var(--spacing-xs) var(--spacing-md);
+	background: rgba(244, 71, 71, 0.1);
+	border-left: 3px solid var(--color-error);
+	color: var(--color-error);
+	font-size: var(--font-size-sm);
+	flex-shrink: 0;
+}
+
+.pending-changes__preview {
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pending-changes__preview-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--spacing-xs) var(--spacing-md);
+	font-size: var(--font-size-xs);
+	color: var(--text-secondary);
+}
+
+.pending-changes__preview-close {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: var(--font-size-base);
+	padding: 0 var(--spacing-xs);
+}
+
+.pending-changes__preview-close:hover {
+	color: var(--text-primary);
+}
+
+.pending-changes__preview-sql {
+	padding: var(--spacing-xs) var(--spacing-md);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	color: var(--text-primary);
+	background: var(--bg-app);
+	max-height: 100px;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+	margin: 0;
+}
+
+.pending-changes__list {
+	overflow-y: auto;
+	flex: 1;
+}
+
+.pending-changes__item {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+	padding: var(--spacing-xs) var(--spacing-md);
+	font-size: var(--font-size-sm);
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pending-changes__item:last-child {
+	border-bottom: none;
+}
+
+.pending-changes__item:hover {
+	background: var(--bg-hover);
+}
+
+.pending-changes__item-icon {
+	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 2px;
+	font-size: var(--font-size-xs);
+	font-weight: 700;
+}
+
+.pending-changes__item-icon--insert {
+	background: rgba(78, 201, 176, 0.2);
+	color: var(--color-success);
+}
+
+.pending-changes__item-icon--update {
+	background: rgba(204, 167, 0, 0.2);
+	color: var(--color-warning);
+}
+
+.pending-changes__item-icon--delete {
+	background: rgba(244, 71, 71, 0.2);
+	color: var(--color-error);
+}
+
+.pending-changes__item-type {
+	flex-shrink: 0;
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	font-family: var(--font-mono);
+	width: 52px;
+	color: var(--text-secondary);
+}
+
+.pending-changes__item-desc {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	color: var(--text-secondary);
+}
+
+.pending-changes__item-revert {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: var(--font-size-base);
+	padding: 0 var(--spacing-xs);
+	line-height: 1;
+}
+
+.pending-changes__item-revert:hover:not(:disabled) {
+	color: var(--color-error);
+}
+
+.pending-changes__item-revert:disabled {
+	opacity: 0.4;
+	cursor: default;
+}

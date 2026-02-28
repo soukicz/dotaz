@@ -14,7 +14,7 @@
 | 2     | Connection Management | DOTAZ-012 – 016 | done        |       |
 | 3     | Data Grid             | DOTAZ-017 – 024 | done        |       |
 | 4     | SQL Editor            | DOTAZ-025 – 031 | done        |       |
-| 5     | Data Editing          | DOTAZ-032 – 035 | in progress |       |
+| 5     | Data Editing          | DOTAZ-032 – 035 | done        |       |
 | 6     | Advanced Features     | DOTAZ-036 – 043 | not started |       |
 | 7     | Polish                | DOTAZ-044 – 053 | not started |       |
 
@@ -81,7 +81,7 @@
 | DOTAZ-032 | Data editing backend (INSERT/UPDATE/DELETE generation) | done | |
 | DOTAZ-033 | InlineEditor (cell editing in grid) | done | Editing state in grid store; type-aware InlineEditor; dblclick/F2/Tab/Enter/Escape; Ctrl+Insert new row; Delete selected rows |
 | DOTAZ-034 | RowDetailDialog (form view of row detail) | done | Enter on selected row opens; Ctrl+Up/Down for navigation; type-aware inputs; FK display |
-| DOTAZ-035 | PendingChanges panel + apply/revert workflow | not started | |
+| DOTAZ-035 | PendingChanges panel + apply/revert workflow | done | Panel with change list, Apply/Revert All, individual revert, SQL preview; badge in footer toggles panel; createEffect syncs dirty flag for tab close warning |
 
 ### Phase 6 — Advanced Features
 | Issue | Title | Status | Notes |
@@ -199,6 +199,9 @@
 | 2026-02-28 | DOTAZ-034 | Local form state in RowDetailDialog, saved to pendingChanges on Save | Local `Record<string, unknown>` tracks edits per session; only writes to grid store on Save; Cancel discards without side effects |
 | 2026-02-28 | DOTAZ-034 | Navigation auto-saves current edits before moving | Previous/Next buttons save local edits to pendingChanges before switching rows; prevents accidental data loss |
 | 2026-02-28 | DOTAZ-034 | Ctrl+Up/Down for row navigation in dialog | Alt or Ctrl + arrow keys for navigation; avoids conflict with normal text input arrow key behavior |
+| 2026-02-28 | DOTAZ-035 | `createEffect` syncs `hasPendingChanges` → `setTabDirty` | Reuses existing tab dirty/close-warning infrastructure; auto-hides panel when changes are cleared |
+| 2026-02-28 | DOTAZ-035 | Individual revert adjusts row indices after removal | Removing a new row shifts all higher indices down; `adjustIndicesAfterRemoval` updates cellEdits, newRows, deletedRows consistently |
+| 2026-02-28 | DOTAZ-035 | `pendingChangesCount` groups cell edits by row | Multiple cell edits on the same row count as one UPDATE change; matches `buildDataChanges` grouping logic |
 
 ---
 
@@ -256,4 +259,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-034)*
+*Last updated: 2026-02-28 (DOTAZ-035)*

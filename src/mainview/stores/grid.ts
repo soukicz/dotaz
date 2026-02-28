@@ -548,6 +548,100 @@ function hasPendingChanges(tabId: string): boolean {
 	);
 }
 
+/** Count total number of distinct changes (grouped by type: update rows, inserts, deletes). */
+function pendingChangesCount(tabId: string): number {
+	const tab = getTab(tabId);
+	if (!tab) return 0;
+
+	// Count distinct rows with cell edits (excluding new/deleted rows)
+	const editedRows = new Set<number>();
+	for (const edit of Object.values(tab.pendingChanges.cellEdits)) {
+		if (!tab.pendingChanges.newRows.has(edit.rowIndex) &&
+			!tab.pendingChanges.deletedRows.has(edit.rowIndex)) {
+			editedRows.add(edit.rowIndex);
+		}
+	}
+
+	return editedRows.size + tab.pendingChanges.newRows.size + tab.pendingChanges.deletedRows.size;
+}
+
+/** Revert all cell edits for a specific existing row (undo UPDATE). */
+function revertRowUpdate(tabId: string, rowIndex: number) {
+	const tab = ensureTab(tabId);
+	const edits = { ...tab.pendingChanges.cellEdits };
+	for (const [key, edit] of Object.entries(edits)) {
+		if (edit.rowIndex === rowIndex) {
+			setState("tabs", tabId, "rows", rowIndex, edit.column, edit.oldValue);
+			delete edits[key];
+		}
+	}
+	setState("tabs", tabId, "pendingChanges", "cellEdits", edits);
+}
+
+/** Revert a new row (undo INSERT). */
+function revertNewRow(tabId: string, rowIndex: number) {
+	const tab = ensureTab(tabId);
+
+	// Remove cell edits for this row
+	const edits = { ...tab.pendingChanges.cellEdits };
+	for (const key of Object.keys(edits)) {
+		if (key.startsWith(`${rowIndex}:`)) delete edits[key];
+	}
+	setState("tabs", tabId, "pendingChanges", "cellEdits", edits);
+
+	// Remove from newRows
+	const nextNew = new Set(tab.pendingChanges.newRows);
+	nextNew.delete(rowIndex);
+	setState("tabs", tabId, "pendingChanges", "newRows", nextNew);
+
+	// Remove the row from rows array and adjust indices in pendingChanges
+	const filteredRows = tab.rows.filter((_, i) => i !== rowIndex);
+	setState("tabs", tabId, "rows", filteredRows);
+
+	// Adjust indices for all pending changes that reference rows after the removed one
+	adjustIndicesAfterRemoval(tabId, rowIndex);
+}
+
+/** Revert a deleted row (undo DELETE). */
+function revertDeletedRow(tabId: string, rowIndex: number) {
+	const tab = ensureTab(tabId);
+	const next = new Set(tab.pendingChanges.deletedRows);
+	next.delete(rowIndex);
+	setState("tabs", tabId, "pendingChanges", "deletedRows", next);
+}
+
+/** Adjust all pending change indices after a row removal. */
+function adjustIndicesAfterRemoval(tabId: string, removedIndex: number) {
+	const tab = ensureTab(tabId);
+
+	// Adjust cellEdits keys
+	const oldEdits = tab.pendingChanges.cellEdits;
+	const newEdits: Record<string, CellChange> = {};
+	for (const [, edit] of Object.entries(oldEdits)) {
+		if (edit.rowIndex > removedIndex) {
+			const adjusted = { ...edit, rowIndex: edit.rowIndex - 1 };
+			newEdits[`${adjusted.rowIndex}:${adjusted.column}`] = adjusted;
+		} else {
+			newEdits[`${edit.rowIndex}:${edit.column}`] = edit;
+		}
+	}
+	setState("tabs", tabId, "pendingChanges", "cellEdits", newEdits);
+
+	// Adjust newRows
+	const newNewRows = new Set<number>();
+	for (const idx of tab.pendingChanges.newRows) {
+		newNewRows.add(idx > removedIndex ? idx - 1 : idx);
+	}
+	setState("tabs", tabId, "pendingChanges", "newRows", newNewRows);
+
+	// Adjust deletedRows
+	const newDeletedRows = new Set<number>();
+	for (const idx of tab.pendingChanges.deletedRows) {
+		newDeletedRows.add(idx > removedIndex ? idx - 1 : idx);
+	}
+	setState("tabs", tabId, "pendingChanges", "deletedRows", newDeletedRows);
+}
+
 function isCellChanged(tabId: string, rowIndex: number, column: string): boolean {
 	const tab = getTab(tabId);
 	if (!tab) return false;
@@ -706,9 +800,13 @@ export const gridStore = {
 	addNewRow,
 	deleteSelectedRows,
 	hasPendingChanges,
+	pendingChangesCount,
 	isCellChanged,
 	isRowNew,
 	isRowDeleted,
 	buildDataChanges,
 	revertChanges,
+	revertRowUpdate,
+	revertNewRow,
+	revertDeletedRow,
 };

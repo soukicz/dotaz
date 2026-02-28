@@ -808,4 +808,102 @@ describe("grid store", () => {
 			expect(tab.pendingChanges.deletedRows.size).toBe(0);
 		});
 	});
+
+	describe("pendingChangesCount", () => {
+		test("returns 0 when no changes", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(0);
+		});
+
+		test("counts updated rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			gridStore.setCellValue("tab-1", 0, "email", "new@test.com");
+			gridStore.setCellValue("tab-1", 1, "name", "Also Updated");
+			// Two rows with edits, but multiple edits on row 0 count as 1
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(2);
+		});
+
+		test("counts new rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.addNewRow("tab-1");
+			gridStore.addNewRow("tab-1");
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(2);
+		});
+
+		test("counts deleted rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.selectRow("tab-1", 0);
+			gridStore.deleteSelectedRows("tab-1");
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(1);
+		});
+
+		test("counts all types together", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			gridStore.addNewRow("tab-1");
+			gridStore.selectRow("tab-1", 1);
+			gridStore.deleteSelectedRows("tab-1");
+			// 1 update + 1 insert + 1 delete = 3
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(3);
+		});
+
+		test("does not double-count edits on deleted rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			gridStore.selectRow("tab-1", 0);
+			gridStore.deleteSelectedRows("tab-1");
+			// Row 0 is deleted; the edit should not count separately
+			expect(gridStore.pendingChangesCount("tab-1")).toBe(1);
+		});
+	});
+
+	describe("revertRowUpdate", () => {
+		test("reverts cell edits for specific row", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			gridStore.setCellValue("tab-1", 0, "id", 999);
+			gridStore.setCellValue("tab-1", 1, "name", "Also Updated");
+
+			gridStore.revertRowUpdate("tab-1", 0);
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.rows[0].name).toBe("Alice");
+			expect(tab.rows[0].id).toBe(1);
+			expect(tab.rows[1].name).toBe("Also Updated"); // unchanged
+			expect(Object.keys(tab.pendingChanges.cellEdits)).toHaveLength(1);
+		});
+	});
+
+	describe("revertNewRow", () => {
+		test("reverts a new row and adjusts indices", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			const idx1 = gridStore.addNewRow("tab-1");
+			const idx2 = gridStore.addNewRow("tab-1");
+			gridStore.setCellValue("tab-1", idx2, "name", "Second New");
+
+			gridStore.revertNewRow("tab-1", idx1);
+
+			const tab = gridStore.getTab("tab-1")!;
+			// Original 3 + 1 remaining new row = 4
+			expect(tab.rows).toHaveLength(4);
+			expect(tab.pendingChanges.newRows.size).toBe(1);
+			// The second new row should now be at index 3 (was 4, adjusted after removal of 3)
+			expect(tab.pendingChanges.newRows.has(3)).toBe(true);
+		});
+	});
+
+	describe("revertDeletedRow", () => {
+		test("unmarks a deleted row", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+			gridStore.selectRow("tab-1", 0);
+			gridStore.deleteSelectedRows("tab-1");
+			expect(gridStore.isRowDeleted("tab-1", 0)).toBe(true);
+
+			gridStore.revertDeletedRow("tab-1", 0);
+
+			expect(gridStore.isRowDeleted("tab-1", 0)).toBe(false);
+			expect(gridStore.hasPendingChanges("tab-1")).toBe(false);
+		});
+	});
 });
