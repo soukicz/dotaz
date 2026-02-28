@@ -35,7 +35,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-004 | Local app SQLite database with migrations | done | |
-| DOTAZ-005 | DatabaseDriver interface + SQLite driver | not started | |
+| DOTAZ-005 | DatabaseDriver interface + SQLite driver | done | |
 | DOTAZ-006 | PostgreSQL driver | not started | |
 | DOTAZ-007 | ConnectionManager service | not started | |
 | DOTAZ-008 | Complete RPC schema + wiring | not started | |
@@ -132,6 +132,8 @@
 | 2026-02-28 | DOTAZ-002 | Import `RPCSchema` from `electrobun/bun` in shared types | Consistent with Electrobun template patterns; type is available from both `electrobun/bun` and `electrobun/browser` |
 | 2026-02-28 | DOTAZ-004 | Use `bun:sqlite` Database directly for app storage (not `Bun.SQL`) | App storage uses synchronous `bun:sqlite` API for simplicity; `Bun.SQL` reserved for user database drivers |
 | 2026-02-28 | DOTAZ-004 | Lazy import of `electrobun/bun` Utils in `getDefaultDbPath()` | Avoids Electrobun dependency in tests; tests pass custom `:memory:` path |
+| 2026-02-28 | DOTAZ-005 | Use `Bun.SQL` (`new SQL("sqlite:path")`) for SQLite driver | Unified API per ARCHITECTURE.md; supports tagged templates and `unsafe()` for raw SQL |
+| 2026-02-28 | DOTAZ-005 | Detect `isAutoIncrement` via single INTEGER PRIMARY KEY heuristic | SQLite's `INTEGER PRIMARY KEY` is a ROWID alias; only applies for single-column PKs |
 
 ---
 
@@ -148,6 +150,13 @@
 
 ### Database Drivers
 <!-- Bun.SQL behavior, PostgreSQL vs SQLite differences, query building, etc. -->
+- `Bun.SQL` SQLite URL format: `sqlite::memory:` for in-memory, `sqlite:/path/to/file.db` for file
+- `db.unsafe(sql, params)` returns array-like result; use `[...result]` to spread into plain array
+- `result.count` gives affected rows for DML, row count for SELECT
+- No `.columns` property on Bun.SQL results — infer column names from `Object.keys(rows[0])`
+- Both `?` and `$1` param styles work for SQLite via Bun.SQL
+- PRAGMA queries accept double-quoted identifiers: `PRAGMA table_info("tablename")`
+- `PRAGMA foreign_keys = ON` must be set per connection (not persistent in SQLite)
 
 ### Testing & Debugging
 <!-- What works, what doesn't, useful debugging techniques, etc. -->
