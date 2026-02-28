@@ -38,7 +38,7 @@
 | DOTAZ-005 | DatabaseDriver interface + SQLite driver | done | |
 | DOTAZ-006 | PostgreSQL driver | done | |
 | DOTAZ-007 | ConnectionManager service | done | |
-| DOTAZ-008 | Complete RPC schema + wiring | not started | |
+| DOTAZ-008 | Complete RPC schema + wiring | done | |
 | DOTAZ-009 | Frontend RPC client (Electroview) | not started | |
 | DOTAZ-010 | AppShell layout components (sidebar, tabs, status bar) | not started | |
 | DOTAZ-011 | Tab management store + TabBar | not started | |
@@ -139,6 +139,8 @@
 | 2026-02-28 | DOTAZ-006 | Detect PG `isAutoIncrement` via `nextval(` in `column_default` | SERIAL/BIGSERIAL columns have default `nextval('sequence_name'::regclass)` |
 | 2026-02-28 | DOTAZ-007 | Use listener pattern for status change events | Simple callback pattern (`onStatusChanged`) allows RPC handlers (DOTAZ-008) to hook in without coupling ConnectionManager to Electrobun RPC |
 | 2026-02-28 | DOTAZ-007 | ConnectionManager takes AppDatabase via constructor injection | Enables testing with in-memory AppDatabase without singletons |
+| 2026-02-28 | DOTAZ-008 | Lazy import of `electrobun/bun` in `createRPC()` | Avoids Electrobun dependency in tests; `createHandlers()` is exported separately for direct testing |
+| 2026-02-28 | DOTAZ-008 | Extracted `createHandlers()` from `createRPC()` | Allows testing handler logic directly without Electrobun runtime; handlers are thin delegation wrappers |
 
 ---
 
@@ -193,4 +195,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-007)*
+*Last updated: 2026-02-28 (DOTAZ-008)*

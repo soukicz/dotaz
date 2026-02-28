@@ -1,4 +1,7 @@
 import { BrowserWindow, Updater } from "electrobun/bun";
+import { AppDatabase } from "./storage/app-db";
+import { ConnectionManager } from "./services/connection-manager";
+import { createRPC, setupStatusNotifications } from "./rpc-handlers";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -20,12 +23,19 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
+// Initialize backend services
+const appDb = AppDatabase.getInstance();
+const connectionManager = new ConnectionManager(appDb);
+
+// Create RPC handlers
+const rpc = createRPC(connectionManager);
+
 const url = await getMainViewUrl();
 
-// @ts-expect-error mainWindow is used by Electrobun runtime
 const mainWindow = new BrowserWindow({
 	title: "Dotaz",
 	url,
+	rpc,
 	frame: {
 		width: 1280,
 		height: 800,
@@ -33,5 +43,8 @@ const mainWindow = new BrowserWindow({
 		y: 200,
 	},
 });
+
+// Wire up BE→FE notifications after window creation
+setupStatusNotifications(mainWindow, connectionManager);
 
 console.log("Dotaz started!");
