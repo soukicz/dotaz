@@ -25,3 +25,12 @@
 .grid-row--selected:hover {
 	background: var(--bg-selection);
 }
+
+.grid-row--deleted {
+	opacity: 0.5;
+	text-decoration: line-through;
+}
+
+.grid-row--new {
+	border-left: 2px solid var(--color-success);
+}

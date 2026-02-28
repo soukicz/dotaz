@@ -106,6 +106,84 @@ export default function DataGrid(props: DataGridProps) {
 		}
 	}
 
+	// ── Editing handlers ──────────────────────────────────
+
+	function handleRowDblClick(index: number, e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		const cellEl = target.closest<HTMLElement>("[data-column]");
+		const columnName = cellEl?.dataset.column;
+		if (columnName && !gridStore.isRowDeleted(props.tabId, index)) {
+			gridStore.startEditing(props.tabId, index, columnName);
+		}
+	}
+
+	function startEditingFocused() {
+		const t = tab();
+		if (!t?.focusedCell) return;
+		if (gridStore.isRowDeleted(props.tabId, t.focusedCell.row)) return;
+		gridStore.startEditing(props.tabId, t.focusedCell.row, t.focusedCell.column);
+	}
+
+	function handleCellSave(rowIndex: number, column: string, value: unknown) {
+		gridStore.setCellValue(props.tabId, rowIndex, column, value);
+		gridStore.stopEditing(props.tabId);
+	}
+
+	function handleCellCancel() {
+		gridStore.stopEditing(props.tabId);
+	}
+
+	function handleCellMoveNext(rowIndex: number, currentColumn: string) {
+		const cols = visibleColumns();
+		const idx = cols.findIndex((c) => c.name === currentColumn);
+		if (idx < cols.length - 1) {
+			const nextCol = cols[idx + 1].name;
+			gridStore.startEditing(props.tabId, rowIndex, nextCol);
+			gridStore.setFocusedCell(props.tabId, { row: rowIndex, column: nextCol });
+		} else {
+			gridStore.stopEditing(props.tabId);
+		}
+	}
+
+	function handleCellMoveDown(rowIndex: number, currentColumn: string) {
+		const t = tab();
+		if (!t) return;
+		if (rowIndex < t.rows.length - 1) {
+			gridStore.startEditing(props.tabId, rowIndex + 1, currentColumn);
+			gridStore.setFocusedCell(props.tabId, { row: rowIndex + 1, column: currentColumn });
+		} else {
+			gridStore.stopEditing(props.tabId);
+		}
+	}
+
+	function handleAddNewRow() {
+		const newIndex = gridStore.addNewRow(props.tabId);
+		const cols = visibleColumns();
+		if (cols.length > 0) {
+			gridStore.startEditing(props.tabId, newIndex, cols[0].name);
+			gridStore.setFocusedCell(props.tabId, { row: newIndex, column: cols[0].name });
+		}
+	}
+
+	function handleDeleteSelected() {
+		gridStore.deleteSelectedRows(props.tabId);
+	}
+
+	function getChangedCells(rowIndex: number): Set<string> {
+		const t = tab();
+		if (!t) return new Set();
+		const changed = new Set<string>();
+		for (const key of Object.keys(t.pendingChanges.cellEdits)) {
+			const edit = t.pendingChanges.cellEdits[key];
+			if (edit.rowIndex === rowIndex) {
+				changed.add(edit.column);
+			}
+		}
+		return changed;
+	}
+
+	// ── Clipboard ──────────────────────────────────────────
+
 	async function handleCopy() {
 		const result = gridStore.buildClipboardTsv(props.tabId, visibleColumns());
 		if (!result) return;
@@ -137,6 +215,38 @@ export default function DataGrid(props: DataGridProps) {
 			handler(e) {
 				e.preventDefault();
 				gridStore.selectAll(props.tabId);
+			},
+		},
+		{
+			key: "F2",
+			handler(e) {
+				e.preventDefault();
+				startEditingFocused();
+			},
+		},
+		{
+			key: "Insert",
+			ctrl: true,
+			handler(e) {
+				e.preventDefault();
+				handleAddNewRow();
+			},
+		},
+		{
+			key: "Delete",
+			handler(e) {
+				e.preventDefault();
+				handleDeleteSelected();
+			},
+		},
+		{
+			key: "Escape",
+			handler(e) {
+				const t = tab();
+				if (t?.editingCell) {
+					e.preventDefault();
+					handleCellCancel();
+				}
 			},
 		},
 	]);
@@ -213,6 +323,15 @@ export default function DataGrid(props: DataGridProps) {
 								selectedRows={tabState().selectedRows}
 								scrollMargin={HEADER_HEIGHT}
 								onRowClick={handleRowClick}
+								onRowDblClick={handleRowDblClick}
+								editingCell={tabState().editingCell}
+								getChangedCells={getChangedCells}
+								isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
+								isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
+								onCellSave={handleCellSave}
+								onCellCancel={handleCellCancel}
+								onCellMoveNext={handleCellMoveNext}
+								onCellMoveDown={handleCellMoveDown}
 							/>
 						</div>
 
@@ -225,6 +344,11 @@ export default function DataGrid(props: DataGridProps) {
 								onPageChange={(page) => gridStore.setPage(props.tabId, page)}
 								onPageSizeChange={(size) => gridStore.setPageSize(props.tabId, size)}
 							/>
+							<Show when={gridStore.hasPendingChanges(props.tabId)}>
+								<div class="data-grid__pending-indicator">
+									Pending changes
+								</div>
+							</Show>
 						</div>
 					</>
 				)}

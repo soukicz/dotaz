@@ -30,6 +30,21 @@ mock.module("solid-js/store", () => ({
 				} else {
 					storeState[key][subKey][field] = value;
 				}
+			} else if (args.length === 5) {
+				// setState("tabs", tabId, "nested", "subField", value)
+				const [key, subKey, field, subField, value] = args;
+				if (!storeState[key][subKey][field]) storeState[key][subKey][field] = {};
+				storeState[key][subKey][field][subField] = value;
+			} else if (args.length === 6) {
+				// setState("tabs", tabId, "nested", index/key, "subField", value)
+				const [key, subKey, field, index, subField, value] = args;
+				if (!storeState[key][subKey][field]) storeState[key][subKey][field] = {};
+				if (storeState[key][subKey][field][index] === undefined) {
+					storeState[key][subKey][field][index] = {};
+				}
+				if (typeof storeState[key][subKey][field][index] === "object" && storeState[key][subKey][field][index] !== null) {
+					storeState[key][subKey][field][index][subField] = value;
+				}
 			}
 		};
 
@@ -609,6 +624,188 @@ describe("grid store", () => {
 
 			await expect(gridStore.setPage("tab-1", 2)).rejects.toThrow("Connection lost");
 			expect(gridStore.getTab("tab-1")!.loading).toBe(false);
+		});
+	});
+
+	describe("inline editing", () => {
+		test("startEditing sets editingCell", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.startEditing("tab-1", 0, "name");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.editingCell).toEqual({ row: 0, column: "name" });
+		});
+
+		test("stopEditing clears editingCell", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.startEditing("tab-1", 0, "name");
+			gridStore.stopEditing("tab-1");
+
+			expect(gridStore.getTab("tab-1")!.editingCell).toBeNull();
+		});
+
+		test("setCellValue adds to pendingChanges and updates row data", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.pendingChanges.cellEdits["0:name"]).toEqual({
+				rowIndex: 0,
+				column: "name",
+				oldValue: "Alice",
+				newValue: "Updated",
+			});
+			expect(tab.rows[0].name).toBe("Updated");
+		});
+
+		test("setCellValue removes edit when reverting to original value", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			expect(gridStore.isCellChanged("tab-1", 0, "name")).toBe(true);
+
+			gridStore.setCellValue("tab-1", 0, "name", "Alice");
+			expect(gridStore.isCellChanged("tab-1", 0, "name")).toBe(false);
+		});
+
+		test("isCellChanged returns correct state", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			expect(gridStore.isCellChanged("tab-1", 0, "name")).toBe(false);
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			expect(gridStore.isCellChanged("tab-1", 0, "name")).toBe(true);
+			expect(gridStore.isCellChanged("tab-1", 0, "id")).toBe(false);
+		});
+
+		test("addNewRow adds empty row and marks as new", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			const newIndex = gridStore.addNewRow("tab-1");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(newIndex).toBe(3);
+			expect(tab.rows).toHaveLength(4);
+			expect(tab.rows[3]).toEqual({ id: null, name: null });
+			expect(tab.pendingChanges.newRows.has(3)).toBe(true);
+			expect(gridStore.isRowNew("tab-1", 3)).toBe(true);
+		});
+
+		test("deleteSelectedRows marks rows as deleted", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.selectRow("tab-1", 1);
+			gridStore.deleteSelectedRows("tab-1");
+
+			expect(gridStore.isRowDeleted("tab-1", 1)).toBe(true);
+			expect(gridStore.isRowDeleted("tab-1", 0)).toBe(false);
+		});
+
+		test("deleteSelectedRows removes new rows instead of marking deleted", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			const newIndex = gridStore.addNewRow("tab-1");
+			gridStore.selectRow("tab-1", newIndex);
+			gridStore.deleteSelectedRows("tab-1");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.pendingChanges.newRows.has(newIndex)).toBe(false);
+			expect(tab.pendingChanges.deletedRows.has(newIndex)).toBe(false);
+		});
+
+		test("hasPendingChanges returns true when changes exist", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			expect(gridStore.hasPendingChanges("tab-1")).toBe(false);
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			expect(gridStore.hasPendingChanges("tab-1")).toBe(true);
+		});
+
+		test("buildDataChanges generates update changes", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+
+			const changes = gridStore.buildDataChanges("tab-1");
+			expect(changes).toHaveLength(1);
+			expect(changes[0]).toEqual({
+				type: "update",
+				schema: "public",
+				table: "users",
+				primaryKeys: { id: 1 },
+				values: { name: "Updated" },
+			});
+		});
+
+		test("buildDataChanges generates insert changes for new rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			const newIndex = gridStore.addNewRow("tab-1");
+			gridStore.setCellValue("tab-1", newIndex, "name", "David");
+
+			const changes = gridStore.buildDataChanges("tab-1");
+			const inserts = changes.filter((c) => c.type === "insert");
+			expect(inserts).toHaveLength(1);
+			expect(inserts[0].values).toEqual({ name: "David" });
+		});
+
+		test("buildDataChanges generates delete changes", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.selectRow("tab-1", 2);
+			gridStore.deleteSelectedRows("tab-1");
+
+			const changes = gridStore.buildDataChanges("tab-1");
+			const deletes = changes.filter((c) => c.type === "delete");
+			expect(deletes).toHaveLength(1);
+			expect(deletes[0]).toEqual({
+				type: "delete",
+				schema: "public",
+				table: "users",
+				primaryKeys: { id: 3 },
+			});
+		});
+
+		test("revertChanges restores original values", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.setCellValue("tab-1", 0, "name", "Updated");
+			expect(gridStore.getTab("tab-1")!.rows[0].name).toBe("Updated");
+
+			gridStore.revertChanges("tab-1");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.rows[0].name).toBe("Alice");
+			expect(Object.keys(tab.pendingChanges.cellEdits)).toHaveLength(0);
+			expect(tab.pendingChanges.newRows.size).toBe(0);
+			expect(tab.pendingChanges.deletedRows.size).toBe(0);
+			expect(tab.editingCell).toBeNull();
+		});
+
+		test("revertChanges removes new rows", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			gridStore.addNewRow("tab-1");
+			expect(gridStore.getTab("tab-1")!.rows).toHaveLength(4);
+
+			gridStore.revertChanges("tab-1");
+
+			expect(gridStore.getTab("tab-1")!.rows).toHaveLength(3);
+		});
+
+		test("initial state has empty pendingChanges", async () => {
+			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
+
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.editingCell).toBeNull();
+			expect(tab.pendingChanges).toBeDefined();
+			expect(Object.keys(tab.pendingChanges.cellEdits)).toHaveLength(0);
+			expect(tab.pendingChanges.newRows.size).toBe(0);
+			expect(tab.pendingChanges.deletedRows.size).toBe(0);
 		});
 	});
 });

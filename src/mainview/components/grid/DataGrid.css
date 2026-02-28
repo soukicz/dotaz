@@ -82,6 +82,14 @@
 	font-size: var(--font-size-xs);
 }
 
+.data-grid__pending-indicator {
+	margin-left: auto;
+	padding: 0 var(--spacing-sm);
+	color: var(--color-warning);
+	font-size: var(--font-size-xs);
+	font-weight: 500;
+}
+
 .data-grid__copy-toast {
 	position: absolute;
 	bottom: 40px;

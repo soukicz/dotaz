@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
+import InlineEditor from "../edit/InlineEditor";
 import "./GridCell.css";
 
 interface GridCellProps {
@@ -7,6 +8,14 @@ interface GridCellProps {
 	column: GridColumnDef;
 	width: number;
 	pinStyle?: Record<string, string>;
+	editing?: boolean;
+	changed?: boolean;
+	deleted?: boolean;
+	newRow?: boolean;
+	onSave?: (value: unknown) => void;
+	onCancel?: () => void;
+	onMoveNext?: () => void;
+	onMoveDown?: () => void;
 }
 
 function isNumericType(dataType: string): boolean {
@@ -98,6 +107,20 @@ export default function GridCell(props: GridCellProps) {
 		}
 	});
 
+	if (props.editing) {
+		return (
+			<InlineEditor
+				value={props.value}
+				column={props.column}
+				width={props.width}
+				onSave={props.onSave!}
+				onCancel={props.onCancel!}
+				onMoveNext={props.onMoveNext!}
+				onMoveDown={props.onMoveDown!}
+			/>
+		);
+	}
+
 	return (
 		<div
 			class="grid-cell"
@@ -107,6 +130,9 @@ export default function GridCell(props: GridCellProps) {
 				"grid-cell--boolean": isBool() && !isNull(),
 				"grid-cell--json": isJson() && !isNull(),
 				"grid-cell--timestamp": isTs() && !isNull(),
+				"grid-cell--changed": !!props.changed,
+				"grid-cell--deleted": !!props.deleted,
+				"grid-cell--new-row": !!props.newRow,
 			}}
 			style={{ width: `${props.width}px`, ...props.pinStyle }}
 			title={tooltipValue()}

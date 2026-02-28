@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { GridColumnDef } from "../../../shared/types/grid";
-import type { ColumnConfig } from "../../stores/grid";
+import type { ColumnConfig, EditingCell } from "../../stores/grid";
 import GridRow from "./GridRow";
 import "./VirtualScroller.css";
 
@@ -17,6 +17,15 @@ interface VirtualScrollerProps {
 	selectedRows: Set<number>;
 	scrollMargin: number;
 	onRowClick: (index: number, e: MouseEvent) => void;
+	onRowDblClick?: (index: number, e: MouseEvent) => void;
+	editingCell?: EditingCell | null;
+	getChangedCells?: (rowIndex: number) => Set<string>;
+	isRowDeleted?: (rowIndex: number) => boolean;
+	isRowNew?: (rowIndex: number) => boolean;
+	onCellSave?: (rowIndex: number, column: string, value: unknown) => void;
+	onCellCancel?: () => void;
+	onCellMoveNext?: (rowIndex: number, column: string) => void;
+	onCellMoveDown?: (rowIndex: number, column: string) => void;
 }
 
 export default function VirtualScroller(props: VirtualScrollerProps) {
@@ -51,6 +60,15 @@ export default function VirtualScroller(props: VirtualScrollerProps) {
 						pinStyles={props.pinStyles}
 						selected={props.selectedRows.has(virtualRow.index)}
 						onClick={props.onRowClick}
+						onDblClick={props.onRowDblClick}
+						editingCell={props.editingCell}
+						changedCells={props.getChangedCells?.(virtualRow.index)}
+						isDeleted={props.isRowDeleted?.(virtualRow.index)}
+						isNewRow={props.isRowNew?.(virtualRow.index)}
+						onCellSave={(col, val) => props.onCellSave?.(virtualRow.index, col, val)}
+						onCellCancel={props.onCellCancel}
+						onCellMoveNext={(col) => props.onCellMoveNext?.(virtualRow.index, col)}
+						onCellMoveDown={(col) => props.onCellMoveDown?.(virtualRow.index, col)}
 						style={{
 							position: "absolute",
 							top: `${virtualRow.start - virtualizer.options.scrollMargin}px`,

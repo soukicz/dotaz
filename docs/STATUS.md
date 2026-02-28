@@ -14,7 +14,7 @@
 | 2     | Connection Management | DOTAZ-012 – 016 | done        |       |
 | 3     | Data Grid             | DOTAZ-017 – 024 | done        |       |
 | 4     | SQL Editor            | DOTAZ-025 – 031 | done        |       |
-| 5     | Data Editing          | DOTAZ-032 – 035 | not started |       |
+| 5     | Data Editing          | DOTAZ-032 – 035 | in progress |       |
 | 6     | Advanced Features     | DOTAZ-036 – 043 | not started |       |
 | 7     | Polish                | DOTAZ-044 – 053 | not started |       |
 
@@ -79,7 +79,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-032 | Data editing backend (INSERT/UPDATE/DELETE generation) | done | |
-| DOTAZ-033 | InlineEditor (cell editing in grid) | not started | |
+| DOTAZ-033 | InlineEditor (cell editing in grid) | done | Editing state in grid store; type-aware InlineEditor; dblclick/F2/Tab/Enter/Escape; Ctrl+Insert new row; Delete selected rows |
 | DOTAZ-034 | RowDetailDialog (form view of row detail) | not started | |
 | DOTAZ-035 | PendingChanges panel + apply/revert workflow | not started | |
 
@@ -193,6 +193,9 @@
 | 2026-02-28 | DOTAZ-031 | Parallel column fetching with version guard | All table columns fetched via `Promise.all` for speed; version counter prevents stale results from overwriting newer ones |
 | 2026-02-28 | DOTAZ-032 | SQL generation in query-executor.ts alongside existing query builders | Keeps all SQL building logic in one module; `generateInsert/Update/Delete` + `generateChangeSql` for parameterized execution, `generateChangePreview/generateChangesPreview` for readable SQL with inlined values |
 | 2026-02-28 | DOTAZ-032 | Transaction wrapping in RPC handler, not in SQL generation | `data.applyChanges` handler calls `beginTransaction/commit/rollback` on the driver; SQL generators are pure functions returning `{ sql, params }` |
+| 2026-02-28 | DOTAZ-033 | PendingChanges in grid store with cellEdits/newRows/deletedRows | Separate tracking enables per-cell change indicators, new row highlighting, and row deletion strikethrough; `buildDataChanges()` converts to `DataChange[]` for backend |
+| 2026-02-28 | DOTAZ-033 | InlineEditor as separate component rendered by GridCell | Keeps GridCell simple; InlineEditor handles type-aware inputs (text/textarea/number/checkbox/date); mounted inside the cell position for seamless UX |
+| 2026-02-28 | DOTAZ-033 | Editing props flow through VirtualScroller → GridRow → GridCell | Each layer passes editing state down; avoids store access in leaf components; consistent with existing prop-drilling pattern |
 
 ---
 
@@ -250,4 +253,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-032)*
+*Last updated: 2026-02-28 (DOTAZ-033)*

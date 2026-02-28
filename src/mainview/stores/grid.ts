@@ -4,6 +4,7 @@ import type {
 	GridColumnDef,
 	SortColumn,
 } from "../../shared/types/grid";
+import type { DataChange } from "../../shared/types/rpc";
 import { rpc } from "../lib/rpc";
 
 // ── Column config (visibility, order, widths, pinned) ────
@@ -21,6 +22,29 @@ export interface FocusedCell {
 	column: string;
 }
 
+export interface EditingCell {
+	row: number;
+	column: string;
+}
+
+/** A pending cell-level change, keyed by "rowIndex:columnName". */
+export interface CellChange {
+	rowIndex: number;
+	column: string;
+	oldValue: unknown;
+	newValue: unknown;
+}
+
+/** Track new rows and deleted rows alongside cell edits. */
+export interface PendingChanges {
+	/** Cell-level edits keyed by "rowIndex:columnName". */
+	cellEdits: Record<string, CellChange>;
+	/** Row indices of new rows (appended at end). */
+	newRows: Set<number>;
+	/** Row indices marked for deletion. */
+	deletedRows: Set<number>;
+}
+
 export interface TabGridState {
 	connectionId: string;
 	schema: string;
@@ -34,9 +58,19 @@ export interface TabGridState {
 	filters: ColumnFilter[];
 	selectedRows: Set<number>;
 	focusedCell: FocusedCell | null;
+	editingCell: EditingCell | null;
+	pendingChanges: PendingChanges;
 	columnConfig: Record<string, ColumnConfig>;
 	columnOrder: string[];
 	loading: boolean;
+}
+
+function createDefaultPendingChanges(): PendingChanges {
+	return {
+		cellEdits: {},
+		newRows: new Set(),
+		deletedRows: new Set(),
+	};
 }
 
 function createDefaultTabState(
@@ -57,6 +91,8 @@ function createDefaultTabState(
 		filters: [],
 		selectedRows: new Set(),
 		focusedCell: null,
+		editingCell: null,
+		pendingChanges: createDefaultPendingChanges(),
 		columnConfig: {},
 		columnOrder: [],
 		loading: false,
@@ -427,6 +463,208 @@ function computePinStyles(
 	return styles;
 }
 
+// ── Editing actions ───────────────────────────────────────
+
+function startEditing(tabId: string, row: number, column: string) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "editingCell", { row, column });
+}
+
+function stopEditing(tabId: string) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "editingCell", null);
+}
+
+function setCellValue(tabId: string, rowIndex: number, column: string, newValue: unknown) {
+	const tab = ensureTab(tabId);
+	const key = `${rowIndex}:${column}`;
+	const existing = tab.pendingChanges.cellEdits[key];
+	const oldValue = existing ? existing.oldValue : tab.rows[rowIndex]?.[column];
+
+	// If reverting to original value, remove the edit
+	if (oldValue === newValue) {
+		const next = { ...tab.pendingChanges.cellEdits };
+		delete next[key];
+		setState("tabs", tabId, "pendingChanges", "cellEdits", next);
+	} else {
+		setState("tabs", tabId, "pendingChanges", "cellEdits", key, {
+			rowIndex,
+			column,
+			oldValue,
+			newValue,
+		});
+	}
+
+	// Also update the actual row data for display
+	setState("tabs", tabId, "rows", rowIndex, column, newValue);
+}
+
+function addNewRow(tabId: string) {
+	const tab = ensureTab(tabId);
+	const emptyRow: Record<string, unknown> = {};
+	for (const col of tab.columns) {
+		emptyRow[col.name] = null;
+	}
+	const newIndex = tab.rows.length;
+	setState("tabs", tabId, "rows", [...tab.rows, emptyRow]);
+	const next = new Set(tab.pendingChanges.newRows);
+	next.add(newIndex);
+	setState("tabs", tabId, "pendingChanges", "newRows", next);
+	return newIndex;
+}
+
+function deleteSelectedRows(tabId: string) {
+	const tab = ensureTab(tabId);
+	if (tab.selectedRows.size === 0) return;
+	const next = new Set(tab.pendingChanges.deletedRows);
+	for (const idx of tab.selectedRows) {
+		// New rows that haven't been saved: remove them entirely
+		if (tab.pendingChanges.newRows.has(idx)) {
+			// Remove from newRows instead
+			const nextNew = new Set(tab.pendingChanges.newRows);
+			nextNew.delete(idx);
+			setState("tabs", tabId, "pendingChanges", "newRows", nextNew);
+			// Remove any cell edits for this row
+			const edits = { ...tab.pendingChanges.cellEdits };
+			for (const key of Object.keys(edits)) {
+				if (key.startsWith(`${idx}:`)) delete edits[key];
+			}
+			setState("tabs", tabId, "pendingChanges", "cellEdits", edits);
+		} else {
+			next.add(idx);
+		}
+	}
+	setState("tabs", tabId, "pendingChanges", "deletedRows", next);
+	setState("tabs", tabId, "selectedRows", new Set());
+}
+
+function hasPendingChanges(tabId: string): boolean {
+	const tab = getTab(tabId);
+	if (!tab) return false;
+	return (
+		Object.keys(tab.pendingChanges.cellEdits).length > 0 ||
+		tab.pendingChanges.newRows.size > 0 ||
+		tab.pendingChanges.deletedRows.size > 0
+	);
+}
+
+function isCellChanged(tabId: string, rowIndex: number, column: string): boolean {
+	const tab = getTab(tabId);
+	if (!tab) return false;
+	return `${rowIndex}:${column}` in tab.pendingChanges.cellEdits;
+}
+
+function isRowNew(tabId: string, rowIndex: number): boolean {
+	const tab = getTab(tabId);
+	if (!tab) return false;
+	return tab.pendingChanges.newRows.has(rowIndex);
+}
+
+function isRowDeleted(tabId: string, rowIndex: number): boolean {
+	const tab = getTab(tabId);
+	if (!tab) return false;
+	return tab.pendingChanges.deletedRows.has(rowIndex);
+}
+
+/**
+ * Build DataChange array from pending changes for backend submission.
+ */
+function buildDataChanges(tabId: string): DataChange[] {
+	const tab = ensureTab(tabId);
+	const changes: DataChange[] = [];
+	const pkColumns = tab.columns.filter((c) => c.isPrimaryKey).map((c) => c.name);
+
+	// Collect updates: group cell edits by row
+	const editsByRow = new Map<number, Record<string, unknown>>();
+	for (const edit of Object.values(tab.pendingChanges.cellEdits)) {
+		if (tab.pendingChanges.newRows.has(edit.rowIndex)) continue; // new rows handled separately
+		if (tab.pendingChanges.deletedRows.has(edit.rowIndex)) continue; // deleted rows handled separately
+		let rowEdits = editsByRow.get(edit.rowIndex);
+		if (!rowEdits) {
+			rowEdits = {};
+			editsByRow.set(edit.rowIndex, rowEdits);
+		}
+		rowEdits[edit.column] = edit.newValue;
+	}
+
+	for (const [rowIndex, values] of editsByRow) {
+		const row = tab.rows[rowIndex];
+		const primaryKeys: Record<string, unknown> = {};
+		for (const pk of pkColumns) {
+			// Use original value if the PK was edited, otherwise current value
+			const cellEdit = tab.pendingChanges.cellEdits[`${rowIndex}:${pk}`];
+			primaryKeys[pk] = cellEdit ? cellEdit.oldValue : row[pk];
+		}
+		changes.push({
+			type: "update",
+			schema: tab.schema,
+			table: tab.table,
+			primaryKeys,
+			values,
+		});
+	}
+
+	// Collect inserts (new rows)
+	for (const rowIndex of tab.pendingChanges.newRows) {
+		const row = tab.rows[rowIndex];
+		if (!row) continue;
+		const values: Record<string, unknown> = {};
+		for (const col of tab.columns) {
+			if (row[col.name] !== null && row[col.name] !== undefined) {
+				values[col.name] = row[col.name];
+			}
+		}
+		if (Object.keys(values).length > 0) {
+			changes.push({
+				type: "insert",
+				schema: tab.schema,
+				table: tab.table,
+				values,
+			});
+		}
+	}
+
+	// Collect deletes
+	for (const rowIndex of tab.pendingChanges.deletedRows) {
+		const row = tab.rows[rowIndex];
+		if (!row) continue;
+		const primaryKeys: Record<string, unknown> = {};
+		for (const pk of pkColumns) {
+			primaryKeys[pk] = row[pk];
+		}
+		changes.push({
+			type: "delete",
+			schema: tab.schema,
+			table: tab.table,
+			primaryKeys,
+		});
+	}
+
+	return changes;
+}
+
+function revertChanges(tabId: string) {
+	const tab = ensureTab(tabId);
+
+	// Revert cell edits to original values
+	for (const edit of Object.values(tab.pendingChanges.cellEdits)) {
+		if (!tab.pendingChanges.newRows.has(edit.rowIndex)) {
+			setState("tabs", tabId, "rows", edit.rowIndex, edit.column, edit.oldValue);
+		}
+	}
+
+	// Remove new rows from end
+	const newRowIndices = [...tab.pendingChanges.newRows].sort((a, b) => b - a);
+	if (newRowIndices.length > 0) {
+		const filteredRows = tab.rows.filter((_, i) => !tab.pendingChanges.newRows.has(i));
+		setState("tabs", tabId, "rows", filteredRows);
+	}
+
+	// Clear all pending changes
+	setState("tabs", tabId, "pendingChanges", createDefaultPendingChanges());
+	setState("tabs", tabId, "editingCell", null);
+}
+
 function removeTab(tabId: string) {
 	setState("tabs", tabId, undefined!);
 }
@@ -460,4 +698,17 @@ export const gridStore = {
 	getVisibleColumns,
 	computePinStyles,
 	removeTab,
+
+	// Editing
+	startEditing,
+	stopEditing,
+	setCellValue,
+	addNewRow,
+	deleteSelectedRows,
+	hasPendingChanges,
+	isCellChanged,
+	isRowNew,
+	isRowDeleted,
+	buildDataChanges,
+	revertChanges,
 };

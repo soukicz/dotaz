@@ -1,6 +1,6 @@
 import { For } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
-import type { ColumnConfig } from "../../stores/grid";
+import type { ColumnConfig, EditingCell } from "../../stores/grid";
 import GridCell from "./GridCell";
 import "./GridRow.css";
 
@@ -12,7 +12,16 @@ interface GridRowProps {
 	pinStyles: Map<string, Record<string, string>>;
 	selected: boolean;
 	onClick: (index: number, e: MouseEvent) => void;
+	onDblClick?: (index: number, e: MouseEvent) => void;
 	style?: Record<string, string>;
+	editingCell?: EditingCell | null;
+	changedCells?: Set<string>;
+	isDeleted?: boolean;
+	isNewRow?: boolean;
+	onCellSave?: (column: string, value: unknown) => void;
+	onCellCancel?: () => void;
+	onCellMoveNext?: (column: string) => void;
+	onCellMoveDown?: (column: string) => void;
 }
 
 const DEFAULT_COLUMN_WIDTH = 150;
@@ -26,6 +35,10 @@ export default function GridRow(props: GridRowProps) {
 		props.onClick(props.index, e);
 	}
 
+	function handleDblClick(e: MouseEvent) {
+		props.onDblClick?.(props.index, e);
+	}
+
 	return (
 		<div
 			class="grid-row"
@@ -33,19 +46,37 @@ export default function GridRow(props: GridRowProps) {
 				"grid-row--selected": props.selected,
 				"grid-row--even": props.index % 2 === 0,
 				"grid-row--odd": props.index % 2 !== 0,
+				"grid-row--deleted": !!props.isDeleted,
+				"grid-row--new": !!props.isNewRow,
 			}}
 			style={props.style}
 			onClick={handleClick}
+			onDblClick={handleDblClick}
 		>
 			<For each={props.columns}>
-				{(col) => (
-					<GridCell
-						value={props.row[col.name]}
-						column={col}
-						width={getColumnWidth(col.name, props.columnConfig)}
-						pinStyle={props.pinStyles.get(col.name)}
-					/>
-				)}
+				{(col) => {
+					const isEditing = () =>
+						props.editingCell?.row === props.index &&
+						props.editingCell?.column === col.name;
+					const isChanged = () => props.changedCells?.has(col.name) ?? false;
+
+					return (
+						<GridCell
+							value={props.row[col.name]}
+							column={col}
+							width={getColumnWidth(col.name, props.columnConfig)}
+							pinStyle={props.pinStyles.get(col.name)}
+							editing={isEditing()}
+							changed={isChanged()}
+							deleted={props.isDeleted}
+							newRow={props.isNewRow}
+							onSave={(value) => props.onCellSave?.(col.name, value)}
+							onCancel={() => props.onCellCancel?.()}
+							onMoveNext={() => props.onCellMoveNext?.(col.name)}
+							onMoveDown={() => props.onCellMoveDown?.(col.name)}
+						/>
+					);
+				}}
 			</For>
 		</div>
 	);
