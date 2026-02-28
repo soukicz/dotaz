@@ -46,3 +46,15 @@
 	font-size: var(--font-size-base);
 	margin: 0;
 }
+
+.sql-console {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+.sql-console__results {
+	flex: 1;
+	overflow: auto;
+}

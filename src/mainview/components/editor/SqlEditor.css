@@ -1,0 +1,32 @@
+.sql-editor {
+	display: flex;
+	flex-direction: column;
+	min-height: 60px;
+	border-bottom: 1px solid var(--border-color);
+	overflow: hidden;
+}
+
+.sql-editor__codemirror {
+	flex: 1;
+	overflow: auto;
+}
+
+.sql-editor__codemirror .cm-editor {
+	height: 100%;
+}
+
+.sql-editor__codemirror .cm-scroller {
+	overflow: auto;
+}
+
+.sql-editor__resize-handle {
+	height: var(--resizer-width);
+	cursor: row-resize;
+	background: transparent;
+	transition: background 0.15s;
+	flex-shrink: 0;
+}
+
+.sql-editor__resize-handle:hover {
+	background: var(--accent);
+}

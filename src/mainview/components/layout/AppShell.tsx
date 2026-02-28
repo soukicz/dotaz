@@ -6,6 +6,7 @@ import StatusBar from "./StatusBar";
 import ConnectionTree from "../connection/ConnectionTree";
 import ConnectionDialog from "../connection/ConnectionDialog";
 import DataGrid from "../grid/DataGrid";
+import SqlEditor from "../editor/SqlEditor";
 import type { ConnectionInfo } from "../../../shared/types/connection";
 import { tabsStore } from "../../stores/tabs";
 import "./AppShell.css";
@@ -87,6 +88,17 @@ export default function AppShell() {
 											schema={tab().schema!}
 											table={tab().table!}
 										/>
+									</Match>
+									<Match when={tab().type === "sql-console"}>
+										<div class="sql-console">
+											<SqlEditor
+												tabId={tab().id}
+												connectionId={tab().connectionId}
+											/>
+											<div class="sql-console__results">
+												{/* SqlResultPanel will be added in DOTAZ-030 */}
+											</div>
+										</div>
 									</Match>
 								</Switch>
 							)}
