@@ -272,8 +272,14 @@ export class PostgresDriver implements DatabaseDriver {
 
 	async beginTransaction(): Promise<void> {
 		this.ensureConnected();
-		this.reservedConn = await this.db!.reserve();
-		await this.reservedConn.unsafe("BEGIN");
+		const conn = await this.db!.reserve();
+		try {
+			await conn.unsafe("BEGIN");
+		} catch (err) {
+			conn.release();
+			throw err;
+		}
+		this.reservedConn = conn;
 		this.txActive = true;
 	}
 

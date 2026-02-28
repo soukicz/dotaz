@@ -123,7 +123,11 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 				return { appliedCount: changes.length };
 			} catch (err) {
 				if (!inExistingTx) {
-					await driver.rollback();
+					try {
+						await driver.rollback();
+					} catch {
+						// Don't mask the original error
+					}
 				}
 				throw err;
 			}
@@ -256,6 +260,7 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 
 		// ── System ────────────────────────────────────────
 		"system.showOpenDialog": async ({ filters, multiple }: OpenDialogParams) => {
+			if (!Utils) throw new Error("Utils not available");
 			const allowedFileTypes = filters && filters.length > 0
 				? filters.flatMap(f => f.extensions.map(ext => `*.${ext}`)).join(",")
 				: "*";
@@ -273,6 +278,7 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 			return { paths, cancelled: paths.length === 0 };
 		},
 		"system.showSaveDialog": async ({ defaultName }: SaveDialogParams) => {
+			if (!Utils) throw new Error("Utils not available");
 			// Electrobun doesn't expose a native save dialog yet;
 			// use directory picker + defaultName as workaround
 			const result = await Utils.openFileDialog({
