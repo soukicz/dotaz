@@ -11,7 +11,7 @@
 |-------|-----------------------|-----------------|-------------|-------|
 | 0     | Project Setup         | DOTAZ-001 – 003 | done        |       |
 | 1     | Foundation            | DOTAZ-004 – 011 | done        |       |
-| 2     | Connection Management | DOTAZ-012 – 016 | not started |       |
+| 2     | Connection Management | DOTAZ-012 – 016 | in progress |       |
 | 3     | Data Grid             | DOTAZ-017 – 024 | not started |       |
 | 4     | SQL Editor            | DOTAZ-025 – 031 | not started |       |
 | 5     | Data Editing          | DOTAZ-032 – 035 | not started |       |
@@ -49,7 +49,7 @@
 | DOTAZ-012 | Connection store (frontend state) | done | |
 | DOTAZ-013 | ConnectionDialog (add/edit form) | done | |
 | DOTAZ-014 | File dialog + save dialog RPC handlers | done | Electrobun lacks native save dialog; used directory picker + defaultName workaround |
-| DOTAZ-015 | ConnectionTree (sidebar tree) | not started | |
+| DOTAZ-015 | ConnectionTree (sidebar tree) | done | |
 | DOTAZ-016 | Context menu for connections | not started | |
 
 ### Phase 3 — Data Grid
@@ -150,6 +150,8 @@
 | 2026-02-28 | DOTAZ-013 | DB type switcher disabled when editing | Prevents type change on existing connections which would invalidate stored config |
 | 2026-02-28 | DOTAZ-014 | Use `Utils.openFileDialog` for both open and save dialogs | Electrobun doesn't expose a native save dialog API; save uses directory picker + `defaultName` |
 | 2026-02-28 | DOTAZ-014 | Convert `filters[].extensions` to `*.ext` glob format | Electrobun's `allowedFileTypes` expects comma-separated glob patterns like `*.db,*.sqlite` |
+| 2026-02-28 | DOTAZ-015 | SQLite single-schema shortcut: skip schema level for "main" | SQLite always has exactly one schema ("main"); showing it adds unnecessary nesting — tables render at level 1 instead of level 2 |
+| 2026-02-28 | DOTAZ-015 | ConnectionDialog managed in AppShell, triggered from sidebar "+" and empty state CTA | Centralizes dialog state; both the sidebar header button and empty state CTA use the same callback |
 
 ---
 
@@ -207,4 +209,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-014)*
+*Last updated: 2026-02-28 (DOTAZ-015)*

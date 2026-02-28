@@ -3,6 +3,9 @@ import Sidebar, { SidebarExpandButton } from "./Sidebar";
 import Resizer from "./Resizer";
 import TabBar from "./TabBar";
 import StatusBar from "./StatusBar";
+import ConnectionTree from "../connection/ConnectionTree";
+import ConnectionDialog from "../connection/ConnectionDialog";
+import type { ConnectionInfo } from "../../../shared/types/connection";
 import { tabsStore } from "../../stores/tabs";
 import "./AppShell.css";
 
@@ -13,6 +16,8 @@ const DEFAULT_WIDTH = 250;
 export default function AppShell() {
 	const [sidebarWidth, setSidebarWidth] = createSignal(DEFAULT_WIDTH);
 	const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
+	const [dialogOpen, setDialogOpen] = createSignal(false);
+	const [connectionToEdit, setConnectionToEdit] = createSignal<ConnectionInfo | null>(null);
 
 	function handleResize(deltaX: number) {
 		setSidebarWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + deltaX)));
@@ -20,6 +25,11 @@ export default function AppShell() {
 
 	function toggleCollapse() {
 		setSidebarCollapsed((c) => !c);
+	}
+
+	function openAddConnectionDialog() {
+		setConnectionToEdit(null);
+		setDialogOpen(true);
 	}
 
 	return (
@@ -33,7 +43,10 @@ export default function AppShell() {
 					width={sidebarWidth()}
 					collapsed={sidebarCollapsed()}
 					onToggleCollapse={toggleCollapse}
-				/>
+					onAdd={openAddConnectionDialog}
+				>
+					<ConnectionTree onAddConnection={openAddConnectionDialog} />
+				</Sidebar>
 
 				<Show when={!sidebarCollapsed()}>
 					<Resizer onResize={handleResize} />
@@ -63,6 +76,12 @@ export default function AppShell() {
 			</div>
 
 			<StatusBar />
+
+			<ConnectionDialog
+				open={dialogOpen()}
+				connection={connectionToEdit()}
+				onClose={() => setDialogOpen(false)}
+			/>
 		</div>
 	);
 }

@@ -31,7 +31,13 @@
 	white-space: nowrap;
 }
 
-.sidebar-header__toggle {
+.sidebar-header__actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.sidebar-header__btn {
 	background: none;
 	border: none;
 	color: var(--text-secondary);
@@ -42,7 +48,7 @@
 	line-height: 1;
 }
 
-.sidebar-header__toggle:hover {
+.sidebar-header__btn:hover {
 	background: var(--bg-hover);
 	color: var(--text-primary);
 }

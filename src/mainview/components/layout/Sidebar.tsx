@@ -5,6 +5,7 @@ interface SidebarProps {
 	width: number;
 	collapsed: boolean;
 	onToggleCollapse: () => void;
+	onAdd?: () => void;
 	children?: JSX.Element;
 }
 
@@ -18,13 +19,24 @@ export default function Sidebar(props: SidebarProps) {
 			<Show when={!props.collapsed}>
 				<div class="sidebar-header">
 					<span class="sidebar-header__title">Connections</span>
-					<button
-						class="sidebar-header__toggle"
-						onClick={props.onToggleCollapse}
-						title="Collapse sidebar"
-					>
-						&#x276E;
-					</button>
+					<div class="sidebar-header__actions">
+						<Show when={props.onAdd}>
+							<button
+								class="sidebar-header__btn"
+								onClick={props.onAdd}
+								title="Add connection"
+							>
+								&#x2B;
+							</button>
+						</Show>
+						<button
+							class="sidebar-header__btn"
+							onClick={props.onToggleCollapse}
+							title="Collapse sidebar"
+						>
+							&#x276E;
+						</button>
+					</div>
 				</div>
 				<div class="sidebar-content">
 					{props.children}
