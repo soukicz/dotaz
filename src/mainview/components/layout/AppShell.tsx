@@ -8,6 +8,7 @@ import ConnectionDialog from "../connection/ConnectionDialog";
 import DataGrid from "../grid/DataGrid";
 import SqlEditor from "../editor/SqlEditor";
 import QueryToolbar from "../editor/QueryToolbar";
+import SqlResultPanel from "../editor/SqlResultPanel";
 import type { ConnectionInfo } from "../../../shared/types/connection";
 import { tabsStore } from "../../stores/tabs";
 import "./AppShell.css";
@@ -100,9 +101,10 @@ export default function AppShell() {
 												tabId={tab().id}
 												connectionId={tab().connectionId}
 											/>
-											<div class="sql-console__results">
-												{/* SqlResultPanel will be added in DOTAZ-030 */}
-											</div>
+											<SqlResultPanel
+												tabId={tab().id}
+												connectionId={tab().connectionId}
+											/>
 										</div>
 									</Match>
 								</Switch>

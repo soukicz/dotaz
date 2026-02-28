@@ -72,7 +72,7 @@
 | DOTAZ-027 | Editor store (SQL console state) | done | |
 | DOTAZ-028 | SqlEditor with CodeMirror 6 | done | `basicSetup` from codemirror meta-package; dark theme via CSS variables; vertical resize handle between editor and results |
 | DOTAZ-029 | QueryToolbar (run/cancel/tx controls) | done | Run/Cancel toggle; Run Selected; Format; Auto/Manual tx mode with Begin/Commit/Rollback; connection name; duration display |
-| DOTAZ-030 | SqlResultPanel (query results) | not started | |
+| DOTAZ-030 | SqlResultPanel (query results) | done | Reuses GridHeader, VirtualScroller, GridCell for result grid; multi-result tabs; DML/error display; metadata bar; minimize toggle |
 | DOTAZ-031 | SQL autocomplete (schema-aware) | not started | |
 
 ### Phase 5 — Data Editing
@@ -185,6 +185,9 @@
 | 2026-02-28 | DOTAZ-029 | `selectedText` tracked in editor store via `selectionSet` update | CodeMirror `updateListener` pushes selection into store; toolbar reads it reactively for "Run Selected" enable state |
 | 2026-02-28 | DOTAZ-029 | QueryToolbar placed in AppShell above SqlEditor | Toolbar is a sibling of SqlEditor inside `sql-console` div; both receive `tabId` + `connectionId` props |
 | 2026-02-28 | DOTAZ-029 | Segmented toggle for Auto/Manual transaction mode | Two-button toggle group instead of dropdown; visual indicator (TXN badge) when transaction is open |
+| 2026-02-28 | DOTAZ-030 | Reuse GridHeader, VirtualScroller, GridCell for result display | Existing grid components accept simplified props (empty sort, pinStyles, selectedRows); avoids duplicating grid rendering logic |
+| 2026-02-28 | DOTAZ-030 | Column resize via signal-based `columnWidths` in ResultGrid | `createSignal<Record<string, number>>` converted to `ColumnConfig` for GridHeader/VirtualScroller; simpler than store for local component state |
+| 2026-02-28 | DOTAZ-030 | Metadata in header bar (not separate footer) | Rows, columns, duration displayed in header-right alongside minimize toggle; compact layout |
 
 ---
 
@@ -242,4 +245,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-029)*
+*Last updated: 2026-02-28 (DOTAZ-030)*
