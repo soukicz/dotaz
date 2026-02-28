@@ -7,6 +7,7 @@ interface GridHeaderProps {
 	columns: GridColumnDef[];
 	sort: SortColumn[];
 	columnConfig: Record<string, ColumnConfig>;
+	pinStyles: Map<string, Record<string, string>>;
 	fkColumns: Set<string>;
 	onToggleSort: (column: string, multi: boolean) => void;
 	onResizeColumn: (column: string, width: number) => void;
@@ -93,7 +94,11 @@ export default function GridHeader(props: GridHeaderProps) {
 					return (
 						<div
 							class="grid-header__cell"
-							style={{ width: `${getColumnWidth(col.name)}px` }}
+							classList={{ "grid-header__cell--pinned": props.pinStyles.has(col.name) }}
+							style={{
+								width: `${getColumnWidth(col.name)}px`,
+								...props.pinStyles.get(col.name),
+							}}
 							onClick={(e) => handleHeaderClick(e, col.name)}
 						>
 							<span class="grid-header__type-badge">

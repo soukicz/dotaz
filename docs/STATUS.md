@@ -61,7 +61,7 @@
 | DOTAZ-020 | Virtual scrolling + GridRow + GridCell | done | @tanstack/solid-virtual with 32px row height, 5 overscan; GridCell type-aware rendering; JSON expandable popup |
 | DOTAZ-021 | Pagination + total count | done | Pagination component with nav, page size dropdown, row range; added `setPageSize` to grid store |
 | DOTAZ-022 | FilterBar (column filtering) | done | Type-aware operators; chips with remove; add filter inline form; Clear All; auto-reload on change |
-| DOTAZ-023 | ColumnManager (visibility, sorting, pin) | not started | |
+| DOTAZ-023 | ColumnManager (visibility, sorting, pin) | done | Gear icon trigger; drag & drop reorder; pin cycle (none/left/right); sticky positioning for pinned cells |
 | DOTAZ-024 | Clipboard support (Ctrl+C) | not started | |
 
 ### Phase 4 — SQL Editor
@@ -163,6 +163,9 @@
 | 2026-02-28 | DOTAZ-020 | `scrollMargin` to offset sticky header in virtualizer | Header height (34px) passed as `scrollMargin` to `createVirtualizer`; virtual items positioned at `start - scrollMargin` within body |
 | 2026-02-28 | DOTAZ-020 | Separate `toggleRowInSelection` from `selectRow` | `selectRow` = click (clear + select/deselect); `toggleRowInSelection` = Ctrl+click (toggle without clearing) |
 | 2026-02-28 | DOTAZ-020 | JSON expandable popup via absolute-positioned overlay | Click JSON cell to expand; click-outside-to-close pattern; avoids variable row heights in virtual scrolling |
+| 2026-02-28 | DOTAZ-023 | Separate `columnOrder` from `columnConfig` in grid store | `columnOrder: string[]` tracks column ordering independently from per-column config (visibility, width, pin) |
+| 2026-02-28 | DOTAZ-023 | Pin cycle: none → left → right → none | Single button cycles through pin states; left-pinned columns render first, right-pinned last in visible column list |
+| 2026-02-28 | DOTAZ-023 | `computePinStyles` returns sticky CSS as inline styles | Pin styles (position: sticky, left/right offset, z-index, background) applied inline to header cells and GridCells; z-index 3 to layer above normal cells |
 
 ---
 
@@ -220,4 +223,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-022)*
+*Last updated: 2026-02-28 (DOTAZ-023)*

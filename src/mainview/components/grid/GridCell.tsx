@@ -6,6 +6,7 @@ interface GridCellProps {
 	value: unknown;
 	column: GridColumnDef;
 	width: number;
+	pinStyle?: Record<string, string>;
 }
 
 function isNumericType(dataType: string): boolean {
@@ -107,7 +108,7 @@ export default function GridCell(props: GridCellProps) {
 				"grid-cell--json": isJson() && !isNull(),
 				"grid-cell--timestamp": isTs() && !isNull(),
 			}}
-			style={{ width: `${props.width}px` }}
+			style={{ width: `${props.width}px`, ...props.pinStyle }}
 			title={tooltipValue()}
 			onClick={isJson() && !isNull() ? handleJsonClick : undefined}
 		>

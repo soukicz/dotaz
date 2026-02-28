@@ -9,6 +9,7 @@ interface GridRowProps {
 	index: number;
 	columns: GridColumnDef[];
 	columnConfig: Record<string, ColumnConfig>;
+	pinStyles: Map<string, Record<string, string>>;
 	selected: boolean;
 	onClick: (index: number, e: MouseEvent) => void;
 	style?: Record<string, string>;
@@ -42,6 +43,7 @@ export default function GridRow(props: GridRowProps) {
 						value={props.row[col.name]}
 						column={col}
 						width={getColumnWidth(col.name, props.columnConfig)}
+						pinStyle={props.pinStyles.get(col.name)}
 					/>
 				)}
 			</For>

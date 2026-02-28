@@ -21,6 +21,10 @@
 	font-size: var(--font-size-sm);
 }
 
+.grid-header__cell--pinned {
+	border-right: 1px solid var(--border-focus);
+}
+
 .grid-header__cell:hover {
 	background: var(--bg-hover);
 }

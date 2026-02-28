@@ -13,6 +13,7 @@ interface VirtualScrollerProps {
 	rows: Record<string, unknown>[];
 	columns: GridColumnDef[];
 	columnConfig: Record<string, ColumnConfig>;
+	pinStyles: Map<string, Record<string, string>>;
 	selectedRows: Set<number>;
 	scrollMargin: number;
 	onRowClick: (index: number, e: MouseEvent) => void;
@@ -47,6 +48,7 @@ export default function VirtualScroller(props: VirtualScrollerProps) {
 						index={virtualRow.index}
 						columns={props.columns}
 						columnConfig={props.columnConfig}
+						pinStyles={props.pinStyles}
 						selected={props.selectedRows.has(virtualRow.index)}
 						onClick={props.onRowClick}
 						style={{

@@ -5,6 +5,7 @@ import { rpc } from "../../lib/rpc";
 import GridHeader from "./GridHeader";
 import VirtualScroller from "./VirtualScroller";
 import FilterBar from "./FilterBar";
+import ColumnManager from "./ColumnManager";
 import Pagination from "./Pagination";
 import "./DataGrid.css";
 
@@ -23,6 +24,17 @@ export default function DataGrid(props: DataGridProps) {
 	let anchorRow = -1;
 
 	const tab = () => gridStore.getTab(props.tabId);
+
+	const visibleColumns = () => {
+		const t = tab();
+		return t ? gridStore.getVisibleColumns(t) : [];
+	};
+
+	const pinStyles = () => {
+		const t = tab();
+		if (!t) return new Map<string, Record<string, string>>();
+		return gridStore.computePinStyles(visibleColumns(), t.columnConfig);
+	};
 
 	onMount(async () => {
 		const existing = gridStore.getTab(props.tabId);
@@ -85,13 +97,30 @@ export default function DataGrid(props: DataGridProps) {
 			<div class="data-grid__toolbar">
 				<Show when={tab()}>
 					{(tabState) => (
-						<FilterBar
-							columns={tabState().columns}
-							filters={tabState().filters}
-							onAddFilter={handleAddFilter}
-							onRemoveFilter={handleRemoveFilter}
-							onClearAll={handleClearFilters}
-						/>
+						<>
+							<FilterBar
+								columns={tabState().columns}
+								filters={tabState().filters}
+								onAddFilter={handleAddFilter}
+								onRemoveFilter={handleRemoveFilter}
+								onClearAll={handleClearFilters}
+							/>
+							<ColumnManager
+								columns={tabState().columns}
+								columnConfig={tabState().columnConfig}
+								columnOrder={tabState().columnOrder}
+								onToggleVisibility={(col, visible) =>
+									gridStore.setColumnVisibility(props.tabId, col, visible)
+								}
+								onTogglePin={(col, pinned) =>
+									gridStore.setColumnPinned(props.tabId, col, pinned)
+								}
+								onReorder={(order) =>
+									gridStore.setColumnOrder(props.tabId, order)
+								}
+								onReset={() => gridStore.resetColumnConfig(props.tabId)}
+							/>
+						</>
 					)}
 				</Show>
 			</div>
@@ -112,9 +141,10 @@ export default function DataGrid(props: DataGridProps) {
 							classList={{ "data-grid__table-container--loading": tabState().loading }}
 						>
 							<GridHeader
-								columns={tabState().columns}
+								columns={visibleColumns()}
 								sort={tabState().sort}
 								columnConfig={tabState().columnConfig}
+								pinStyles={pinStyles()}
 								fkColumns={fkColumns()}
 								onToggleSort={handleToggleSort}
 								onResizeColumn={handleResizeColumn}
@@ -123,8 +153,9 @@ export default function DataGrid(props: DataGridProps) {
 							<VirtualScroller
 								scrollElement={() => scrollRef}
 								rows={tabState().rows}
-								columns={tabState().columns}
+								columns={visibleColumns()}
 								columnConfig={tabState().columnConfig}
+								pinStyles={pinStyles()}
 								selectedRows={tabState().selectedRows}
 								scrollMargin={HEADER_HEIGHT}
 								onRowClick={handleRowClick}
