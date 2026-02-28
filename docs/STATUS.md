@@ -60,7 +60,7 @@
 | DOTAZ-019 | DataGrid container + GridHeader | done | FK columns loaded via `schema.getForeignKeys` RPC on mount |
 | DOTAZ-020 | Virtual scrolling + GridRow + GridCell | done | @tanstack/solid-virtual with 32px row height, 5 overscan; GridCell type-aware rendering; JSON expandable popup |
 | DOTAZ-021 | Pagination + total count | done | Pagination component with nav, page size dropdown, row range; added `setPageSize` to grid store |
-| DOTAZ-022 | FilterBar (column filtering) | not started | |
+| DOTAZ-022 | FilterBar (column filtering) | done | Type-aware operators; chips with remove; add filter inline form; Clear All; auto-reload on change |
 | DOTAZ-023 | ColumnManager (visibility, sorting, pin) | not started | |
 | DOTAZ-024 | Clipboard support (Ctrl+C) | not started | |
 
@@ -220,4 +220,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-021)*
+*Last updated: 2026-02-28 (DOTAZ-022)*

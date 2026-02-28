@@ -181,6 +181,19 @@ async function setFilter(tabId: string, filter: ColumnFilter) {
 	await fetchData(tabId);
 }
 
+async function removeFilter(tabId: string, column: string) {
+	const tab = ensureTab(tabId);
+	setState(
+		"tabs",
+		tabId,
+		"filters",
+		tab.filters.filter((f) => f.column !== column),
+	);
+	setState("tabs", tabId, "currentPage", 1);
+	setState("tabs", tabId, "selectedRows", new Set());
+	await fetchData(tabId);
+}
+
 async function clearFilters(tabId: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "filters", []);
@@ -260,6 +273,7 @@ export const gridStore = {
 	setPageSize,
 	toggleSort,
 	setFilter,
+	removeFilter,
 	clearFilters,
 	selectRow,
 	toggleRowInSelection,

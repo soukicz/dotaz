@@ -1,8 +1,10 @@
 import { createSignal, onMount, Show } from "solid-js";
+import type { ColumnFilter } from "../../../shared/types/grid";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
 import GridHeader from "./GridHeader";
 import VirtualScroller from "./VirtualScroller";
+import FilterBar from "./FilterBar";
 import Pagination from "./Pagination";
 import "./DataGrid.css";
 
@@ -54,6 +56,18 @@ export default function DataGrid(props: DataGridProps) {
 		gridStore.setColumnWidth(props.tabId, column, width);
 	}
 
+	function handleAddFilter(filter: ColumnFilter) {
+		gridStore.setFilter(props.tabId, filter);
+	}
+
+	function handleRemoveFilter(column: string) {
+		gridStore.removeFilter(props.tabId, column);
+	}
+
+	function handleClearFilters() {
+		gridStore.clearFilters(props.tabId);
+	}
+
 	function handleRowClick(index: number, e: MouseEvent) {
 		if (e.shiftKey && anchorRow >= 0) {
 			gridStore.selectRange(props.tabId, anchorRow, index);
@@ -69,7 +83,17 @@ export default function DataGrid(props: DataGridProps) {
 	return (
 		<div class="data-grid">
 			<div class="data-grid__toolbar">
-				{/* Toolbar placeholder -- FilterBar (DOTAZ-022), ColumnManager (DOTAZ-023) */}
+				<Show when={tab()}>
+					{(tabState) => (
+						<FilterBar
+							columns={tabState().columns}
+							filters={tabState().filters}
+							onAddFilter={handleAddFilter}
+							onRemoveFilter={handleRemoveFilter}
+							onClearAll={handleClearFilters}
+						/>
+					)}
+				</Show>
 			</div>
 
 			<Show when={tab()}>
