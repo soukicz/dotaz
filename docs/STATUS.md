@@ -47,7 +47,7 @@
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
 | DOTAZ-012 | Connection store (frontend state) | done | |
-| DOTAZ-013 | ConnectionDialog (add/edit form) | not started | |
+| DOTAZ-013 | ConnectionDialog (add/edit form) | done | |
 | DOTAZ-014 | File dialog + save dialog RPC handlers | not started | |
 | DOTAZ-015 | ConnectionTree (sidebar tree) | not started | |
 | DOTAZ-016 | Context menu for connections | not started | |
@@ -146,6 +146,8 @@
 | 2026-02-28 | DOTAZ-011 | Use `crypto.randomUUID()` for tab IDs instead of nanoid | No external dependency needed; UUID is available in both browser and Bun runtimes |
 | 2026-02-28 | DOTAZ-011 | Module-level singleton store pattern | Export `tabsStore` object with getters + actions from module scope; Solid.js `createStore` at module level provides app-wide singleton |
 | 2026-02-28 | DOTAZ-012 | Schema tree stored per-connection in connections store | `schemaTrees` keyed by connection ID; auto-loaded on `connected` status event from backend |
+| 2026-02-28 | DOTAZ-013 | SSL field as boolean checkbox (not dropdown) | `PostgresConnectionConfig.ssl` is `boolean`; dropdown modes (disable/require/prefer) would need type change, kept aligned with existing type |
+| 2026-02-28 | DOTAZ-013 | DB type switcher disabled when editing | Prevents type change on existing connections which would invalidate stored config |
 
 ---
 
@@ -203,4 +205,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-012)*
+*Last updated: 2026-02-28 (DOTAZ-013)*
