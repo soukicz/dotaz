@@ -96,10 +96,48 @@ export default function AppShell() {
 			return "global";
 		});
 		keyboardManager.init();
+
+		// Transaction warning on tab close
+		tabsStore.setBeforeCloseHook((tab) => {
+			if (tab.type === "sql-console") {
+				const editorTab = editorStore.getTab(tab.id);
+				if (editorTab?.inTransaction) {
+					const confirmed = window.confirm(
+						"This tab has an uncommitted transaction. Changes will be rolled back. Close anyway?",
+					);
+					if (!confirmed) return false;
+					// Fire-and-forget rollback
+					editorStore.rollbackTransaction(tab.id);
+				}
+			}
+			return true;
+		});
+
+		// Transaction warning on disconnect
+		connectionsStore.setBeforeDisconnectHook((connectionId) => {
+			// Check if any SQL console tab on this connection has an active transaction
+			for (const openTab of tabsStore.openTabs) {
+				if (openTab.connectionId === connectionId && openTab.type === "sql-console") {
+					const editorTab = editorStore.getTab(openTab.id);
+					if (editorTab?.inTransaction) {
+						const confirmed = window.confirm(
+							"This connection has an active transaction. Changes will be rolled back. Disconnect anyway?",
+						);
+						if (!confirmed) return false;
+						// Fire-and-forget rollback
+						editorStore.rollbackTransaction(openTab.id);
+						return true;
+					}
+				}
+			}
+			return true;
+		});
 	});
 
 	onCleanup(() => {
 		keyboardManager.destroy();
+		tabsStore.setBeforeCloseHook(null);
+		connectionsStore.setBeforeDisconnectHook(null);
 	});
 
 	// ── Command registration ──────────────────────────────
@@ -431,7 +469,31 @@ export default function AppShell() {
 				</div>
 			</div>
 
-			<StatusBar />
+			<StatusBar
+			connectionName={(() => {
+				const tab = tabsStore.activeTab;
+				if (!tab) return undefined;
+				return connectionsStore.connections.find(c => c.id === tab.connectionId)?.name;
+			})()}
+			connectionStatus={(() => {
+				const tab = tabsStore.activeTab;
+				if (!tab) return undefined;
+				const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
+				return conn?.state as any;
+			})()}
+			inTransaction={(() => {
+				const tab = tabsStore.activeTab;
+				if (!tab) return false;
+				// Check if any SQL console tab on this connection has an active transaction
+				for (const openTab of tabsStore.openTabs) {
+					if (openTab.connectionId === tab.connectionId && openTab.type === "sql-console") {
+						const editorTab = editorStore.getTab(openTab.id);
+						if (editorTab?.inTransaction) return true;
+					}
+				}
+				return false;
+			})()}
+		/>
 
 			<ConnectionDialog
 				open={dialogOpen()}

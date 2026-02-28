@@ -101,7 +101,7 @@
 | DOTAZ-044 | CommandPalette | done | Command registry in lib/commands.ts; fuzzy search with recent-first ordering; 12 commands registered in AppShell |
 | DOTAZ-045 | Keyboard shortcut system | done | KeyboardManager singleton in keyboard.ts; 16 shortcuts registered; context-aware (global/data-grid/sql-console); stopPropagation for grid-local shortcuts |
 | DOTAZ-046 | Context menus (grid, editor, tabs) | done | Grid cell/row/header, SQL editor, and tab context menus via reusable ContextMenu component |
-| DOTAZ-047 | Transaction management UI | not started | |
+| DOTAZ-047 | Transaction management UI | done | TransactionManager service; tx RPC handlers; StatusBar "IN TRANSACTION" badge; tab/disconnect warnings; manual tx mode in grid skips auto-commit |
 | DOTAZ-048 | Error handling + toast notifications | not started | |
 | DOTAZ-049 | Application menu with all actions | not started | |
 | DOTAZ-050 | Reconnect logic + connection resilience | not started | |
@@ -243,6 +243,10 @@
 | 2026-02-28 | DOTAZ-046 | Editor context menu captures selection at right-click time | `ctxSelection` snapshot taken in contextmenu handler before editor loses focus; used by Cut/Copy/Paste/Run Selected actions |
 | 2026-02-28 | DOTAZ-046 | Copy as INSERT generates statements from query results | Builds INSERT SQL from `editorStore.getTab().results[0]`; uses `table_name` placeholder; SQL values properly escaped |
 | 2026-02-28 | DOTAZ-046 | Duplicate Tab handled in AppShell with per-type logic | SQL console copies content; data-grid and schema-viewer open fresh tabs with same connection/schema/table |
+| 2026-02-28 | DOTAZ-047 | TransactionManager wraps driver methods with validation | Checks `inTransaction()` before begin/commit/rollback; provides `isActive()` and `rollbackIfActive()` helpers |
+| 2026-02-28 | DOTAZ-047 | `data.applyChanges` skips auto-commit if transaction already active | Checks `driver.inTransaction()` before wrapping in begin/commit; allows manual tx mode from SQL console to control grid commits |
+| 2026-02-28 | DOTAZ-047 | `beforeCloseHook` and `beforeDisconnectHook` for transaction warnings | Configurable hooks in tabs/connections stores; AppShell registers hooks to check for active transactions and show confirm dialogs |
+| 2026-02-28 | DOTAZ-047 | StatusBar `inTransaction` derived from editor store across all tabs | Checks all SQL console tabs on the active tab's connection for `inTransaction` state; connection-level visibility |
 
 ---
 
@@ -300,4 +304,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-046)*
+*Last updated: 2026-02-28 (DOTAZ-047)*

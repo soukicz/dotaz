@@ -27,7 +27,8 @@
 
 .status-bar__item--tx {
 	font-weight: 700;
-	background: rgba(255, 255, 255, 0.2);
+	background: var(--color-warning);
+	color: var(--bg-primary);
 	padding: 1px 6px;
 	border-radius: 3px;
 }

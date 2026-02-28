@@ -793,10 +793,6 @@ describe("RPC Handlers", () => {
 	describe("stub handlers", () => {
 		const stubs = [
 			"data.getColumnStats",
-			"tx.begin",
-			"tx.commit",
-			"tx.rollback",
-			"tx.status",
 			"settings.get",
 			"settings.set",
 		] as const;
@@ -808,5 +804,167 @@ describe("RPC Handlers", () => {
 				).toThrow(`Not implemented yet: ${method}`);
 			});
 		}
+	});
+
+	// ── tx.* ─────────────────────────────────────────────
+
+	describe("tx.*", () => {
+		test("tx.status returns inactive when no transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			const result = handlers["tx.status"]({ connectionId: conn.id });
+			expect(result).toEqual({ active: false });
+		});
+
+		test("tx.begin starts a transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await handlers["tx.begin"]({ connectionId: conn.id });
+			const result = handlers["tx.status"]({ connectionId: conn.id });
+			expect(result).toEqual({ active: true });
+		});
+
+		test("tx.commit ends a transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await handlers["tx.begin"]({ connectionId: conn.id });
+			await handlers["tx.commit"]({ connectionId: conn.id });
+			const result = handlers["tx.status"]({ connectionId: conn.id });
+			expect(result).toEqual({ active: false });
+		});
+
+		test("tx.rollback ends a transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await handlers["tx.begin"]({ connectionId: conn.id });
+			await handlers["tx.rollback"]({ connectionId: conn.id });
+			const result = handlers["tx.status"]({ connectionId: conn.id });
+			expect(result).toEqual({ active: false });
+		});
+
+		test("tx.begin throws when transaction already active", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await handlers["tx.begin"]({ connectionId: conn.id });
+			await expect(
+				handlers["tx.begin"]({ connectionId: conn.id }),
+			).rejects.toThrow("Transaction already active");
+		});
+
+		test("tx.commit throws when no active transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await expect(
+				handlers["tx.commit"]({ connectionId: conn.id }),
+			).rejects.toThrow("No active transaction to commit");
+		});
+
+		test("tx.rollback throws when no active transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			await expect(
+				handlers["tx.rollback"]({ connectionId: conn.id }),
+			).rejects.toThrow("No active transaction to rollback");
+		});
+
+		test("data.applyChanges does not auto-commit when in manual transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			// Create a table to work with
+			const driver = cm.getDriver(conn.id);
+			await driver.execute("CREATE TABLE test_tx (id INTEGER PRIMARY KEY, name TEXT)", []);
+			await driver.execute("INSERT INTO test_tx (id, name) VALUES (1, 'original')", []);
+
+			// Begin manual transaction
+			await handlers["tx.begin"]({ connectionId: conn.id });
+
+			// Apply changes within the transaction
+			await handlers["data.applyChanges"]({
+				connectionId: conn.id,
+				changes: [{
+					type: "update",
+					schema: "main",
+					table: "test_tx",
+					primaryKeys: { id: 1 },
+					values: { name: "updated" },
+				}],
+			});
+
+			// Transaction should still be active (not auto-committed)
+			const status = handlers["tx.status"]({ connectionId: conn.id });
+			expect(status.active).toBe(true);
+
+			// Commit manually
+			await handlers["tx.commit"]({ connectionId: conn.id });
+
+			// Verify the change persisted
+			const result = await driver.execute("SELECT name FROM test_tx WHERE id = 1", []);
+			expect(result.rows[0].name).toBe("updated");
+		});
+
+		test("data.applyChanges auto-commits when no manual transaction", async () => {
+			const conn = handlers["connections.create"]({
+				name: "TX Test",
+				config: sqliteConfig,
+			});
+			await handlers["connections.connect"]({ connectionId: conn.id });
+
+			// Create a table to work with
+			const driver = cm.getDriver(conn.id);
+			await driver.execute("CREATE TABLE test_tx2 (id INTEGER PRIMARY KEY, name TEXT)", []);
+			await driver.execute("INSERT INTO test_tx2 (id, name) VALUES (1, 'original')", []);
+
+			// Apply changes without manual transaction
+			await handlers["data.applyChanges"]({
+				connectionId: conn.id,
+				changes: [{
+					type: "update",
+					schema: "main",
+					table: "test_tx2",
+					primaryKeys: { id: 1 },
+					values: { name: "updated" },
+				}],
+			});
+
+			// No transaction should be active
+			const status = handlers["tx.status"]({ connectionId: conn.id });
+			expect(status.active).toBe(false);
+
+			// Verify the change persisted
+			const result = await driver.execute("SELECT name FROM test_tx2 WHERE id = 1", []);
+			expect(result.rows[0].name).toBe("updated");
+		});
 	});
 });

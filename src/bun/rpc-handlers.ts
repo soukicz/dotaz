@@ -5,6 +5,7 @@ import type { AppDatabase } from "./storage/app-db";
 import type { GridDataRequest } from "../shared/types/grid";
 import type { ExportOptions, ExportPreviewRequest } from "../shared/types/export";
 import { buildSelectQuery, buildCountQuery, QueryExecutor, generateChangeSql, generateChangesPreview } from "./services/query-executor";
+import { TransactionManager } from "./services/transaction-manager";
 import { exportToFile, exportPreview } from "./services/export-service";
 import { formatSql } from "./services/sql-formatter";
 
@@ -14,6 +15,7 @@ function notImplemented(method: string): never {
 
 export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?: AppDatabase) {
 	const queryExecutor = qe ?? new QueryExecutor(cm, undefined, appDb);
+	const txManager = new TransactionManager(cm);
 	return {
 		// ── Connection Management ─────────────────────────
 		"connections.list": () => {
@@ -104,17 +106,24 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 		// ── Data Editing ─────────────────────────────────
 		"data.applyChanges": async ({ connectionId, changes }: ApplyChangesParams) => {
 			const driver = cm.getDriver(connectionId);
+			const inExistingTx = driver.inTransaction();
 
-			await driver.beginTransaction();
+			if (!inExistingTx) {
+				await driver.beginTransaction();
+			}
 			try {
 				for (const change of changes) {
 					const { sql, params } = generateChangeSql(change, driver);
 					await driver.execute(sql, params);
 				}
-				await driver.commit();
+				if (!inExistingTx) {
+					await driver.commit();
+				}
 				return { appliedCount: changes.length };
 			} catch (err) {
-				await driver.rollback();
+				if (!inExistingTx) {
+					await driver.rollback();
+				}
 				throw err;
 			}
 		},
@@ -135,18 +144,18 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 			return { sql: formatSql(sql) };
 		},
 
-		// ── Transactions (stub) ───────────────────────────
-		"tx.begin": () => {
-			notImplemented("tx.begin");
+		// ── Transactions ─────────────────────────────────
+		"tx.begin": async ({ connectionId }: { connectionId: string }) => {
+			await txManager.begin(connectionId);
 		},
-		"tx.commit": () => {
-			notImplemented("tx.commit");
+		"tx.commit": async ({ connectionId }: { connectionId: string }) => {
+			await txManager.commit(connectionId);
 		},
-		"tx.rollback": () => {
-			notImplemented("tx.rollback");
+		"tx.rollback": async ({ connectionId }: { connectionId: string }) => {
+			await txManager.rollback(connectionId);
 		},
-		"tx.status": () => {
-			notImplemented("tx.status");
+		"tx.status": ({ connectionId }: { connectionId: string }) => {
+			return { active: txManager.isActive(connectionId) };
 		},
 
 		// ── Export ────────────────────────────────────────

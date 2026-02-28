@@ -24,6 +24,16 @@ const [state, setState] = createStore<ConnectionStoreState>({
 	schemaTrees: {},
 });
 
+/**
+ * Optional hook called before disconnecting.
+ * Returns false to prevent disconnect.
+ */
+let beforeDisconnectHook: ((connectionId: string) => boolean) | null = null;
+
+function setBeforeDisconnectHook(hook: ((connectionId: string) => boolean) | null) {
+	beforeDisconnectHook = hook;
+}
+
 // ── Schema loading ───────────────────────────────────────
 
 async function loadSchemaTree(connectionId: string) {
@@ -78,6 +88,9 @@ async function connectTo(id: string) {
 }
 
 async function disconnectFrom(id: string) {
+	if (beforeDisconnectHook && !beforeDisconnectHook(id)) {
+		return;
+	}
 	await rpc.connections.disconnect(id);
 	// Status will be updated via the statusChanged event
 	// Clean up schema tree
@@ -136,4 +149,5 @@ export const connectionsStore = {
 	disconnectFrom,
 	setActiveConnection,
 	loadSchemaTree,
+	setBeforeDisconnectHook,
 };

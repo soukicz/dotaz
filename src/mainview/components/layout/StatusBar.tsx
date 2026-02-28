@@ -48,7 +48,7 @@ export default function StatusBar(props: StatusBarProps) {
 
 			<div class="status-bar__right">
 				<Show when={props.inTransaction}>
-					<span class="status-bar__item status-bar__item--tx">TX</span>
+					<span class="status-bar__item status-bar__item--tx">IN TRANSACTION</span>
 				</Show>
 
 				<Show when={props.rowCount != null}>

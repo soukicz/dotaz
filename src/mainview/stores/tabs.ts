@@ -19,6 +19,16 @@ const [state, setState] = createStore<TabState>({
 	activeTabId: null,
 });
 
+/**
+ * Optional hook called before closing a tab.
+ * Returns false to prevent close. Can perform side effects (like rollback).
+ */
+let beforeCloseHook: ((tab: TabInfo) => boolean) | null = null;
+
+function setBeforeCloseHook(hook: ((tab: TabInfo) => boolean) | null) {
+	beforeCloseHook = hook;
+}
+
 function openTab(config: OpenTabConfig): string {
 	const id = crypto.randomUUID();
 	const tab: TabInfo = {
@@ -45,6 +55,11 @@ function setActiveTab(id: string) {
 function closeTab(id: string) {
 	const tab = state.openTabs.find((t) => t.id === id);
 	if (!tab) return;
+
+	// Run before-close hook (e.g. transaction warnings)
+	if (beforeCloseHook && !beforeCloseHook(tab)) {
+		return;
+	}
 
 	if (tab.dirty) {
 		const confirmed = window.confirm(
@@ -156,4 +171,5 @@ export const tabsStore = {
 	setTabDirty,
 	activateNextTab,
 	activatePrevTab,
+	setBeforeCloseHook,
 };
