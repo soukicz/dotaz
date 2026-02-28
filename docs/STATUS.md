@@ -58,7 +58,7 @@
 | DOTAZ-017 | getTableData RPC with pagination, sort, filter | done | |
 | DOTAZ-018 | Grid store (data grid state) | done | |
 | DOTAZ-019 | DataGrid container + GridHeader | done | FK columns loaded via `schema.getForeignKeys` RPC on mount |
-| DOTAZ-020 | Virtual scrolling + GridRow + GridCell | not started | |
+| DOTAZ-020 | Virtual scrolling + GridRow + GridCell | done | @tanstack/solid-virtual with 32px row height, 5 overscan; GridCell type-aware rendering; JSON expandable popup |
 | DOTAZ-021 | Pagination + total count | not started | |
 | DOTAZ-022 | FilterBar (column filtering) | not started | |
 | DOTAZ-023 | ColumnManager (visibility, sorting, pin) | not started | |
@@ -160,6 +160,9 @@
 | 2026-02-28 | DOTAZ-019 | `toggleSort` with `multi` param for single vs multi-column sort | Click = replace sort list (single-sort); Shift+click = add/toggle/remove (multi-sort) |
 | 2026-02-28 | DOTAZ-019 | FK columns fetched separately via `schema.getForeignKeys` | `GridColumnDef` doesn't carry FK info; DataGrid loads FKs on mount for header icon display |
 | 2026-02-28 | DOTAZ-019 | Div-based grid layout (not `<table>`) | Better suited for upcoming virtual scrolling (DOTAZ-020); column widths via inline styles |
+| 2026-02-28 | DOTAZ-020 | `scrollMargin` to offset sticky header in virtualizer | Header height (34px) passed as `scrollMargin` to `createVirtualizer`; virtual items positioned at `start - scrollMargin` within body |
+| 2026-02-28 | DOTAZ-020 | Separate `toggleRowInSelection` from `selectRow` | `selectRow` = click (clear + select/deselect); `toggleRowInSelection` = Ctrl+click (toggle without clearing) |
+| 2026-02-28 | DOTAZ-020 | JSON expandable popup via absolute-positioned overlay | Click JSON cell to expand; click-outside-to-close pattern; avoids variable row heights in virtual scrolling |
 
 ---
 
@@ -217,4 +220,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-019)*
+*Last updated: 2026-02-28 (DOTAZ-020)*

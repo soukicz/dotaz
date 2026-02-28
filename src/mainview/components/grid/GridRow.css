@@ -1,0 +1,27 @@
+.grid-row {
+	display: flex;
+	border-bottom: 1px solid var(--border-color);
+	cursor: default;
+	width: max-content;
+	min-width: 100%;
+}
+
+.grid-row--even {
+	background: transparent;
+}
+
+.grid-row--odd {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.grid-row:hover {
+	background: var(--bg-hover);
+}
+
+.grid-row--selected {
+	background: var(--bg-selection);
+}
+
+.grid-row--selected:hover {
+	background: var(--bg-selection);
+}

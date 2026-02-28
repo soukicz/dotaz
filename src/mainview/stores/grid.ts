@@ -183,11 +183,19 @@ async function clearFilters(tabId: string) {
 
 function selectRow(tabId: string, index: number) {
 	const tab = ensureTab(tabId);
+	const next = new Set<number>();
+	if (!tab.selectedRows.has(index)) {
+		next.add(index);
+	}
+	setState("tabs", tabId, "selectedRows", next);
+}
+
+function toggleRowInSelection(tabId: string, index: number) {
+	const tab = ensureTab(tabId);
 	const next = new Set(tab.selectedRows);
 	if (next.has(index)) {
 		next.delete(index);
 	} else {
-		next.clear();
 		next.add(index);
 	}
 	setState("tabs", tabId, "selectedRows", next);
@@ -245,6 +253,7 @@ export const gridStore = {
 	setFilter,
 	clearFilters,
 	selectRow,
+	toggleRowInSelection,
 	selectRange,
 	selectAll,
 	getSelectedData,

@@ -46,45 +46,6 @@
 	pointer-events: none;
 }
 
-.data-grid__body {
-	font-family: var(--font-mono);
-	font-size: var(--font-size-sm);
-}
-
-.data-grid__row {
-	display: flex;
-	border-bottom: 1px solid var(--border-color);
-}
-
-.data-grid__row:hover {
-	background: var(--bg-hover);
-}
-
-.data-grid__cell {
-	padding: 0 var(--spacing-sm);
-	height: 28px;
-	line-height: 28px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	flex-shrink: 0;
-	border-right: 1px solid var(--border-color);
-}
-
-.data-grid__cell--null {
-	color: var(--text-muted);
-	font-style: italic;
-}
-
-.data-grid__empty {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: var(--spacing-xl);
-	color: var(--text-muted);
-	font-size: var(--font-size-sm);
-}
-
 .data-grid__footer {
 	flex-shrink: 0;
 	display: flex;

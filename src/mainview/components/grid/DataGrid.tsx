@@ -1,8 +1,8 @@
-import { createSignal, For, onMount, Show } from "solid-js";
-import type { ColumnConfig } from "../../stores/grid";
+import { createSignal, onMount, Show } from "solid-js";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
 import GridHeader from "./GridHeader";
+import VirtualScroller from "./VirtualScroller";
 import "./DataGrid.css";
 
 interface DataGridProps {
@@ -12,21 +12,12 @@ interface DataGridProps {
 	table: string;
 }
 
-const DEFAULT_COLUMN_WIDTH = 150;
-
-function getColumnWidth(col: string, config: Record<string, ColumnConfig>): number {
-	return config[col]?.width ?? DEFAULT_COLUMN_WIDTH;
-}
-
-function formatCellValue(value: unknown): string {
-	if (value === null || value === undefined) return "NULL";
-	if (typeof value === "boolean") return value ? "true" : "false";
-	if (typeof value === "object") return JSON.stringify(value);
-	return String(value);
-}
+const HEADER_HEIGHT = 34; // 32px height + 2px border
 
 export default function DataGrid(props: DataGridProps) {
 	const [fkColumns, setFkColumns] = createSignal<Set<string>>(new Set());
+	let scrollRef: HTMLDivElement | undefined;
+	let anchorRow = -1;
 
 	const tab = () => gridStore.getTab(props.tabId);
 
@@ -62,6 +53,18 @@ export default function DataGrid(props: DataGridProps) {
 		gridStore.setColumnWidth(props.tabId, column, width);
 	}
 
+	function handleRowClick(index: number, e: MouseEvent) {
+		if (e.shiftKey && anchorRow >= 0) {
+			gridStore.selectRange(props.tabId, anchorRow, index);
+		} else if (e.ctrlKey || e.metaKey) {
+			gridStore.toggleRowInSelection(props.tabId, index);
+			if (anchorRow < 0) anchorRow = index;
+		} else {
+			gridStore.selectRow(props.tabId, index);
+			anchorRow = index;
+		}
+	}
+
 	return (
 		<div class="data-grid">
 			<div class="data-grid__toolbar">
@@ -79,6 +82,7 @@ export default function DataGrid(props: DataGridProps) {
 						</Show>
 
 						<div
+							ref={scrollRef}
 							class="data-grid__table-container"
 							classList={{ "data-grid__table-container--loading": tabState().loading }}
 						>
@@ -91,34 +95,15 @@ export default function DataGrid(props: DataGridProps) {
 								onResizeColumn={handleResizeColumn}
 							/>
 
-							<div class="data-grid__body">
-								<For each={tabState().rows}>
-									{(row) => (
-										<div class="data-grid__row">
-											<For each={tabState().columns}>
-												{(col) => (
-													<div
-														class="data-grid__cell"
-														classList={{
-															"data-grid__cell--null":
-																row[col.name] === null || row[col.name] === undefined,
-														}}
-														style={{
-															width: `${getColumnWidth(col.name, tabState().columnConfig)}px`,
-														}}
-													>
-														{formatCellValue(row[col.name])}
-													</div>
-												)}
-											</For>
-										</div>
-									)}
-								</For>
-
-								<Show when={!tabState().loading && tabState().rows.length === 0}>
-									<div class="data-grid__empty">No data</div>
-								</Show>
-							</div>
+							<VirtualScroller
+								scrollElement={() => scrollRef}
+								rows={tabState().rows}
+								columns={tabState().columns}
+								columnConfig={tabState().columnConfig}
+								selectedRows={tabState().selectedRows}
+								scrollMargin={HEADER_HEIGHT}
+								onRowClick={handleRowClick}
+							/>
 						</div>
 
 						<div class="data-grid__footer">

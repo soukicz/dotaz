@@ -1,0 +1,59 @@
+.grid-cell {
+	padding: 0 var(--spacing-sm);
+	height: 32px;
+	line-height: 32px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex-shrink: 0;
+	border-right: 1px solid var(--border-color);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	position: relative;
+}
+
+.grid-cell--null {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.grid-cell--number {
+	text-align: right;
+}
+
+.grid-cell--boolean {
+	text-align: center;
+}
+
+.grid-cell--json {
+	cursor: pointer;
+}
+
+.grid-cell--timestamp {
+	color: var(--text-primary);
+}
+
+.grid-cell__json-popup {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 10;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-color);
+	border-radius: 4px;
+	padding: var(--spacing-sm);
+	max-width: 400px;
+	max-height: 300px;
+	overflow: auto;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.grid-cell__json-popup pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-all;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	color: var(--text-primary);
+	line-height: 1.4;
+}
