@@ -280,12 +280,16 @@ function rowToHistoryEntry(row: HistoryRow): QueryHistoryEntry {
 
 // ── Default DB path ──────────────────────────────────────────
 
+let defaultDbPathFn: (() => string) | undefined;
+
+/** Register a factory for the default DB path (call once from the app entry point). */
+export function setDefaultDbPath(fn: () => string) {
+	defaultDbPathFn = fn;
+}
+
 function getDefaultDbPath(): string {
-	// Lazy import to avoid Electrobun dependency in tests
-	const { Utils } = require("electrobun/bun");
-	const dir = Utils.paths.userData;
-	if (!existsSync(dir)) {
-		mkdirSync(dir, { recursive: true });
+	if (!defaultDbPathFn) {
+		throw new Error("Default DB path not configured. Call setDefaultDbPath() first.");
 	}
-	return join(dir, "dotaz.db");
+	return defaultDbPathFn();
 }

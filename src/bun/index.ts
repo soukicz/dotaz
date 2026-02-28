@@ -1,6 +1,8 @@
+import { join } from "path";
+import { existsSync, mkdirSync } from "fs";
 import Electrobun from "electrobun/bun";
-import { ApplicationMenu, BrowserWindow, Updater } from "electrobun/bun";
-import { AppDatabase } from "./storage/app-db";
+import { ApplicationMenu, BrowserView, BrowserWindow, Updater, Utils } from "electrobun/bun";
+import { AppDatabase, setDefaultDbPath } from "./storage/app-db";
 import { ConnectionManager } from "./services/connection-manager";
 import { createRPC, setupStatusNotifications } from "./rpc-handlers";
 
@@ -24,12 +26,21 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
+// Configure default DB path before initializing
+setDefaultDbPath(() => {
+	const dir = Utils.paths.userData;
+	if (!existsSync(dir)) {
+		mkdirSync(dir, { recursive: true });
+	}
+	return join(dir, "dotaz.db");
+});
+
 // Initialize backend services
 const appDb = AppDatabase.getInstance();
 const connectionManager = new ConnectionManager(appDb);
 
 // Create RPC handlers
-const rpc = createRPC(connectionManager, appDb);
+const rpc = createRPC(connectionManager, appDb, BrowserView, Utils);
 
 const url = await getMainViewUrl();
 

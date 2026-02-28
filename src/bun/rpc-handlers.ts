@@ -14,7 +14,7 @@ function notImplemented(method: string): never {
 	throw new Error(`Not implemented yet: ${method}`);
 }
 
-export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?: AppDatabase) {
+export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?: AppDatabase, Utils?: typeof import("electrobun/bun").Utils) {
 	const queryExecutor = qe ?? new QueryExecutor(cm, undefined, appDb);
 	const txManager = new TransactionManager(cm);
 	return {
@@ -256,8 +256,6 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 
 		// ── System ────────────────────────────────────────
 		"system.showOpenDialog": async ({ filters, multiple }: OpenDialogParams) => {
-			const { Utils } = require("electrobun/bun") as typeof import("electrobun/bun");
-
 			const allowedFileTypes = filters && filters.length > 0
 				? filters.flatMap(f => f.extensions.map(ext => `*.${ext}`)).join(",")
 				: "*";
@@ -275,8 +273,6 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 			return { paths, cancelled: paths.length === 0 };
 		},
 		"system.showSaveDialog": async ({ defaultName }: SaveDialogParams) => {
-			const { Utils } = require("electrobun/bun") as typeof import("electrobun/bun");
-
 			// Electrobun doesn't expose a native save dialog yet;
 			// use directory picker + defaultName as workaround
 			const result = await Utils.openFileDialog({
@@ -313,13 +309,11 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 	} as const;
 }
 
-export function createRPC(cm: ConnectionManager, appDb?: AppDatabase) {
-	// Lazy import to avoid Electrobun dependency in tests
-	const { BrowserView } = require("electrobun/bun") as typeof import("electrobun/bun");
+export function createRPC(cm: ConnectionManager, appDb: AppDatabase | undefined, BrowserView: typeof import("electrobun/bun").BrowserView, Utils?: typeof import("electrobun/bun").Utils) {
 	return BrowserView.defineRPC<DotazRPC>({
 		maxRequestTime: 30000,
 		handlers: {
-			requests: createHandlers(cm, undefined, appDb),
+			requests: createHandlers(cm, undefined, appDb, Utils),
 			messages: {},
 		},
 	});
