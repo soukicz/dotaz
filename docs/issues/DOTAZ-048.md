@@ -1,24 +1,24 @@
-# DOTAZ-048: Error handling + toast notifikace
+# DOTAZ-048: Error handling + toast notifications
 
 **Phase**: 7 — Polish
 **Type**: frontend
 **Dependencies**: [DOTAZ-003]
 
-## Popis
+## Description
 
-Implementace globálního error handling a toast notifikačního systému. Toast.tsx v src/mainview/components/common/Toast.tsx — toast notifikace v pravém dolním rohu. Typy: success (zelený), error (červený), warning (žlutý), info (modrý). Auto-dismiss po 5s (nebo persistent pro errors). Dismiss tlačítko. Stack — více toastů se zobrazí nad sebou. UI store rozšíření v src/mainview/stores/ui.ts: addToast(type, message, options?), removeToast(id). Globální error handler: zachytávání neošetřených chyb z RPC volání. Místo pádu aplikace → zobrazení error toastu s user-friendly zprávou. DB connection errors: specifické zprávy ("Connection refused", "Authentication failed", "Database not found"). Query errors: zobrazení SQL error message.
+Implementation of global error handling and toast notification system. Toast.tsx in src/mainview/components/common/Toast.tsx — toast notifications in bottom right corner. Types: success (green), error (red), warning (yellow), info (blue). Auto-dismiss after 5s (or persistent for errors). Dismiss button. Stack — multiple toasts are displayed one on top of another. UI store extension in src/mainview/stores/ui.ts: addToast(type, message, options?), removeToast(id). Global error handler: catching unhandled errors from RPC calls. Instead of crash → display error toast with user-friendly message. DB connection errors: specific messages ("Connection refused", "Authentication failed", "Database not found"). Query errors: display SQL error message.
 
-## Soubory
+## Files
 
-- `src/mainview/components/common/Toast.tsx` — toast komponenta, stack layout, auto-dismiss, dismiss tlačítko
+- `src/mainview/components/common/Toast.tsx` — toast component, stack layout, auto-dismiss, dismiss button
 - `src/mainview/stores/ui.ts` — addToast(type, message, options?), removeToast(id), toast state management
-- `src/mainview/lib/rpc.ts` — error handling wrapper pro RPC volání, mapování DB chyb na user-friendly zprávy
+- `src/mainview/lib/rpc.ts` — error handling wrapper for RPC calls, mapping DB errors to user-friendly messages
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Toast notifikace se zobrazují ve správných barvách dle typu
-- [ ] Auto-dismiss po 5s (errors jsou persistent)
-- [ ] Stack více toastů funguje
-- [ ] RPC chyby se zobrazí jako error toast
-- [ ] DB chyby mají specifické user-friendly zprávy
-- [ ] Aplikace nepadá při neošetřených chybách
+- [ ] Toast notifications display in correct colors by type
+- [ ] Auto-dismiss after 5s (errors are persistent)
+- [ ] Stack of multiple toasts works
+- [ ] RPC errors display as error toast
+- [ ] DB errors have specific user-friendly messages
+- [ ] Application does not crash on unhandled errors

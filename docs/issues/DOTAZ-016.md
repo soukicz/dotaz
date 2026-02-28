@@ -1,34 +1,34 @@
-# DOTAZ-016: Context menu pro connections
+# DOTAZ-016: Context menu for connections
 
 **Phase**: 2 — Connection Management
 **Type**: frontend
 **Dependencies**: [DOTAZ-015]
 
-## Popis
+## Description
 
-Implementace ContextMenu komponenty v `src/mainview/components/common/ContextMenu.tsx`. Generická kontextová menu komponenta:
+Implementation of ContextMenu component in `src/mainview/components/common/ContextMenu.tsx`. Generic context menu component:
 
-- Otevře se na pozici kliknutí (right-click)
-- Zavře se při kliknutí mimo
-- Support pro separátory a disabled položky
+- Opens at click position (right-click)
+- Closes when clicking outside
+- Support for separators and disabled items
 
-Integrace s ConnectionTree:
+Integration with ConnectionTree:
 
-- Pravý klik na connection → Connect/Disconnect, Edit, Duplicate, Delete (s potvrzovacím dialogem)
-- Pravý klik na tabulku → Open Data, New SQL Console (pro tuto connection), View Schema
-- Pravý klik na schema → New SQL Console
+- Right-click on connection → Connect/Disconnect, Edit, Duplicate, Delete (with confirmation dialog)
+- Right-click on table → Open Data, New SQL Console (for this connection), View Schema
+- Right-click on schema → New SQL Console
 
-Akce volají příslušné store metody (connections store, tabs store).
+Actions call respective store methods (connections store, tabs store).
 
-## Soubory
+## Files
 
-- `src/mainview/components/common/ContextMenu.tsx` — generická kontextová menu komponenta s pozicováním, separátory a disabled položkami
-- `src/mainview/components/connection/ConnectionTree.tsx` — rozšíření o context menu na right-click pro connections, schemas a tables
+- `src/mainview/components/common/ContextMenu.tsx` — generic context menu component with positioning, separators and disabled items
+- `src/mainview/components/connection/ConnectionTree.tsx` — extension with context menu on right-click for connections, schemas and tables
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Kontextové menu se otevře na right-click na správné pozici
-- [ ] Zavře se při kliknutí mimo menu
-- [ ] Akce pro connections fungují (connect, disconnect, edit, delete)
-- [ ] Akce pro tables fungují (open data, new console, view schema)
-- [ ] Menu je správně pozicované i u okrajů okna (nepadá mimo viewport)
+- [ ] Context menu opens on right-click at correct position
+- [ ] Closes when clicking outside menu
+- [ ] Actions for connections work (connect, disconnect, edit, delete)
+- [ ] Actions for tables work (open data, new console, view schema)
+- [ ] Menu is positioned correctly even at window edges (doesn't fall outside viewport)

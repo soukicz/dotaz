@@ -1,39 +1,39 @@
-# DOTAZ-014: File dialog + save dialog RPC handlery
+# DOTAZ-014: File dialog + save dialog RPC handlers
 
 **Phase**: 2 — Connection Management
 **Type**: backend
 **Dependencies**: [DOTAZ-008]
 
-## Popis
+## Description
 
-Implementace RPC handlerů pro native dialogy v `src/bun/rpc-handlers.ts`.
+Implementation of RPC handlers for native dialogs in `src/bun/rpc-handlers.ts`.
 
-Handler `system.showOpenDialog` — otevře native file picker dialog přes Electrobun API (`BrowserWindow` dialog metody nebo `Electrobun.dialog`). Parametry:
+Handler `system.showOpenDialog` — opens native file picker dialog via Electrobun API (`BrowserWindow` dialog methods or `Electrobun.dialog`). Parameters:
 
-- `title` — titulek dialogu
-- `filters` — přípony souborů, např. `[{name: "SQLite", extensions: ["db", "sqlite", "sqlite3"]}]`
-- `defaultPath` — výchozí cesta
+- `title` — dialog title
+- `filters` — file extensions, e.g. `[{name: "SQLite", extensions: ["db", "sqlite", "sqlite3"]}]`
+- `defaultPath` — default path
 
-Vrací vybranou cestu nebo `null` (cancel).
+Returns selected path or `null` (cancel).
 
-Handler `system.showSaveDialog` — otevře native save dialog. Parametry:
+Handler `system.showSaveDialog` — opens native save dialog. Parameters:
 
-- `title` — titulek dialogu
-- `defaultFileName` — výchozí název souboru
-- `filters` — přípony souborů
+- `title` — dialog title
+- `defaultFileName` — default file name
+- `filters` — file extensions
 
-Vrací vybranou cestu nebo `null` (cancel).
+Returns selected path or `null` (cancel).
 
-Tyto handlery budou použity pro SQLite connection (open DB file) a export (save export file).
+These handlers will be used for SQLite connection (open DB file) and export (save export file).
 
-## Soubory
+## Files
 
-- `src/bun/rpc-handlers.ts` — rozšíření `system.*` handlerů o `showOpenDialog` a `showSaveDialog`
+- `src/bun/rpc-handlers.ts` — extension of `system.*` handlers with `showOpenDialog` and `showSaveDialog`
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] `showOpenDialog` otevře native file picker a vrátí cestu
-- [ ] `showSaveDialog` otevře native save dialog a vrátí cestu
-- [ ] Cancel vrací `null`
-- [ ] Filtry souborů fungují správně
-- [ ] Dialogy jsou nativní (ne HTML)
+- [ ] `showOpenDialog` opens native file picker and returns path
+- [ ] `showSaveDialog` opens native save dialog and returns path
+- [ ] Cancel returns `null`
+- [ ] File filters work correctly
+- [ ] Dialogs are native (not HTML)

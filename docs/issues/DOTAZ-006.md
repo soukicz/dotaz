@@ -4,27 +4,27 @@
 **Type**: backend
 **Dependencies**: [DOTAZ-005]
 
-## Popis
+## Description
 
-Implementace PostgreSQL driveru v `src/bun/db/postgres-driver.ts`. Pouziva Bun.SQL (`import { SQL } from "bun"`) s connection string URL. Connection pooling (vestaveny v Bun.SQL).
+Implementation of PostgreSQL driver in `src/bun/db/postgres-driver.ts`. Uses Bun.SQL (`import { SQL } from "bun"`) with connection string URL. Connection pooling (built-in in Bun.SQL).
 
-Query execution s tagged template literals a parametrizovanymi dotazy. Query cancellation pres `AbortController`.
+Query execution with tagged template literals and parameterized queries. Query cancellation via `AbortController`.
 
-Schema introspekce pres `information_schema` (`columns`, `tables`, `schemata`) a `pg_catalog` (`pg_indexes`, `pg_constraint` pro FK). Podpora pro vestavene PG typy (`jsonb`, `array`, `timestamp`, `uuid`, `numeric`).
+Schema introspection via `information_schema` (`columns`, `tables`, `schemata`) and `pg_catalog` (`pg_indexes`, `pg_constraint` for FK). Support for built-in PG types (`jsonb`, `array`, `timestamp`, `uuid`, `numeric`).
 
-`quoteIdentifier` s dvojitymi uvozovkami (standard SQL quoting pro PostgreSQL).
+`quoteIdentifier` with double quotes (standard SQL quoting for PostgreSQL).
 
-## Soubory
+## Files
 
-- `src/bun/db/postgres-driver.ts` — PostgreSQL implementace DatabaseDriver interface, connection pooling, schema introspekce pres information_schema a pg_catalog
+- `src/bun/db/postgres-driver.ts` — PostgreSQL implementation of DatabaseDriver interface, connection pooling, schema introspection via information_schema and pg_catalog
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Driver implementuje kompletni DatabaseDriver interface
-- [ ] Connection pooling funguje (vestaveny v Bun.SQL)
-- [ ] Schema introspekce vraci spravna data pro PostgreSQL (schemas, tables, columns, indexes, foreign keys)
-- [ ] Dotazy s parametry fungujou spravne
-- [ ] Query cancellation pres AbortController funguje
-- [ ] Spravne quotuje identifikatory dvojitymi uvozovkami
-- [ ] Podpora pro PG typy (jsonb, array, timestamp, uuid, numeric)
-- [ ] `connect` vytvori connection pool, `disconnect` ho zavre
+- [ ] Driver implements complete DatabaseDriver interface
+- [ ] Connection pooling works (built-in in Bun.SQL)
+- [ ] Schema introspection returns correct data for PostgreSQL (schemas, tables, columns, indexes, foreign keys)
+- [ ] Queries with parameters work correctly
+- [ ] Query cancellation via AbortController works
+- [ ] Correctly quotes identifiers with double quotes
+- [ ] Support for PG types (jsonb, array, timestamp, uuid, numeric)
+- [ ] `connect` creates connection pool, `disconnect` closes it

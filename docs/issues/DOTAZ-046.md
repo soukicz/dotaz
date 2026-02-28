@@ -1,23 +1,23 @@
-# DOTAZ-046: Kontextová menu (grid, editor, tabs)
+# DOTAZ-046: Context menus (grid, editor, tabs)
 
 **Phase**: 7 — Polish
 **Type**: frontend
 **Dependencies**: [DOTAZ-016, DOTAZ-020, DOTAZ-028]
 
-## Popis
+## Description
 
-Rozšíření ContextMenu o kontextová menu pro grid, SQL editor a tabs. Grid buňka (right-click): Copy Value, Copy Row, Edit Cell, Set NULL, Filter by This Value, Sort Ascending, Sort Descending. Grid řádek: Row Detail (otevře RowDetailDialog), Delete Row, Duplicate Row. Grid sloupec (right-click na header): Sort ASC/DESC, Hide Column, Pin Left/Right, Filter by Column. SQL editor: Cut, Copy, Paste, Select All, Run Selected, Format SQL, separator, Copy as INSERT. TabBar tab: Close, Close Others, Close All, Duplicate Tab, Rename (jen SQL console). Akce volají příslušné store metody a příkazy.
+Extension of ContextMenu with context menus for grid, SQL editor and tabs. Grid cell (right-click): Copy Value, Copy Row, Edit Cell, Set NULL, Filter by This Value, Sort Ascending, Sort Descending. Grid row: Row Detail (opens RowDetailDialog), Delete Row, Duplicate Row. Grid column (right-click on header): Sort ASC/DESC, Hide Column, Pin Left/Right, Filter by Column. SQL editor: Cut, Copy, Paste, Select All, Run Selected, Format SQL, separator, Copy as INSERT. TabBar tab: Close, Close Others, Close All, Duplicate Tab, Rename (SQL console only). Actions call respective store methods and commands.
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/DataGrid.tsx` — grid context menu (buňka, řádek, header)
+- `src/mainview/components/grid/DataGrid.tsx` — grid context menu (cell, row, header)
 - `src/mainview/components/editor/SqlEditor.tsx` — editor context menu (Cut, Copy, Paste, Run Selected, Format SQL, Copy as INSERT)
 - `src/mainview/components/layout/TabBar.tsx` — tab context menu (Close, Close Others, Close All, Duplicate, Rename)
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Right-click na grid buňku zobrazí relevantní akce
-- [ ] Right-click na header zobrazí column akce
-- [ ] Right-click v editoru zobrazí editor akce
-- [ ] Right-click na tab zobrazí tab akce
-- [ ] Všechny akce fungují správně
+- [ ] Right-click on grid cell displays relevant actions
+- [ ] Right-click on header displays column actions
+- [ ] Right-click in editor displays editor actions
+- [ ] Right-click on tab displays tab actions
+- [ ] All actions work correctly

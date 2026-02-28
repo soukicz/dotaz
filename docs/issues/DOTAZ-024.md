@@ -1,35 +1,35 @@
-# DOTAZ-024: Clipboard podpora (Ctrl+C)
+# DOTAZ-024: Clipboard support (Ctrl+C)
 
 **Phase**: 3 — Data Grid
 **Type**: frontend
 **Dependencies**: [DOTAZ-020]
 
-## Popis
+## Description
 
-Implementace clipboard podpory pro data grid. Ctrl+C kopíruje vybrané buňky/řádky do schránky.
+Implementation of clipboard support for data grid. Ctrl+C copies selected cells/rows to clipboard.
 
-Formát: tab-separated values (TSV) — kompatibilní s paste do Excelu a Google Sheets.
+Format: tab-separated values (TSV) — compatible with paste into Excel and Google Sheets.
 
-Pravidla kopírování:
+Copy rules:
 
-- Pokud je vybrán jeden řádek → kopíruje všechny viditelné sloupce
-- Pokud je vybraná jedna buňka (focus) → kopíruje jen hodnotu buňky
-- Pokud je vybráno více řádků → kopíruje všechny viditelné sloupce pro vybrané řádky
-- Hlavičky sloupců jako první řádek (volitelné — nastavení)
-- NULL hodnoty jako prázdný string v clipboard
+- If one row is selected → copies all visible columns
+- If one cell is selected (focus) → copies only cell value
+- If multiple rows are selected → copies all visible columns for selected rows
+- Column headers as first row (optional — configurable)
+- NULL values as empty string in clipboard
 
-Implementace přes `navigator.clipboard.writeText()`. Vizuální feedback: krátký flash na zkopírovaných buňkách nebo toast "Copied X rows".
+Implementation via `navigator.clipboard.writeText()`. Visual feedback: brief flash on copied cells or toast "Copied X rows".
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/DataGrid.tsx` — keyboard handler pro Ctrl+C, sestavení TSV dat z vybraných řádků/buněk
-- `src/mainview/lib/keyboard.ts` — základní keyboard handling utilita pro grid shortcuts
+- `src/mainview/components/grid/DataGrid.tsx` — keyboard handler for Ctrl+C, TSV data assembly from selected rows/cells
+- `src/mainview/lib/keyboard.ts` — basic keyboard handling utility for grid shortcuts
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Ctrl+C kopíruje vybraná data do schránky
-- [ ] Formát je TSV (funguje paste do Excelu a Google Sheets)
-- [ ] Single cell copy funguje (kopíruje jen hodnotu buňky)
-- [ ] Multi-row copy funguje (kopíruje všechny viditelné sloupce)
-- [ ] NULL je prázdný string v clipboard
-- [ ] Vizuální feedback po kopírování (flash nebo toast)
+- [ ] Ctrl+C copies selected data to clipboard
+- [ ] Format is TSV (works with paste into Excel and Google Sheets)
+- [ ] Single cell copy works (copies only cell value)
+- [ ] Multi-row copy works (copies all visible columns)
+- [ ] NULL is empty string in clipboard
+- [ ] Visual feedback after copying (flash or toast)

@@ -1,262 +1,262 @@
 # Dotaz — Architecture
 
-## Přehled
+## Overview
 
-Dotaz je desktop databázový klient postavený na **Electrobun** (Bun backend + system webview). Frontend používá **Solid.js** s Vite (HMR). Komunikace mezi frontendem a backendem probíhá přes **Electrobun RPC** (type-safe, bidirectional).
+Dotaz is a desktop database client built on **Electrobun** (Bun backend + system webview). The frontend uses **Solid.js** with Vite (HMR). Communication between frontend and backend occurs via **Electrobun RPC** (type-safe, bidirectional).
 
-Aplikace je zaměřená na DML operace — prohlížení, editaci a dotazování dat. Neposkytuje DDL nástroje (CREATE/ALTER/DROP).
+The application is focused on DML operations — viewing, editing, and querying data. It does not provide DDL tools (CREATE/ALTER/DROP).
 
 ---
 
-## Technologická rozhodnutí
+## Technology Decisions
 
-| Oblast | Technologie | Zdůvodnění |
+| Area | Technology | Rationale |
 |---|---|---|
-| Runtime | Bun | Nativní podpora SQLite, vestavěný SQL driver, rychlý startup |
-| Desktop framework | Electrobun | Bun backend + system webview, nízká paměťová náročnost |
-| Frontend | Solid.js + Vite | Fine-grained reactivity, rychlý HMR |
-| DB driver | `Bun.SQL` (`import { SQL } from "bun"`) | Unified API pro PostgreSQL i SQLite, tagged template literals, connection pooling, transactions, cancellation. Žádná externí závislost. |
-| App state storage | `bun:sqlite` | Lokální SQLite pro connections, history, settings, saved views. Uloženo v `Utils.paths.userData/dotaz.db` |
-| Data grid | `@tanstack/solid-virtual` | Virtual scrolling pro velké datasety, Solid.js integrace |
-| SQL editor | CodeMirror 6 + `@codemirror/lang-sql` | Modulární, rozšiřitelný, schema-aware autocomplete |
-| Komunikace | Electrobun RPC | Type-safe, bidirectional, definované v sdílených typech |
+| Runtime | Bun | Native SQLite support, built-in SQL driver, fast startup |
+| Desktop framework | Electrobun | Bun backend + system webview, low memory footprint |
+| Frontend | Solid.js + Vite | Fine-grained reactivity, fast HMR |
+| DB driver | `Bun.SQL` (`import { SQL } from "bun"`) | Unified API for PostgreSQL and SQLite, tagged template literals, connection pooling, transactions, cancellation. No external dependencies. |
+| App state storage | `bun:sqlite` | Local SQLite for connections, history, settings, saved views. Stored in `Utils.paths.userData/dotaz.db` |
+| Data grid | `@tanstack/solid-virtual` | Virtual scrolling for large datasets, Solid.js integration |
+| SQL editor | CodeMirror 6 + `@codemirror/lang-sql` | Modular, extensible, schema-aware autocomplete |
+| Communication | Electrobun RPC | Type-safe, bidirectional, defined in shared types |
 
 ---
 
-## Adresářová struktura
+## Directory Structure
 
 ```
 dotaz/
-  electrobun.config.ts          # Electrobun build konfigurace
-  vite.config.ts                # Vite konfigurace pro frontend
-  tsconfig.json                 # TypeScript konfigurace
-  package.json                  # Závislosti a skripty
+  electrobun.config.ts          # Electrobun build configuration
+  vite.config.ts                # Vite configuration for frontend
+  tsconfig.json                 # TypeScript configuration
+  package.json                  # Dependencies and scripts
   PRD.md                        # Product Requirements Document
   docs/
-    ARCHITECTURE.md             # Tento dokument
+    ARCHITECTURE.md             # This document
     issues/
-      DOTAZ-001.md ... DOTAZ-053.md  # Issue soubory
+      DOTAZ-001.md ... DOTAZ-053.md  # Issue files
   src/
-    shared/types/               # Sdílené typy (RPC schema, datové typy)
-      rpc.ts                    # RPC schema definice (request/response typy)
-      connection.ts             # Connection typy (PG, SQLite konfigurace)
-      database.ts               # Database metadata typy (schema, tables, columns)
-      grid.ts                   # Grid typy (pagination, sort, filter)
-      query.ts                  # Query typy (execute, result, history)
-      tab.ts                    # Tab typy (data grid, SQL console, schema viewer)
-      export.ts                 # Export typy (CSV, JSON, SQL formáty)
+    shared/types/               # Shared types (RPC schema, data types)
+      rpc.ts                    # RPC schema definition (request/response types)
+      connection.ts             # Connection types (PG, SQLite configuration)
+      database.ts               # Database metadata types (schema, tables, columns)
+      grid.ts                   # Grid types (pagination, sort, filter)
+      query.ts                  # Query types (execute, result, history)
+      tab.ts                    # Tab types (data grid, SQL console, schema viewer)
+      export.ts                 # Export types (CSV, JSON, SQL formats)
     bun/                        # Backend (Bun process)
       index.ts                  # Entry point: window, menu, RPC setup
-      rpc-handlers.ts           # RPC handler implementace
+      rpc-handlers.ts           # RPC handler implementation
       db/
-        driver.ts               # DatabaseDriver interface (abstrakce)
-        postgres-driver.ts      # PostgreSQL implementace (Bun.SQL)
-        sqlite-driver.ts        # SQLite implementace (Bun.SQL)
+        driver.ts               # DatabaseDriver interface (abstraction)
+        postgres-driver.ts      # PostgreSQL implementation (Bun.SQL)
+        sqlite-driver.ts        # SQLite implementation (Bun.SQL)
       services/
-        connection-manager.ts   # Správa connections (connect/disconnect/pool)
-        query-executor.ts       # Spouštění dotazů s cancellation
-        schema-service.ts       # Schema introspekce (tables, columns, FK, indexes)
-        export-service.ts       # Export dat (CSV, JSON, SQL INSERT)
-        transaction-manager.ts  # Správa transakcí (begin/commit/rollback)
+        connection-manager.ts   # Connection management (connect/disconnect/pool)
+        query-executor.ts       # Running queries with cancellation
+        schema-service.ts       # Schema introspection (tables, columns, FK, indexes)
+        export-service.ts       # Data export (CSV, JSON, SQL INSERT)
+        transaction-manager.ts  # Transaction management (begin/commit/rollback)
       storage/
-        app-db.ts               # Lokální SQLite pro app data
-        migrations.ts           # Schema migrace pro app DB
+        app-db.ts               # Local SQLite for app data
+        migrations.ts           # Schema migrations for app DB
     mainview/                   # Frontend (Solid.js)
       index.html                # HTML entry point
       main.tsx                  # Solid.js render entry
-      App.tsx                   # Root komponenta
-      styles/global.css         # Globální styly, dark theme, CSS proměnné
+      App.tsx                   # Root component
+      styles/global.css         # Global styles, dark theme, CSS variables
       lib/
-        rpc.ts                  # Frontend RPC klient (Electroview wrapper)
+        rpc.ts                  # Frontend RPC client (Electroview wrapper)
         keyboard.ts             # Keyboard shortcut system
-        commands.ts             # Command registry pro command palette
+        commands.ts             # Command registry for command palette
       stores/
-        connections.ts          # Connection store (seznam, stav, aktivní)
-        tabs.ts                 # Tab store (otevřené taby, aktivní tab)
+        connections.ts          # Connection store (list, state, active)
+        tabs.ts                 # Tab store (open tabs, active tab)
         grid.ts                 # Grid store (data, pagination, sort, filter, selection)
-        editor.ts               # Editor store (SQL obsah, výsledky, tx stav)
-        ui.ts                   # UI store (sidebar width, dialogy, toasty)
+        editor.ts               # Editor store (SQL content, results, tx state)
+        ui.ts                   # UI store (sidebar width, dialogs, toasts)
       components/
         layout/
-          AppShell.tsx          # Hlavní layout (sidebar + content + status bar)
-          Sidebar.tsx           # Levý panel se stromem connections
-          TabBar.tsx            # Tab bar nad hlavním panelem
-          StatusBar.tsx         # Spodní status bar
-          Resizer.tsx           # Resize handle pro sidebar/panely
+          AppShell.tsx          # Main layout (sidebar + content + status bar)
+          Sidebar.tsx           # Left panel with connections tree
+          TabBar.tsx            # Tab bar above main panel
+          StatusBar.tsx         # Bottom status bar
+          Resizer.tsx           # Resize handle for sidebar/panels
         connection/
-          ConnectionDialog.tsx  # Formulář pro add/edit connection
-          ConnectionTree.tsx    # Stromová struktura connections
-          ConnectionTreeItem.tsx # Jednotlivá položka stromu
+          ConnectionDialog.tsx  # Form for add/edit connection
+          ConnectionTree.tsx    # Tree structure of connections
+          ConnectionTreeItem.tsx # Individual tree item
         grid/
-          DataGrid.tsx          # Kontejner data gridu
-          GridHeader.tsx        # Hlavička s řazením a resize sloupců
-          GridRow.tsx           # Řádek gridu
-          GridCell.tsx          # Buňka gridu (render dle typu)
+          DataGrid.tsx          # Data grid container
+          GridHeader.tsx        # Header with sorting and column resizing
+          GridRow.tsx           # Grid row
+          GridCell.tsx          # Grid cell (render by type)
           VirtualScroller.tsx   # Virtual scrolling wrapper
-          FilterBar.tsx         # Panel pro sloupcové filtrování
-          ColumnManager.tsx     # Správa viditelnosti a pořadí sloupců
-          Pagination.tsx        # Stránkování + total count
+          FilterBar.tsx         # Panel for column filtering
+          ColumnManager.tsx     # Column visibility and order management
+          Pagination.tsx        # Pagination + total count
         editor/
           SqlEditor.tsx         # CodeMirror 6 SQL editor
-          SqlResultPanel.tsx    # Panel s výsledky dotazů
+          SqlResultPanel.tsx    # Panel with query results
           QueryToolbar.tsx      # Toolbar (run, cancel, tx controls)
         schema/
-          SchemaViewer.tsx      # Read-only pohled na strukturu tabulky
-          ColumnList.tsx        # Seznam sloupců s typy a constraints
-          IndexList.tsx         # Seznam indexů
+          SchemaViewer.tsx      # Read-only view of table structure
+          ColumnList.tsx        # List of columns with types and constraints
+          IndexList.tsx         # List of indexes
         edit/
-          InlineEditor.tsx      # Editace buněk v gridu
-          RowDetailDialog.tsx   # Formulářový detail řádku
-          PendingChanges.tsx    # Panel pending změn s apply/revert
+          InlineEditor.tsx      # Cell editing in grid
+          RowDetailDialog.tsx   # Form detail of row
+          PendingChanges.tsx    # Panel of pending changes with apply/revert
         common/
           CommandPalette.tsx    # Ctrl+Shift+P command palette
-          ContextMenu.tsx       # Kontextové menu
-          Dialog.tsx            # Modální dialog
+          ContextMenu.tsx       # Context menu
+          Dialog.tsx            # Modal dialog
           Dropdown.tsx          # Dropdown / select
-          Toast.tsx             # Toast notifikace
-          Icon.tsx              # Ikony (SVG)
+          Toast.tsx             # Toast notifications
+          Icon.tsx              # Icons (SVG)
         views/
-          SavedViewPicker.tsx   # Dropdown pro výběr uloženého view
-          SaveViewDialog.tsx    # Dialog pro uložení view
+          SavedViewPicker.tsx   # Dropdown for selecting saved view
+          SaveViewDialog.tsx    # Dialog for saving view
         history/
-          QueryHistory.tsx      # Panel historie dotazů
+          QueryHistory.tsx      # Panel of query history
         export/
-          ExportDialog.tsx      # Export dialog (formát, preview, uložení)
+          ExportDialog.tsx      # Export dialog (format, preview, saving)
 ```
 
 ---
 
-## Architektura
+## Architecture
 
-### Vrstvení
+### Layering
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Frontend (Solid.js ve webview)              │
+│  Frontend (Solid.js in webview)              │
 │  ├─ Components (UI)                         │
-│  ├─ Stores (reaktivní stav)                 │
-│  └─ Lib (RPC klient, keyboard, commands)    │
+│  ├─ Stores (reactive state)                 │
+│  └─ Lib (RPC client, keyboard, commands)    │
 ├─────────────── Electrobun RPC ──────────────┤
 │  Backend (Bun process)                      │
-│  ├─ RPC Handlers (vstupní bod)              │
-│  ├─ Services (business logika)              │
-│  ├─ DB Drivers (databázová abstrakce)       │
-│  └─ Storage (lokální app data)              │
+│  ├─ RPC Handlers (entry point)              │
+│  ├─ Services (business logic)               │
+│  ├─ DB Drivers (database abstraction)       │
+│  └─ Storage (local app data)                │
 └─────────────────────────────────────────────┘
 ```
 
-### Data flow
+### Data Flow
 
-1. **User akce** → Solid.js komponenta
-2. Komponenta volá **store** akci
-3. Store volá **RPC** metodu přes Electrobun
-4. RPC handler deleguje na **service**
-5. Service používá **driver** pro komunikaci s DB
-6. Výsledek se vrací stejnou cestou zpět
+1. **User action** → Solid.js component
+2. Component calls **store** action
+3. Store calls **RPC** method via Electrobun
+4. RPC handler delegates to **service**
+5. Service uses **driver** for DB communication
+6. Result is returned the same way back
 
-### Příklad: Otevření tabulky
+### Example: Opening a Table
 
 ```
-User klikne na tabulku v sidebar
-  → ConnectionTree.tsx emituje událost
-  → tabs store vytvoří nový tab (typ: "data-grid")
-  → grid store volá RPC `getTableData({ connectionId, table, page: 1 })`
+User clicks on table in sidebar
+  → ConnectionTree.tsx emits event
+  → tabs store creates new tab (type: "data-grid")
+  → grid store calls RPC `getTableData({ connectionId, table, page: 1 })`
   → rpc-handlers.ts → query-executor.ts → postgres-driver.ts
   → SQL: SELECT * FROM "table" LIMIT 100 OFFSET 0
-  → výsledek se vrátí do grid store
-  → DataGrid.tsx renderuje data
+  → result is returned to grid store
+  → DataGrid.tsx renders data
 ```
 
 ---
 
 ## RPC Schema
 
-RPC schema je definovaná v `src/shared/types/rpc.ts` a sdílená mezi backendem a frontendem. Electrobun RPC zajišťuje type-safety.
+RPC schema is defined in `src/shared/types/rpc.ts` and shared between backend and frontend. Electrobun RPC ensures type-safety.
 
-### Hlavní RPC metody
+### Main RPC Methods
 
 #### Connection Management
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `connections.list` | FE→BE | Seznam uložených connections |
-| `connections.create` | FE→BE | Vytvoření nové connection |
-| `connections.update` | FE→BE | Editace connection |
-| `connections.delete` | FE→BE | Smazání connection |
+| `connections.list` | FE→BE | List of saved connections |
+| `connections.create` | FE→BE | Create new connection |
+| `connections.update` | FE→BE | Edit connection |
+| `connections.delete` | FE→BE | Delete connection |
 | `connections.test` | FE→BE | Test connection |
-| `connections.connect` | FE→BE | Připojení k DB |
-| `connections.disconnect` | FE→BE | Odpojení od DB |
-| `connections.statusChanged` | BE→FE | Notifikace o změně stavu |
+| `connections.connect` | FE→BE | Connect to DB |
+| `connections.disconnect` | FE→BE | Disconnect from DB |
+| `connections.statusChanged` | BE→FE | Notification of status change |
 
 #### Schema
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `schema.getSchemas` | FE→BE | Seznam schémat |
-| `schema.getTables` | FE→BE | Seznam tabulek ve schématu |
-| `schema.getColumns` | FE→BE | Sloupce tabulky (typy, constraints) |
-| `schema.getIndexes` | FE→BE | Indexy tabulky |
+| `schema.getSchemas` | FE→BE | List of schemas |
+| `schema.getTables` | FE→BE | List of tables in schema |
+| `schema.getColumns` | FE→BE | Table columns (types, constraints) |
+| `schema.getIndexes` | FE→BE | Table indexes |
 | `schema.getForeignKeys` | FE→BE | FK constraints |
 
 #### Data Grid
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `data.getTableData` | FE→BE | Data tabulky s paginací, sort, filter |
-| `data.getRowCount` | FE→BE | Celkový počet řádků |
-| `data.getColumnStats` | FE→BE | Statistiky sloupce (pro filtrování) |
+| `data.getTableData` | FE→BE | Table data with pagination, sort, filter |
+| `data.getRowCount` | FE→BE | Total row count |
+| `data.getColumnStats` | FE→BE | Column statistics (for filtering) |
 
 #### Data Editing
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `data.applyChanges` | FE→BE | Aplikace pending změn (INSERT/UPDATE/DELETE) |
-| `data.generateSql` | FE→BE | Generace SQL pro pending změny (preview) |
+| `data.applyChanges` | FE→BE | Apply pending changes (INSERT/UPDATE/DELETE) |
+| `data.generateSql` | FE→BE | Generate SQL for pending changes (preview) |
 
 #### Query Execution
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `query.execute` | FE→BE | Spuštění SQL dotazu |
-| `query.cancel` | FE→BE | Zrušení běžícího dotazu |
-| `query.format` | FE→BE | Formátování SQL |
+| `query.execute` | FE→BE | Execute SQL query |
+| `query.cancel` | FE→BE | Cancel running query |
+| `query.format` | FE→BE | Format SQL |
 
 #### Transactions
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `tx.begin` | FE→BE | Začátek transakce |
-| `tx.commit` | FE→BE | Potvrzení transakce |
-| `tx.rollback` | FE→BE | Rollback transakce |
-| `tx.status` | FE→BE | Stav transakce |
+| `tx.begin` | FE→BE | Begin transaction |
+| `tx.commit` | FE→BE | Commit transaction |
+| `tx.rollback` | FE→BE | Rollback transaction |
+| `tx.status` | FE→BE | Transaction status |
 
 #### Export
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `export.exportData` | FE→BE | Export dat do souboru |
-| `export.preview` | FE→BE | Náhled exportu (prvních N řádků) |
+| `export.exportData` | FE→BE | Export data to file |
+| `export.preview` | FE→BE | Export preview (first N rows) |
 
 #### History
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `history.list` | FE→BE | Seznam historie dotazů |
-| `history.clear` | FE→BE | Vymazání historie |
+| `history.list` | FE→BE | List of query history |
+| `history.clear` | FE→BE | Clear history |
 
 #### Saved Views
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `views.list` | FE→BE | Seznam uložených views pro tabulku |
-| `views.save` | FE→BE | Uložení view |
-| `views.update` | FE→BE | Editace view |
-| `views.delete` | FE→BE | Smazání view |
+| `views.list` | FE→BE | List of saved views for table |
+| `views.save` | FE→BE | Save view |
+| `views.update` | FE→BE | Edit view |
+| `views.delete` | FE→BE | Delete view |
 
 #### System
-| Metoda | Směr | Popis |
+| Method | Direction | Description |
 |---|---|---|
-| `system.showOpenDialog` | FE→BE | Otevření native file picker dialogu |
-| `system.showSaveDialog` | FE→BE | Otevření native save dialogu |
-| `settings.get` | FE→BE | Načtení nastavení |
-| `settings.set` | FE→BE | Uložení nastavení |
+| `system.showOpenDialog` | FE→BE | Open native file picker dialog |
+| `system.showSaveDialog` | FE→BE | Open native save dialog |
+| `settings.get` | FE→BE | Load settings |
+| `settings.set` | FE→BE | Save settings |
 
 ---
 
 ## DatabaseDriver Interface
 
-Abstrakce pro databázové operace. Každý driver implementuje stejné rozhraní.
+Abstraction for database operations. Each driver implements the same interface.
 
 ```typescript
 interface DatabaseDriver {
@@ -291,7 +291,7 @@ interface DatabaseDriver {
 
 ### PostgreSQL Driver (`postgres-driver.ts`)
 
-Používá `Bun.SQL` s tagged template literals:
+Uses `Bun.SQL` with tagged template literals:
 
 ```typescript
 import { SQL } from "bun";
@@ -300,15 +300,15 @@ const db = new SQL({ url: connectionString });
 const results = await db`SELECT * FROM ${SQL.id(table)} LIMIT ${limit}`;
 ```
 
-Vlastnosti:
-- Connection pooling (vestavěný v Bun.SQL)
-- Query cancellation přes `AbortController`
-- Schema introspekce přes `information_schema` a `pg_catalog`
+Properties:
+- Connection pooling (built-in in Bun.SQL)
+- Query cancellation via `AbortController`
+- Schema introspection via `information_schema` and `pg_catalog`
 - Transaction support
 
 ### SQLite Driver (`sqlite-driver.ts`)
 
-Používá `Bun.SQL` s unified API:
+Uses `Bun.SQL` with unified API:
 
 ```typescript
 import { SQL } from "bun";
@@ -317,23 +317,23 @@ const db = new SQL({ url: `sqlite:${filePath}` });
 const results = await db`SELECT * FROM ${SQL.id(table)} LIMIT ${limit}`;
 ```
 
-Vlastnosti:
-- Přímý přístup k souboru
-- Schema introspekce přes `sqlite_master` a `PRAGMA` příkazy
-- Jednoduchý transaction model
+Properties:
+- Direct file access
+- Schema introspection via `sqlite_master` and `PRAGMA` commands
+- Simple transaction model
 
 ---
 
-## Lokální App Storage
+## Local App Storage
 
-Aplikační data (connections, history, settings, saved views) jsou uložena v lokální SQLite databázi:
+Application data (connections, history, settings, saved views) are stored in a local SQLite database:
 
-**Cesta**: `Utils.paths.userData/dotaz.db`
+**Path**: `Utils.paths.userData/dotaz.db`
 
 ### Schema
 
 ```sql
--- Uložená připojení
+-- Saved connections
 CREATE TABLE connections (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -343,7 +343,7 @@ CREATE TABLE connections (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Historie dotazů
+-- Query history
 CREATE TABLE query_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   connection_id TEXT NOT NULL,
@@ -356,7 +356,7 @@ CREATE TABLE query_history (
   FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
 );
 
--- Uložené views
+-- Saved views
 CREATE TABLE saved_views (
   id TEXT PRIMARY KEY,
   connection_id TEXT NOT NULL,
@@ -369,13 +369,13 @@ CREATE TABLE saved_views (
   FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
 );
 
--- Nastavení
+-- Settings
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 
--- Schema verze pro migrace
+-- Schema version for migrations
 CREATE TABLE schema_version (
   version INTEGER PRIMARY KEY,
   applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -386,47 +386,47 @@ CREATE TABLE schema_version (
 
 ## Frontend State Management
 
-Stav aplikace je spravován přes Solid.js stores s `createStore` / `createSignal`.
+Application state is managed via Solid.js stores with `createStore` / `createSignal`.
 
 ### Stores
 
-| Store | Zodpovědnost |
+| Store | Responsibility |
 |---|---|
-| `connections` | Seznam connections, stav připojení, aktivní connection |
-| `tabs` | Otevřené taby, aktivní tab, tab metadata |
-| `grid` | Data gridu: řádky, sloupce, pagination, sort, filter, selection, pending changes |
-| `editor` | SQL konzole: obsah editoru, výsledky, tx stav, running state |
-| `ui` | UI stav: sidebar width, dialogy, toasty, command palette |
+| `connections` | List of connections, connection state, active connection |
+| `tabs` | Open tabs, active tab, tab metadata |
+| `grid` | Grid data: rows, columns, pagination, sort, filter, selection, pending changes |
+| `editor` | SQL console: editor content, results, tx state, running state |
+| `ui` | UI state: sidebar width, dialogs, toasts, command palette |
 
-### Reaktivní flow
+### Reactive Flow
 
 ```
-User akce → Store update → Automatický re-render (Solid.js fine-grained reactivity)
-                         → Side-effect (RPC volání, pokud potřeba)
+User action → Store update → Automatic re-render (Solid.js fine-grained reactivity)
+                           → Side-effect (RPC call, if needed)
 ```
 
 ---
 
-## Bezpečnost
+## Security
 
-- Connection stringy a hesla: zatím uloženy v lokální SQLite (šifrování v budoucí verzi)
-- Žádná telemetrie ani odesílání dat
-- SQL parametry vždy přes parametrizované dotazy (prevence SQL injection)
-- Frontend nemá přímý přístup k DB — vše přes RPC
+- Connection strings and passwords: currently stored in local SQLite (encryption in future version)
+- No telemetry or data transmission
+- SQL parameters always via parameterized queries (SQL injection prevention)
+- Frontend has no direct DB access — everything via RPC
 
 ---
 
-## Fáze implementace
+## Implementation Phases
 
-| Fáze | Název | Issues | Popis |
+| Phase | Name | Issues | Description |
 |---|---|---|---|
-| 0 | Project Setup | DOTAZ-001 – 003 | Inicializace projektu, shared types, app shell |
+| 0 | Project Setup | DOTAZ-001 – 003 | Project initialization, shared types, app shell |
 | 1 | Foundation | DOTAZ-004 – 011 | App DB, drivers, connection manager, RPC, layout |
 | 2 | Connection Management | DOTAZ-012 – 016 | Connection UI (dialog, tree, context menu) |
-| 3 | Data Grid | DOTAZ-017 – 024 | Data grid s virtual scrolling, filtry, paginace |
+| 3 | Data Grid | DOTAZ-017 – 024 | Data grid with virtual scrolling, filters, pagination |
 | 4 | SQL Editor | DOTAZ-025 – 031 | Query executor, CodeMirror editor, autocomplete |
-| 5 | Data Editing | DOTAZ-032 – 035 | Inline editace, row detail, pending changes |
-| 6 | Advanced Features | DOTAZ-036 – 043 | Saved views, FK navigace, export, history, schema |
+| 5 | Data Editing | DOTAZ-032 – 035 | Inline editing, row detail, pending changes |
+| 6 | Advanced Features | DOTAZ-036 – 043 | Saved views, FK navigation, export, history, schema |
 | 7 | Polish | DOTAZ-044 – 053 | Command palette, shortcuts, error handling, UI polish |
 
-Závislostní graf je acyklický. Každá fáze staví na předchozích.
+The dependency graph is acyclic. Each phase builds on the previous ones.

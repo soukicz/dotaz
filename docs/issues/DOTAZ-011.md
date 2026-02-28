@@ -4,20 +4,20 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-010]
 
-## Popis
+## Description
 
-Implementace tab management store v src/mainview/stores/tabs.ts. Solid.js createStore pro stav tabů: openTabs (pole TabInfo), activeTabId. Akce: openTab(type, config) — otevře nový tab (typ: data-grid, sql-console, schema-viewer) s unikátním ID (nanoid), setActiveTab(id), closeTab(id) s handlerem pro varování pokud má tab neuložené změny, closeOtherTabs(id), reorderTabs(fromIndex, toIndex). Integrace TabBar.tsx se store — TabBar čte z tabs store a volá akce. Double-click na tab pro přejmenování SQL konzole tabů. Kontextové menu na tab: Close, Close Others, Close All. Prázdný stav: zobrazení welcome screen pokud žádné taby.
+Implementation of tab management store in src/mainview/stores/tabs.ts. Solid.js createStore for tab state: openTabs (array of TabInfo), activeTabId. Actions: openTab(type, config) — opens a new tab (type: data-grid, sql-console, schema-viewer) with unique ID (nanoid), setActiveTab(id), closeTab(id) with handler for warning if tab has unsaved changes, closeOtherTabs(id), reorderTabs(fromIndex, toIndex). TabBar.tsx integration with store — TabBar reads from tabs store and calls actions. Double-click on tab to rename SQL console tabs. Context menu on tab: Close, Close Others, Close All. Empty state: display welcome screen if no tabs.
 
-## Soubory
+## Files
 
-- `src/mainview/stores/tabs.ts` — Solid.js store pro správu tabů (openTabs, activeTabId, akce)
-- `src/mainview/components/layout/TabBar.tsx` — úprava pro integraci s tabs store, kontextové menu, přejmenování
+- `src/mainview/stores/tabs.ts` — Solid.js store for tab management (openTabs, activeTabId, actions)
+- `src/mainview/components/layout/TabBar.tsx` — modification for integration with tabs store, context menu, renaming
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Lze otevřít, zavřít a přepínat taby
-- [ ] Aktivní tab je vizuálně zvýrazněn
-- [ ] Taby se nemixují (každý má unikátní ID)
-- [ ] Close tab funguje správně
-- [ ] Prázdný stav zobrazí welcome screen
-- [ ] Store je reaktivní (UI se aktualizuje automaticky)
+- [ ] Can open, close and switch tabs
+- [ ] Active tab is visually highlighted
+- [ ] Tabs don't mix (each has unique ID)
+- [ ] Close tab works correctly
+- [ ] Empty state displays welcome screen
+- [ ] Store is reactive (UI updates automatically)

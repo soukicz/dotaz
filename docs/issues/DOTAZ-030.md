@@ -1,31 +1,31 @@
-# DOTAZ-030: SqlResultPanel (výsledky dotazů)
+# DOTAZ-030: SqlResultPanel (query results)
 
 **Phase**: 4 — SQL Editor
 **Type**: frontend
 **Dependencies**: [DOTAZ-020, DOTAZ-027]
 
-## Popis
+## Description
 
-Implementace `SqlResultPanel` v `src/mainview/components/editor/SqlResultPanel.tsx`. Panel pod SQL editorem zobrazující výsledky dotazů.
+Implementation of `SqlResultPanel` in `src/mainview/components/editor/SqlResultPanel.tsx`. Panel below SQL editor displaying query results.
 
-Využívá existující grid komponenty (`GridHeader`, `VirtualScroller`, `GridRow`, `GridCell`) pro zobrazení SELECT výsledků.
+Uses existing grid components (`GridHeader`, `VirtualScroller`, `GridRow`, `GridCell`) to display SELECT results.
 
-Tab bar pro multiple result sets (pokud multi-statement SELECT). Pro DML: zobrazení `"X rows affected"` zprávy. Pro errors: zobrazení chybové zprávy s červeným pozadím, pozice chyby pokud dostupná.
+Tab bar for multiple result sets (if multi-statement SELECT). For DML: display `"X rows affected"` message. For errors: display error message with red background, error position if available.
 
-Metadata řádek: počet řádků, počet sloupců, doba trvání. Prázdný stav: `"Run a query to see results"` placeholder.
+Metadata row: number of rows, number of columns, duration. Empty state: `"Run a query to see results"` placeholder.
 
-Resize handle nahoře pro změnu výšky panelu (sdílí prostor s editorem). Panel lze minimalizovat/maximalizovat.
+Resize handle at top for changing panel height (shares space with editor). Panel can be minimized/maximized.
 
-## Soubory
+## Files
 
-- `src/mainview/components/editor/SqlResultPanel.tsx` — result panel s grid zobrazením, multi-result tabs, DML/error zobrazení, metadata, resize
+- `src/mainview/components/editor/SqlResultPanel.tsx` — result panel with grid display, multi-result tabs, DML/error display, metadata, resize
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] SELECT výsledky se zobrazí v gridu
-- [ ] Multiple result sets mají tab bar
-- [ ] DML zobrazí affected rows
-- [ ] Chyby se zobrazí čitelně (červené pozadí, pozice pokud dostupná)
-- [ ] Metadata (rows, sloupce, duration) jsou viditelné
-- [ ] Resize funguje (drag handle)
-- [ ] Prázdný stav zobrazí placeholder
+- [ ] SELECT results display in grid
+- [ ] Multiple result sets have tab bar
+- [ ] DML displays affected rows
+- [ ] Errors display clearly (red background, position if available)
+- [ ] Metadata (rows, columns, duration) are visible
+- [ ] Resize works (drag handle)
+- [ ] Empty state displays placeholder

@@ -1,35 +1,35 @@
-# DOTAZ-012: Connection store (frontend stav)
+# DOTAZ-012: Connection store (frontend state)
 
 **Phase**: 2 — Connection Management
 **Type**: frontend
 **Dependencies**: [DOTAZ-009, DOTAZ-011]
 
-## Popis
+## Description
 
-Implementace connection store v `src/mainview/stores/connections.ts`. Solid.js `createStore` pro stav connections:
+Implementation of connection store in `src/mainview/stores/connections.ts`. Solid.js `createStore` for connections state:
 
-- `connections` — pole `ConnectionInfo` s `name`, `type`, `config`, `status`
+- `connections` — array of `ConnectionInfo` with `name`, `type`, `config`, `status`
 - `activeConnectionId`
 
-Akce:
+Actions:
 
-- `loadConnections()` — volá `rpc.connections.list()` při startu
-- `createConnection(config)` — volá `rpc.connections.create()`
-- `updateConnection(id, config)` — volá `rpc.connections.update()`
-- `deleteConnection(id)` — volá `rpc.connections.delete()`
-- `connectTo(id)` — volá `rpc.connections.connect()` a aktualizuje status
-- `disconnectFrom(id)` — volá `rpc.connections.disconnect()`
+- `loadConnections()` — calls `rpc.connections.list()` on startup
+- `createConnection(config)` — calls `rpc.connections.create()`
+- `updateConnection(id, config)` — calls `rpc.connections.update()`
+- `deleteConnection(id)` — calls `rpc.connections.delete()`
+- `connectTo(id)` — calls `rpc.connections.connect()` and updates status
+- `disconnectFrom(id)` — calls `rpc.connections.disconnect()`
 
-Sledování connection status: `connected`, `connecting`, `disconnected`, `error`. Listener na backend `statusChanged` události přes RPC (bidirectional). Při úspěšném connect automaticky načte schema tree (schemas → tables).
+Connection status tracking: `connected`, `connecting`, `disconnected`, `error`. Listener on backend `statusChanged` events via RPC (bidirectional). On successful connection, automatically loads schema tree (schemas → tables).
 
-## Soubory
+## Files
 
-- `src/mainview/stores/connections.ts` — connection store s CRUD operacemi a status managementem
+- `src/mainview/stores/connections.ts` — connection store with CRUD operations and status management
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Store načte connections při startu pomocí `loadConnections()`
-- [ ] CRUD operace fungují přes RPC (create, update, delete)
-- [ ] Connection status se aktualizuje v reálném čase přes backend události
-- [ ] `connectTo()` a `disconnectFrom()` fungují a mění status
-- [ ] Schema tree (schemas → tables) se načte po úspěšném připojení
+- [ ] Store loads connections on startup using `loadConnections()`
+- [ ] CRUD operations work via RPC (create, update, delete)
+- [ ] Connection status updates in real-time via backend events
+- [ ] `connectTo()` and `disconnectFrom()` work and change status
+- [ ] Schema tree (schemas → tables) loads on successful connection

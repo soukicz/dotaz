@@ -1,24 +1,24 @@
-# DOTAZ-038: FK navigace (follow foreign keys)
+# DOTAZ-038: FK navigation (follow foreign keys)
 
 **Phase**: 6 — Advanced Features
 **Type**: frontend
 **Dependencies**: [DOTAZ-017, DOTAZ-019]
 
-## Popis
+## Description
 
-Implementace FK navigace v data gridu. FK sloupce vizualne odliseny (ikona linku, podtrzeni hodnoty). Klik na FK hodnotu -> navigace na odkazovany radek: otevre novy data grid tab pro cilovou tabulku, s filtrem na FK hodnotu (WHERE target_pk = clicked_value). Tooltip na FK bunce: "-> target_table.target_column". Breadcrumb / back navigace: historie FK navigaci v ramci tabu, tlacitko Back pro navrat na predchozi tabulku/filtr. Kontextove menu na FK bunce: "Go to referenced row", "Open target table" (bez filtru). Rozsireni grid store o fkNavigationHistory (stack pro back navigace). FK metadata pochazi ze schema.getForeignKeys RPC.
+Implementation of FK navigation in the data grid. FK columns visually distinguished (link icon, underlined value). Click on FK value -> navigate to the referenced row: opens a new data grid tab for the target table, with a filter on the FK value (WHERE target_pk = clicked_value). Tooltip on FK cell: "-> target_table.target_column". Breadcrumb / back navigation: history of FK navigations within the tab, Back button to return to the previous table/filter. Context menu on FK cell: "Go to referenced row", "Open target table" (without filter). Extending grid store with fkNavigationHistory (stack for back navigation). FK metadata comes from schema.getForeignKeys RPC.
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/GridCell.tsx` — rozsireni pro FK vizualni odliseni a klik navigaci
-- `src/mainview/components/grid/DataGrid.tsx` — breadcrumb pro FK navigaci
+- `src/mainview/components/grid/GridCell.tsx` — extension for FK visual distinction and click navigation
+- `src/mainview/components/grid/DataGrid.tsx` — breadcrumb for FK navigation
 - `src/mainview/stores/grid.ts` — fkNavigationHistory stack
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] FK sloupce jsou vizualne odliseny (ikona, podtrzeni)
-- [ ] Klik na FK hodnotu naviguje na cilovy radek v novem tabu s filtrem
-- [ ] Tooltip na FK bunce zobrazuje cilovou tabulku a sloupec
-- [ ] Back navigace funguje (navrat na predchozi tabulku/filtr)
-- [ ] Kontextove menu na FK bunce funguje ("Go to referenced row", "Open target table")
-- [ ] FK metadata se nacitaji ze schema.getForeignKeys RPC
+- [ ] FK columns are visually distinguished (icon, underline)
+- [ ] Clicking on FK value navigates to the target row in a new tab with a filter
+- [ ] Tooltip on FK cell displays the target table and column
+- [ ] Back navigation works (return to previous table/filter)
+- [ ] Context menu on FK cell works ("Go to referenced row", "Open target table")
+- [ ] FK metadata is loaded from schema.getForeignKeys RPC

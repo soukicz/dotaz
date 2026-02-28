@@ -1,34 +1,34 @@
-# DOTAZ-023: ColumnManager (viditelnost, řazení, pin)
+# DOTAZ-023: ColumnManager (visibility, sorting, pin)
 
 **Phase**: 3 — Data Grid
 **Type**: frontend
 **Dependencies**: [DOTAZ-019]
 
-## Popis
+## Description
 
-Implementace ColumnManager v `src/mainview/components/grid/ColumnManager.tsx`. Panel/dropdown pro správu sloupců v gridu:
+Implementation of ColumnManager in `src/mainview/components/grid/ColumnManager.tsx`. Panel/dropdown for managing grid columns:
 
-- Seznam všech sloupců s checkboxem pro viditelnost (toggle show/hide)
-- Drag & drop pro změnu pořadí sloupců (reorder)
-- Pin sloupce vlevo/vpravo (fixní sloupec při horizontálním scrollu)
-- Reset to Default tlačítko
-- Počet viditelných / celkových sloupců v headeru ("8/12 columns")
+- List of all columns with checkbox for visibility (toggle show/hide)
+- Drag & drop for changing column order (reorder)
+- Pin columns left/right (fixed column during horizontal scroll)
+- Reset to Default button
+- Count of visible / total columns in header ("8/12 columns")
 
-Změny se ukládají do grid store `columnConfig`. Pinned sloupce se renderují jako sticky columns v GridHeader a GridRow (CSS `position: sticky`).
+Changes are saved to grid store `columnConfig`. Pinned columns are rendered as sticky columns in GridHeader and GridRow (CSS `position: sticky`).
 
-Přístup přes ikonu ozubeného kola v toolbaru gridu.
+Accessible via gear icon in grid toolbar.
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/ColumnManager.tsx` — panel pro správu sloupců s viditelností, drag & drop řazením, pin left/right a reset funkcí
-- `src/mainview/components/grid/GridHeader.tsx` — úprava pro podporu pinned sloupců (sticky positioning)
-- `src/mainview/components/grid/GridRow.tsx` — úprava pro podporu pinned sloupců (sticky positioning)
+- `src/mainview/components/grid/ColumnManager.tsx` — panel for managing columns with visibility, drag & drop reordering, pin left/right and reset functionality
+- `src/mainview/components/grid/GridHeader.tsx` — modification to support pinned columns (sticky positioning)
+- `src/mainview/components/grid/GridRow.tsx` — modification to support pinned columns (sticky positioning)
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Lze skrýt/zobrazit sloupce pomocí checkboxu
-- [ ] Pořadí sloupců lze změnit drag & drop
-- [ ] Pin left/right funguje (sticky columns při horizontálním scrollu)
-- [ ] Reset to Default vrátí výchozí stav sloupců
-- [ ] Počet sloupců je zobrazen ("8/12 columns")
-- [ ] Změny jsou reaktivní (grid se okamžitě překreslí)
+- [ ] Can hide/show columns using checkbox
+- [ ] Column order can be changed with drag & drop
+- [ ] Pin left/right works (sticky columns during horizontal scroll)
+- [ ] Reset to Default returns to default column state
+- [ ] Column count is displayed ("8/12 columns")
+- [ ] Changes are reactive (grid immediately redrawn)

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5488:5432"
+    environment:
+      POSTGRES_USER: dotaz
+      POSTGRES_PASSWORD: dotaz
+      POSTGRES_DB: dotaz_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dotaz"]
+      interval: 1s
+      timeout: 3s
+      retries: 10

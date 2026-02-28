@@ -4,21 +4,21 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-008, DOTAZ-011]
 
-## Popis
+## Description
 
-Implementace SchemaViewer v src/mainview/components/schema/SchemaViewer.tsx. Tab zobrazujici read-only strukturu tabulky. Otevira se z kontextoveho menu na tabulce v sidebar ("View Schema") nebo z data grid toolbaru. ColumnList.tsx — tabulka sloupcu: nazev, datovy typ, nullable (boolean ikona), default hodnota, PK indikator (klic ikona), FK info (-> cilova tabulka.sloupec jako klikatelny link). IndexList.tsx — tabulka indexu: nazev, sloupce, typ (unique, btree, hash), conditions. Navigacni linky: z FK -> otevrit schema cilove tabulky, tlacitko "Open Data" -> otevrit data grid pro tuto tabulku. Cte data pres schema.getColumns, schema.getIndexes, schema.getForeignKeys RPC.
+Implementation of SchemaViewer in src/mainview/components/schema/SchemaViewer.tsx. Tab displaying read-only table structure. Opened from context menu on table in sidebar ("View Schema") or from data grid toolbar. ColumnList.tsx — table of columns: name, data type, nullable (boolean icon), default value, PK indicator (key icon), FK info (-> target table.column as clickable link). IndexList.tsx — table of indexes: name, columns, type (unique, btree, hash), conditions. Navigation links: from FK -> open target table schema, "Open Data" button -> open data grid for this table. Reads data via schema.getColumns, schema.getIndexes, schema.getForeignKeys RPC.
 
-## Soubory
+## Files
 
-- `src/mainview/components/schema/SchemaViewer.tsx` — hlavni komponenta schema vieweru
-- `src/mainview/components/schema/ColumnList.tsx` — tabulka sloupcu s typy a constraints
-- `src/mainview/components/schema/IndexList.tsx` — tabulka indexu
+- `src/mainview/components/schema/SchemaViewer.tsx` — main schema viewer component
+- `src/mainview/components/schema/ColumnList.tsx` — table of columns with types and constraints
+- `src/mainview/components/schema/IndexList.tsx` — table of indexes
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] SchemaViewer zobrazuje sloupce s nazvy, typy a constraints
-- [ ] Indexy jsou zobrazeny s nazvem, sloupci a typem
-- [ ] FK linky naviguji na schema cilove tabulky
-- [ ] Tlacitko "Open Data" otevre data grid tab pro tabulku
-- [ ] PK a FK ikony jsou viditelne u prislusnych sloupcu
-- [ ] Data se nacitaji pres schema.getColumns, schema.getIndexes, schema.getForeignKeys RPC
+- [ ] SchemaViewer displays columns with names, types and constraints
+- [ ] Indexes are displayed with name, columns and type
+- [ ] FK links navigate to target table schema
+- [ ] "Open Data" button opens data grid tab for table
+- [ ] PK and FK icons are visible on respective columns
+- [ ] Data is loaded via schema.getColumns, schema.getIndexes, schema.getForeignKeys RPC

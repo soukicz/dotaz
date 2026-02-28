@@ -1,18 +1,18 @@
-# DOTAZ-028: SqlEditor s CodeMirror 6
+# DOTAZ-028: SqlEditor with CodeMirror 6
 
 **Phase**: 4 — SQL Editor
 **Type**: frontend
 **Dependencies**: [DOTAZ-027]
 
-## Popis
+## Description
 
-Implementace `SqlEditor` v `src/mainview/components/editor/SqlEditor.tsx`. Integrace CodeMirror 6 s Solid.js.
+Implementation of `SqlEditor` in `src/mainview/components/editor/SqlEditor.tsx`. Integration of CodeMirror 6 with Solid.js.
 
-Import: `@codemirror/view` (`EditorView`, `keymap`), `@codemirror/state` (`EditorState`), `@codemirror/lang-sql` (`sql`, `PostgreSQL`, `SQLite` dialect dle connection type).
+Imports: `@codemirror/view` (`EditorView`, `keymap`), `@codemirror/state` (`EditorState`), `@codemirror/lang-sql` (`sql`, `PostgreSQL`, `SQLite` dialect depending on connection type).
 
-Dark theme rozšíření (odpovídá app dark theme).
+Dark theme extension (matches app dark theme).
 
-Základní extensions:
+Basic extensions:
 - SQL highlighting
 - Line numbers
 - Bracket matching
@@ -20,22 +20,22 @@ Základní extensions:
 - Active line highlighting
 - Indent on tab
 
-Klávesové zkratky:
-- `Ctrl+Enter` → execute query (volá editor store)
+Keyboard shortcuts:
+- `Ctrl+Enter` → execute query (calls editor store)
 - `Ctrl+Shift+Enter` → execute selected
 
-Sync obsahu editoru s editor store (`content`). Výška editoru: resizable (drag handle mezi editorem a result panelem). Placeholder text: `"Write your SQL query here..."` když prázdný.
+Sync editor content with editor store (`content`). Editor height: resizable (drag handle between editor and result panel). Placeholder text: `"Write your SQL query here..."` when empty.
 
-## Soubory
+## Files
 
-- `src/mainview/components/editor/SqlEditor.tsx` — CodeMirror 6 integrace, SQL highlighting, klávesové zkratky, dark theme, resize
+- `src/mainview/components/editor/SqlEditor.tsx` — CodeMirror 6 integration, SQL highlighting, keyboard shortcuts, dark theme, resize
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] CodeMirror se renderuje s SQL highlighting
-- [ ] Dark theme odpovídá aplikaci
-- [ ] `Ctrl+Enter` spustí dotaz
-- [ ] `Ctrl+Shift+Enter` spustí vybraný text
-- [ ] Obsah se synchronizuje se store
-- [ ] Resize mezi editorem a výsledky funguje
-- [ ] Dialect odpovídá typu connection (PostgreSQL / SQLite)
+- [ ] CodeMirror renders with SQL highlighting
+- [ ] Dark theme matches application
+- [ ] `Ctrl+Enter` runs query
+- [ ] `Ctrl+Shift+Enter` runs selected text
+- [ ] Content syncs with store
+- [ ] Resize between editor and results works
+- [ ] Dialect matches connection type (PostgreSQL / SQLite)

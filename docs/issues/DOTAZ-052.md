@@ -1,23 +1,23 @@
-# DOTAZ-052: Data refresh (F5) + stale indikace
+# DOTAZ-052: Data refresh (F5) + stale indication
 
 **Phase**: 7 — Polish
 **Type**: frontend
 **Dependencies**: [DOTAZ-018]
 
-## Popis
+## Description
 
-Implementace data refresh funkcionality. F5 v data grid tabu → reload aktuální stránky dat (volá loadTableData znovu). Indikace "stale" dat: pokud data byla načtena před > 5 minutami, zobrazit jemný indikátor ve status baru ("Data loaded 5m ago"). Auto-refresh po apply changes (po úspěšném apply pending changes). Refresh tlačítko v toolbaru gridu (ikona reload). Při refreshi: loading indikátor (spinner overlay na gridu), zachovat current page, sort, filters. Aktualizace total count při refreshi. Integrace s keyboard shortcut systémem (F5 → command "refresh-data").
+Implementation of data refresh functionality. F5 in data grid tab → reload current data page (calls loadTableData again). Indication of "stale" data: if data was loaded more than 5 minutes ago, display subtle indicator in status bar ("Data loaded 5m ago"). Auto-refresh after apply changes (after successful apply pending changes). Refresh button in grid toolbar (reload icon). During refresh: loading indicator (spinner overlay on grid), preserve current page, sort, filters. Update total count during refresh. Integration with keyboard shortcut system (F5 → command "refresh-data").
 
-## Soubory
+## Files
 
-- `src/mainview/stores/grid.ts` — refresh logic, stale tracking (timestamp posledního načtení), loadTableData re-fetch
-- `src/mainview/components/grid/DataGrid.tsx` — refresh tlačítko v toolbaru, loading spinner overlay, stale indikátor
+- `src/mainview/stores/grid.ts` — refresh logic, stale tracking (timestamp of last load), loadTableData re-fetch
+- `src/mainview/components/grid/DataGrid.tsx` — refresh button in toolbar, loading spinner overlay, stale indicator
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] F5 reloadne data v aktivním data grid tabu
-- [ ] Stale indikátor se zobrazí po 5 minutách od načtení
-- [ ] Auto-refresh po úspěšném apply changes
-- [ ] Loading spinner se zobrazí během refresh
-- [ ] Page, sort a filters se zachovají po refreshi
-- [ ] Refresh tlačítko v toolbaru funguje
+- [ ] F5 reloads data in active data grid tab
+- [ ] Stale indicator displays after 5 minutes from load
+- [ ] Auto-refresh after successful apply changes
+- [ ] Loading spinner displays during refresh
+- [ ] Page, sort and filters are preserved after refresh
+- [ ] Refresh button in toolbar works

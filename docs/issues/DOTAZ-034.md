@@ -1,24 +1,24 @@
-# DOTAZ-034: RowDetailDialog (formularovy detail radku)
+# DOTAZ-034: RowDetailDialog (form view of row detail)
 
 **Phase**: 5 — Data Editing
 **Type**: frontend
 **Dependencies**: [DOTAZ-032, DOTAZ-033]
 
-## Popis
+## Description
 
-Implementace RowDetailDialog v src/mainview/components/edit/RowDetailDialog.tsx. Modalni dialog s formularovym pohledem na jeden radek. Otevira se: Enter na vybranem radku, nebo kontextove menu -> "Row Detail". Zobrazi vertikalni formular se vsemi sloupci: label (nazev sloupce + typ), input (dle typu). Editace hodnot ve formulari — stejne ukladani do pendingChanges jako inline editor. Navigace: sipky nahoru/dolu nebo tlacitka Previous/Next pro prechod na predchozi/nasledujici radek. Zobrazeni PK hodnot v titulku dialogu. Read-only indikace pro PK sloupce (nelze editovat PK). Tlacitka: Save (ulozi do pendingChanges a zavre), Cancel (zahodi zmeny a zavre), Set NULL u kazdeho pole. Zobrazeni FK info — pokud sloupec je FK, ukaze cilovou tabulku.
+Implementation of RowDetailDialog in src/mainview/components/edit/RowDetailDialog.tsx. Modal dialog with form view of one row. Opens: Enter on selected row, or context menu -> "Row Detail". Displays vertical form with all columns: label (column name + type), input (by type). Editing values in form — same saving to pendingChanges as inline editor. Navigation: arrow keys up/down or Previous/Next buttons to move to previous/next row. Display of PK values in dialog title. Read-only indication for PK columns (cannot edit PK). Buttons: Save (saves to pendingChanges and closes), Cancel (discards changes and closes), Set NULL for each field. Display FK info — if column is FK, shows target table.
 
-## Soubory
+## Files
 
-- `src/mainview/components/edit/RowDetailDialog.tsx` — modalni dialog pro detail radku
+- `src/mainview/components/edit/RowDetailDialog.tsx` — modal dialog for row detail
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Dialog zobrazi vsechny sloupce s hodnotami
-- [ ] Editace hodnot funguje
-- [ ] Navigace mezi radky (Previous/Next, sipky) funguje
-- [ ] PK sloupce jsou read-only
-- [ ] Save ulozi zmeny do pendingChanges
-- [ ] Cancel zahodi zmeny a zavre dialog
-- [ ] Set NULL funguje u kazdeho pole
-- [ ] FK info je zobrazeno u FK sloupcu
+- [ ] Dialog displays all columns with values
+- [ ] Editing values works
+- [ ] Navigation between rows (Previous/Next, arrows) works
+- [ ] PK columns are read-only
+- [ ] Save saves changes to pendingChanges
+- [ ] Cancel discards changes and closes dialog
+- [ ] Set NULL works for each field
+- [ ] FK info is displayed for FK columns

@@ -1,29 +1,29 @@
-# DOTAZ-026: SQL console RPC handlery (execute, cancel, format)
+# DOTAZ-026: SQL console RPC handlers (execute, cancel, format)
 
 **Phase**: 4 — SQL Editor
 **Type**: backend
 **Dependencies**: [DOTAZ-025, DOTAZ-008]
 
-## Popis
+## Description
 
-Implementace `query.*` RPC handlerů v `src/bun/rpc-handlers.ts`.
+Implementation of `query.*` RPC handlers in `src/bun/rpc-handlers.ts`.
 
-- **Handler `query.execute`** — přijímá `connectionId`, `sql`, `queryId`. Volá `QueryExecutor.executeQuery()`. Vrací `QueryResult` (nebo pole `QueryResult` pro multi-statement).
-- **Handler `query.cancel`** — přijímá `queryId`, volá `QueryExecutor.cancelQuery()`.
-- **Handler `query.format`** — přijímá SQL string, vrací naformátovaný SQL.
+- **Handler `query.execute`** — accepts `connectionId`, `sql`, `queryId`. Calls `QueryExecutor.executeQuery()`. Returns `QueryResult` (or array of `QueryResult` for multi-statement).
+- **Handler `query.cancel`** — accepts `queryId`, calls `QueryExecutor.cancelQuery()`.
+- **Handler `query.format`** — accepts SQL string, returns formatted SQL.
 
-Implementace jednoduchého SQL formátování (základní indentace klíčových slov: `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `GROUP BY`, `HAVING`, `JOIN` na nový řádek, klíčová slova uppercase).
+Implementation of simple SQL formatting (basic indentation of keywords: `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `GROUP BY`, `HAVING`, `JOIN` on new line, keywords in uppercase).
 
-Kompletní implementace stubs pro `query.*` z DOTAZ-008.
+Complete implementation of stubs for `query.*` from DOTAZ-008.
 
-## Soubory
+## Files
 
-- `src/bun/rpc-handlers.ts` — `query.*` handlery: `execute`, `cancel`, `format`
+- `src/bun/rpc-handlers.ts` — `query.*` handlers: `execute`, `cancel`, `format`
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] `query.execute` spustí SQL a vrátí výsledek
-- [ ] `query.cancel` přeruší běžící dotaz
-- [ ] `query.format` naformátuje SQL (klíčová slova uppercase, indentace)
-- [ ] Chyby obsahují pozici (řádek/sloupec pokud dostupné)
-- [ ] Multi-statement vrací pole výsledků
+- [ ] `query.execute` runs SQL and returns result
+- [ ] `query.cancel` interrupts running query
+- [ ] `query.format` formats SQL (keywords uppercase, indentation)
+- [ ] Errors contain position (line/column if available)
+- [ ] Multi-statement returns array of results

@@ -1,39 +1,39 @@
-# DOTAZ-017: getTableData RPC s paginací, sort, filter
+# DOTAZ-017: getTableData RPC with pagination, sort, filter
 
 **Phase**: 3 — Data Grid
 **Type**: backend
 **Dependencies**: [DOTAZ-008, DOTAZ-007]
 
-## Popis
+## Description
 
-Implementace `data.getTableData` RPC handleru v `src/bun/rpc-handlers.ts`. Handler přijímá GridDataRequest (connectionId, schema, table, page, pageSize, sort array, filters array). Generuje SQL dotaz dynamicky:
+Implementation of `data.getTableData` RPC handler in `src/bun/rpc-handlers.ts`. Handler accepts GridDataRequest (connectionId, schema, table, page, pageSize, sort array, filters array). Generates SQL query dynamically:
 
-- SELECT s `quoteIdentifier` pro sloupce
+- SELECT with `quoteIdentifier` for columns
 - FROM `schema.table`
-- WHERE klauzule z filtrů — každý filtr má column, operator, value. Operátory: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`
-- ORDER BY z sort array (column + direction)
-- LIMIT/OFFSET pro paginaci
+- WHERE clause from filters — each filter has column, operator, value. Operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`
+- ORDER BY from sort array (column + direction)
+- LIMIT/OFFSET for pagination
 
-Handler `data.getRowCount` — `SELECT COUNT(*)` s aplikovanými filtry (bez LIMIT/OFFSET).
+Handler `data.getRowCount` — `SELECT COUNT(*)` with applied filters (without LIMIT/OFFSET).
 
-Implementace v `query-executor.ts`:
+Implementation in `query-executor.ts`:
 
-- `buildSelectQuery()` — sestavení kompletního SELECT dotazu
-- `buildWhereClause()` — generování WHERE podmínek z pole filtrů
-- `buildOrderByClause()` — generování ORDER BY z pole sort pravidel
+- `buildSelectQuery()` — building complete SELECT query
+- `buildWhereClause()` — generating WHERE conditions from filters array
+- `buildOrderByClause()` — generating ORDER BY from sort rules array
 
-Parametrizované dotazy pro prevenci SQL injection. Správné escape identifikátorů přes `driver.quoteIdentifier()`.
+Parameterized queries for SQL injection prevention. Proper identifier escaping via `driver.quoteIdentifier()`.
 
-## Soubory
+## Files
 
-- `src/bun/rpc-handlers.ts` — `data.getTableData` a `data.getRowCount` handlery nahrazující stávající stubs
-- `src/bun/services/query-executor.ts` — `buildSelectQuery()`, `buildWhereClause()`, `buildOrderByClause()` funkce pro dynamické sestavení SQL
+- `src/bun/rpc-handlers.ts` — `data.getTableData` and `data.getRowCount` handlers replacing existing stubs
+- `src/bun/services/query-executor.ts` — `buildSelectQuery()`, `buildWhereClause()`, `buildOrderByClause()` functions for dynamic SQL building
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] `getTableData` vrací stránkovaná data s LIMIT/OFFSET
-- [ ] Řazení funguje pro jeden i více sloupců
-- [ ] Filtry fungují pro všechny operátory (=, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL, IN)
-- [ ] `getRowCount` vrací správný count s aplikovanými filtry
-- [ ] SQL injection není možná (parametrizované dotazy, escape identifikátorů)
-- [ ] Funguje pro PostgreSQL i SQLite
+- [ ] `getTableData` returns paginated data with LIMIT/OFFSET
+- [ ] Sorting works for single and multiple columns
+- [ ] Filters work for all operators (=, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL, IN)
+- [ ] `getRowCount` returns correct count with applied filters
+- [ ] SQL injection is not possible (parameterized queries, identifier escaping)
+- [ ] Works for both PostgreSQL and SQLite

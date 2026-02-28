@@ -1,46 +1,46 @@
-# DOTAZ-018: Grid store (data grid stav)
+# DOTAZ-018: Grid store (data grid state)
 
 **Phase**: 3 — Data Grid
 **Type**: frontend
 **Dependencies**: [DOTAZ-009, DOTAZ-017]
 
-## Popis
+## Description
 
-Implementace grid store v `src/mainview/stores/grid.ts`. Solid.js `createStore` pro stav data gridu. Stav je per-tab — každý data grid tab má vlastní grid state:
+Implementation of grid store in `src/mainview/stores/grid.ts`. Solid.js `createStore` for data grid state. State is per-tab — each data grid tab has its own grid state:
 
-- `rows` — data řádků
-- `columns` — metadata sloupců (name, type, nullable, isPrimaryKey, isForeignKey)
-- `totalCount` — celkový počet řádků
-- `currentPage` — aktuální stránka
-- `pageSize` — velikost stránky (default 100)
-- `sort` — pole `{column, direction}`
-- `filters` — pole `ColumnFilter`
-- `selectedRows` — Set řádkových indexů
-- `columnConfig` — viditelnost, pořadí, šířky, pinned
+- `rows` — row data
+- `columns` — column metadata (name, type, nullable, isPrimaryKey, isForeignKey)
+- `totalCount` — total number of rows
+- `currentPage` — current page
+- `pageSize` — page size (default 100)
+- `sort` — array of `{column, direction}`
+- `filters` — array of `ColumnFilter`
+- `selectedRows` — Set of row indices
+- `columnConfig` — visibility, order, widths, pinned
 
-Akce:
+Actions:
 
-- `loadTableData(connectionId, schema, table)` — volá RPC, naplní store
-- `setPage(page)` — změna stránky
-- `toggleSort(column)` — klik přidá/změní sort
-- `setFilter(filter)` — přidání/aktualizace filtru
-- `clearFilters()` — reset všech filtrů
-- `selectRow(index)` — výběr jednoho řádku
-- `selectRange(from, to)` — výběr rozsahu
-- `selectAll()` — výběr všech řádků
-- `getSelectedData()` — vrací data vybraných řádků
+- `loadTableData(connectionId, schema, table)` — calls RPC, fills store
+- `setPage(page)` — page change
+- `toggleSort(column)` — click adds/changes sort
+- `setFilter(filter)` — add/update filter
+- `clearFilters()` — reset all filters
+- `selectRow(index)` — select single row
+- `selectRange(from, to)` — select range
+- `selectAll()` — select all rows
+- `getSelectedData()` — returns data of selected rows
 
-Automatický reload při změně sort/filter/page.
+Automatic reload on sort/filter/page change.
 
-## Soubory
+## Files
 
-- `src/mainview/stores/grid.ts` — grid store s createStore, per-tab state, akce pro načítání dat, paginaci, sort, filtry a výběr řádků
+- `src/mainview/stores/grid.ts` — grid store with createStore, per-tab state, actions for loading data, pagination, sort, filters and row selection
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Store správně načítá data přes RPC
-- [ ] Paginace funguje (setPage trigger reload)
-- [ ] Sort trigger reload dat
-- [ ] Filter trigger reload dat
-- [ ] Výběr řádků funguje (single, range, all)
-- [ ] Per-tab state je izolovaný (každý tab má vlastní grid state)
+- [ ] Store correctly loads data via RPC
+- [ ] Pagination works (setPage triggers reload)
+- [ ] Sort triggers data reload
+- [ ] Filter triggers data reload
+- [ ] Row selection works (single, range, all)
+- [ ] Per-tab state is isolated (each tab has its own grid state)

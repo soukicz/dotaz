@@ -1,45 +1,45 @@
 # Dotaz — Product Requirements Document
 
-## 1. Vize produktu
+## 1. Product Vision
 
-**Dotaz** je desktop databázový klient zaměřený na práci s daty. Nabízí moderní alternativu k DataGrip s důrazem na čisté UX, rychlost a efektivitu při prohlížení, editaci a dotazování dat.
+**Dotaz** is a desktop database client focused on working with data. It offers a modern alternative to DataGrip with an emphasis on clean UX, speed, and efficiency in viewing, editing, and querying data.
 
-Aplikace **není** nástroj pro správu schématu (DDL) — zaměřuje se výhradně na DML operace a read-only prohlížení struktury databáze.
+The application **is not** a schema management tool (DDL) — it focuses exclusively on DML operations and read-only viewing of database structure.
 
-## 2. Cílová skupina
+## 2. Target Audience
 
-Vývojáři (backend/fullstack), kteří potřebují rychlý, spolehlivý a přehledný přístup k datům v databázích při vývoji a debugování.
+Developers (backend/fullstack) who need quick, reliable, and clear access to data in databases during development and debugging.
 
-## 3. Platforma a technologie
+## 3. Platform and Technology
 
-- **Desktop app** postavená na **Electrobun** (Bun backend + system webview)
-- Frontend: framework dle volby (React/Solid/Vue + Vite)
-- Komunikace frontend ↔ backend přes Electrobun RPC
+- **Desktop app** built on **Electrobun** (Bun backend + system webview)
+- Frontend: framework of choice (React/Solid/Vue + Vite)
+- Communication frontend ↔ backend via Electrobun RPC
 
-## 4. Podporované databáze (v1)
+## 4. Supported Databases (v1)
 
-| Databáze   | Připojení                        |
-|------------|----------------------------------|
+| Database   | Connection                   |
+|------------|------------------------------|
 | PostgreSQL | Connection string / host+port+db |
-| SQLite     | Cesta k souboru                  |
+| SQLite     | Path to file                 |
 
-Architektura musí počítat s rozšiřitelností o další databáze (MySQL, MariaDB, ClickHouse atd.).
+Architecture must account for extensibility to other databases (MySQL, MariaDB, ClickHouse, etc.).
 
 ---
 
-## 5. Informační architektura a layout
+## 5. Information Architecture and Layout
 
-### 5.1 Celkový layout (DataGrip-like, modernizovaný)
+### 5.1 Overall Layout (DataGrip-like, modernized)
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │  Menu bar                                            │
 ├────────────┬─────────────────────────────────────────┤
-│            │  Tabs (tabulky, SQL konzole, views...)   │
+│            │  Tabs (tables, SQL console, views...)   │
 │  Sidebar   ├─────────────────────────────────────────┤
-│  (strom)   │                                         │
-│            │  Hlavní panel                            │
-│  Connections│  (data grid / SQL editor / detail)      │
+│  (tree)    │                                         │
+│            │  Main panel                            │
+│  Connections│  (data grid / SQL editor / detail)    │
 │  > Schemas │                                         │
 │  > Tables  │                                         │
 │            │                                         │
@@ -48,351 +48,351 @@ Architektura musí počítat s rozšiřitelností o další databáze (MySQL, Ma
 └────────────┴─────────────────────────────────────────┘
 ```
 
-### 5.2 Sidebar — Connection tree
+### 5.2 Sidebar — Connection Tree
 
-- Hierarchická struktura: **Connection → Schema → Tabulky**
-- Ikony rozlišující typ databáze (PG vs SQLite)
-- Kontextové menu na jednotlivých úrovních (otevřít data, nová konzole, schema viewer)
-- Stav připojení vizuálně indikován (connected/disconnected)
-- Možnost mít více connections otevřených současně
+- Hierarchical structure: **Connection → Schema → Tables**
+- Icons distinguishing database type (PG vs SQLite)
+- Context menu at individual levels (open data, new console, schema viewer)
+- Connection status visually indicated (connected/disconnected)
+- Ability to have multiple connections open simultaneously
 
-### 5.3 Hlavní panel — systém tabů
+### 5.3 Main Panel — Tab System
 
-Taby pro různé typy obsahu:
-- **Data grid** — prohlížení a editace dat konkrétní tabulky
-- **SQL konzole** — psaní a spouštění SQL dotazů
-- **Schema viewer** — read-only pohled na strukturu tabulky
-- **Saved view** — uložený pohled (filtr + řazení + sloupce)
+Tabs for different types of content:
+- **Data grid** — viewing and editing data of a specific table
+- **SQL console** — writing and executing SQL queries
+- **Schema viewer** — read-only view of table structure
+- **Saved view** — stored view (filter + sort + columns)
 
 ---
 
-## 6. Funkční požadavky
+## 6. Functional Requirements
 
-### 6.1 Správa připojení (Connection Management)
+### 6.1 Connection Management
 
-**FR-CONN-01**: Vytvoření nového připojení
-- Formulář s poli dle typu databáze
+**FR-CONN-01**: Create New Connection
+- Form with fields depending on database type
 - PostgreSQL: host, port, database, username, password, SSL mode
-- SQLite: cesta k souboru (s native file picker dialogem)
-- Pojmenování connection
+- SQLite: path to file (with native file picker dialog)
+- Connection naming
 - Test connection button
 
-**FR-CONN-02**: Uložení a správa připojení
-- Seznam uložených connections v sidebar
-- Editace a smazání existujících connections
-- Duplikace connection
+**FR-CONN-02**: Save and Manage Connections
+- List of saved connections in sidebar
+- Editing and deletion of existing connections
+- Connection duplication
 
-**FR-CONN-03**: Simultánní connections
-- Více connections otevřených současně
-- Každý tab je vázaný na konkrétní connection
-- Jasná vizuální indikace, ke které connection tab patří
+**FR-CONN-03**: Simultaneous Connections
+- Multiple connections open simultaneously
+- Each tab is bound to a specific connection
+- Clear visual indication of which connection a tab belongs to
 
 **FR-CONN-04**: Reconnect
-- Automatický pokus o reconnect při výpadku
-- Manuální reconnect tlačítko
-- Jasný stav connection (connected / connecting / error)
+- Automatic reconnect attempt on connection failure
+- Manual reconnect button
+- Clear connection status (connected / connecting / error)
 
 ---
 
-### 6.2 Prohlížení dat (Data Grid)
+### 6.2 Data Viewing (Data Grid)
 
-**FR-GRID-01**: Zobrazení dat tabulky
-- Tabulkový grid s řádky a sloupci
-- Lazy loading / stránkování velkých tabulek
-- Zobrazení celkového počtu řádků
-- Indikace datového typu u sloupců
+**FR-GRID-01**: Display Table Data
+- Table grid with rows and columns
+- Lazy loading / pagination of large tables
+- Display of total row count
+- Indication of data type for columns
 
-**FR-GRID-02**: Řazení
-- Klik na hlavičku sloupce pro ASC/DESC řazení
-- Multi-column sort (Shift+klik)
-- Vizuální indikace aktivního řazení
+**FR-GRID-02**: Sorting
+- Click on column header for ASC/DESC sorting
+- Multi-column sort (Shift+click)
+- Visual indication of active sort
 
-**FR-GRID-03**: Filtrování
-- Filtrování po sloupcích
-- Podporované operátory: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`
-- Kombinace více filtrů (AND)
-- Textový filter bar pro rychlé full-text hledání v zobrazených datech
+**FR-GRID-03**: Filtering
+- Filtering by columns
+- Supported operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`
+- Combination of multiple filters (AND)
+- Text filter bar for quick full-text search in displayed data
 
-**FR-GRID-04**: Správa sloupců
-- Skrývání/zobrazování sloupců
-- Změna šířky sloupců (drag)
-- Změna pořadí sloupců (drag & drop)
-- Fixování sloupců (pin left/right)
+**FR-GRID-04**: Column Management
+- Hide/show columns
+- Change column width (drag)
+- Change column order (drag & drop)
+- Pin columns (pin left/right)
 
-**FR-GRID-05**: Buňky a hodnoty
-- Zobrazení NULL hodnot odlišným stylem
-- Zkrácení dlouhých textů s možností rozbalit
-- Zobrazení JSON/JSONB hodnot s formátováním
-- Kopírování hodnoty buňky (Ctrl+C)
+**FR-GRID-05**: Cells and Values
+- Display NULL values in distinct style
+- Truncation of long text with ability to expand
+- Display JSON/JSONB values with formatting
+- Copy cell value (Ctrl+C)
 
-**FR-GRID-06**: Výběr řádků
-- Klik = výběr řádku
-- Ctrl+klik = přidání do výběru
-- Shift+klik = range select
-- Výběr všech (Ctrl+A)
-
----
-
-### 6.3 Uložené views (Saved Views)
-
-**FR-VIEW-01**: Vytvoření view
-- Uložení aktuálního stavu gridu jako pojmenovaný view
-- Uložené parametry: viditelné sloupce, pořadí sloupců, šířky, řazení, filtry
-
-**FR-VIEW-02**: Scope views
-- Views jsou vázané na konkrétní tabulku v rámci connection
-- Seznam views dostupný v data grid panelu
-
-**FR-VIEW-03**: Správa views
-- Přejmenování, editace a smazání view
-- Přepínání mezi views v rámci jedné tabulky
-- Výchozí view (bez filtrů) vždy dostupný
-
-**FR-VIEW-04**: Quick switch
-- Dropdown / seznam views v hlavičce data gridu
-- Rychlé přepínání mezi uloženými views
+**FR-GRID-06**: Row Selection
+- Click = select row
+- Ctrl+click = add to selection
+- Shift+click = range select
+- Select all (Ctrl+A)
 
 ---
 
-### 6.4 Editace dat
+### 6.3 Saved Views
 
-**FR-EDIT-01**: Inline editace (v gridu)
-- Dvojklik na buňku → editace hodnoty přímo v gridu
-- Tab/Enter pro přechod na další buňku
-- Escape pro zrušení editace
-- Vizuální indikace změněných (dosud necommitnutých) buněk
+**FR-VIEW-01**: Create View
+- Save current grid state as named view
+- Saved parameters: visible columns, column order, widths, sorting, filters
 
-**FR-EDIT-02**: Formulářový detail
-- Otevření řádku v detailním formuláři (klávesová zkratka nebo kontextové menu)
-- Zobrazení všech sloupců ve vertikálním formuláři
-- Vhodné pro tabulky s mnoha sloupci nebo dlouhými textovými hodnotami
-- Editace hodnot ve formuláři
+**FR-VIEW-02**: View Scope
+- Views are bound to a specific table within a connection
+- List of views available in the data grid panel
 
-**FR-EDIT-03**: Přidání řádku
-- Tlačítko / zkratka pro přidání nového řádku
-- Nový řádek se zobrazí v gridu (inline) nebo jako formulář
-- Validace NOT NULL a dalších constraints před odesláním
+**FR-VIEW-03**: View Management
+- Rename, edit, and delete view
+- Switch between views within one table
+- Default view (no filters) always available
 
-**FR-EDIT-04**: Smazání řádku
-- Smazání vybraných řádků (s potvrzovacím dialogem)
+**FR-VIEW-04**: Quick Switch
+- Dropdown / list of views in data grid header
+- Quick switching between saved views
+
+---
+
+### 6.4 Data Editing
+
+**FR-EDIT-01**: Inline Editing (in grid)
+- Double-click on cell → edit value directly in grid
+- Tab/Enter to move to next cell
+- Escape to cancel editing
+- Visual indication of changed (not yet committed) cells
+
+**FR-EDIT-02**: Form Detail
+- Open row in detailed form (keyboard shortcut or context menu)
+- Display all columns in vertical form
+- Suitable for tables with many columns or long text values
+- Edit values in form
+
+**FR-EDIT-03**: Add Row
+- Button / shortcut to add new row
+- New row appears in grid (inline) or as form
+- Validation of NOT NULL and other constraints before submission
+
+**FR-EDIT-04**: Delete Row
+- Delete selected rows (with confirmation dialog)
 - Multi-select delete
 
-**FR-EDIT-05**: Změnový přehled (pending changes)
-- Před commit/apply: zobrazení seznamu všech pending změn (INSERT, UPDATE, DELETE)
-- Diff pohled: stará vs. nová hodnota
-- Možnost revertovat jednotlivé změny před commitem
+**FR-EDIT-05**: Change Overview (pending changes)
+- Before commit/apply: display list of all pending changes (INSERT, UPDATE, DELETE)
+- Diff view: old vs. new value
+- Ability to revert individual changes before commit
 
-**FR-EDIT-06**: NULL handling
-- Explicitní možnost nastavit hodnotu na NULL (ne prázdný string)
-- Rozlišení mezi prázdným stringem a NULL v editaci
+**FR-EDIT-06**: NULL Handling
+- Explicit ability to set value to NULL (not empty string)
+- Distinction between empty string and NULL in editing
 
 ---
 
-### 6.5 SQL Editor / Konzole
+### 6.5 SQL Editor / Console
 
-**FR-SQL-01**: SQL konzole
-- Konzole vázaná na konkrétní connection (DataGrip styl)
-- Více konzolí otevřených současně (jako taby)
-- Pojmenování konzolí
+**FR-SQL-01**: SQL Console
+- Console bound to specific connection (DataGrip style)
+- Multiple consoles open simultaneously (as tabs)
+- Console naming
 
 **FR-SQL-02**: Editor
-- Syntax highlighting pro SQL
-- Autocomplete: tabulky, sloupce, SQL klíčová slova, funkce
-- Autocomplete kontextově závislý na aktuální connection a schématu
-- Formátování SQL (pretty print)
-- Multi-statement podpora (oddělení středníkem)
+- Syntax highlighting for SQL
+- Autocomplete: tables, columns, SQL keywords, functions
+- Autocomplete contextually dependent on current connection and schema
+- SQL formatting (pretty print)
+- Multi-statement support (separated by semicolon)
 
-**FR-SQL-03**: Spouštění dotazů
-- Spuštění celého obsahu konzole (Ctrl+Enter nebo tlačítko)
-- Spuštění vybraného textu (výběr + Ctrl+Enter)
-- Spuštění aktuálního statementu (kurzor je ve statementu)
-- Indikace běžícího dotazu s možností zrušení (cancel)
+**FR-SQL-03**: Running Queries
+- Run entire console content (Ctrl+Enter or button)
+- Run selected text (selection + Ctrl+Enter)
+- Run current statement (cursor is in statement)
+- Indication of running query with option to cancel
 
-**FR-SQL-04**: Výsledky
-- Zobrazení výsledků v data gridu pod editorem
-- Multiple result sets (pokud více SELECT statementů)
-- Zobrazení počtu affected rows pro DML
-- Zobrazení doby trvání dotazu
-- Error messages s pozicí chyby
+**FR-SQL-04**: Results
+- Display results in data grid below editor
+- Multiple result sets (if multiple SELECT statements)
+- Display number of affected rows for DML
+- Display query duration
+- Error messages with error position
 
-**FR-SQL-05**: Transakční mód konzole
-- Přepínač v hlavičce konzole: **Auto-commit** / **Manual**
-- Auto-commit: každý statement se automaticky commitne
-- Manual: explicitní BEGIN/COMMIT/ROLLBACK
-- Vizuální indikace, že konzole je uprostřed otevřené transakce
-- Varování při zavírání konzole s otevřenou transakcí
-
----
-
-### 6.6 Transakce
-
-**FR-TX-01**: Transakční režimy
-- Per-konzole nastavení: auto-commit nebo manuální transakce
-- Výchozí režim konfigurovatelný v nastavení
-
-**FR-TX-02**: Manuální transakce
-- BEGIN automaticky při prvním DML (nebo explicitně)
-- COMMIT / ROLLBACK tlačítka v UI
-- Klávesové zkratky pro commit/rollback
-- Vizuální indikace otevřené transakce (barevný status bar)
-
-**FR-TX-03**: Transakce při editaci dat v gridu
-- Při manuálním režimu: editace v gridu se hromadí jako pending changes
-- Apply = odeslání SQL statements v rámci transakce
-- Commit = potvrzení transakce
-- Rollback = zahození všech změn
-
-**FR-TX-04**: Ochrana proti ztrátě dat
-- Varování při zavírání tabu s necommitnutou transakcí
-- Varování při odpojení s otevřenými transakcemi
-- Varování při zavírání aplikace s otevřenými transakcemi
+**FR-SQL-05**: Console Transaction Mode
+- Toggle in console header: **Auto-commit** / **Manual**
+- Auto-commit: each statement is automatically committed
+- Manual: explicit BEGIN/COMMIT/ROLLBACK
+- Visual indication that console is in open transaction
+- Warning when closing console with open transaction
 
 ---
 
-### 6.7 Export dat
+### 6.6 Transactions
 
-**FR-EXP-01**: Formáty exportu
-- CSV (s konfigurovatelným oddělovačem a kódováním)
+**FR-TX-01**: Transaction Modes
+- Per-console setting: auto-commit or manual transactions
+- Default mode configurable in settings
+
+**FR-TX-02**: Manual Transactions
+- BEGIN automatically on first DML (or explicitly)
+- COMMIT / ROLLBACK buttons in UI
+- Keyboard shortcuts for commit/rollback
+- Visual indication of open transaction (colored status bar)
+
+**FR-TX-03**: Transactions When Editing Data in Grid
+- In manual mode: editing in grid accumulates as pending changes
+- Apply = send SQL statements within transaction
+- Commit = confirm transaction
+- Rollback = discard all changes
+
+**FR-TX-04**: Data Loss Protection
+- Warning when closing tab with uncommitted transaction
+- Warning when disconnecting with open transactions
+- Warning when closing application with open transactions
+
+---
+
+### 6.7 Data Export
+
+**FR-EXP-01**: Export Formats
+- CSV (with configurable delimiter and encoding)
 - JSON (array of objects)
 - SQL INSERT statements
 
-**FR-EXP-02**: Scope exportu
-- Export celé tabulky
-- Export aktuálního view (s aplikovanými filtry)
-- Export výsledku SQL dotazu
-- Export vybraných řádků
+**FR-EXP-02**: Export Scope
+- Export entire table
+- Export current view (with applied filters)
+- Export SQL query result
+- Export selected rows
 
-**FR-EXP-03**: Export workflow
-- Tlačítko v toolbaru gridu
-- Výběr formátu → náhled (prvních N řádků) → uložení souboru (native save dialog)
+**FR-EXP-03**: Export Workflow
+- Button in grid toolbar
+- Select format → preview (first N rows) → save file (native save dialog)
 
 ---
 
-### 6.8 FK navigace a vztahy
+### 6.8 FK Navigation and Relationships
 
-**FR-FK-01**: FK indikace
-- Sloupce s FK vizuálně odlišeny v gridu (ikona/barva)
-- Tooltip s informací o cílové tabulce a sloupci
+**FR-FK-01**: FK Indication
+- Columns with FK visually distinguished in grid (icon/color)
+- Tooltip with information about target table and column
 
-**FR-FK-02**: FK navigace
-- Klik na FK hodnotu → navigace na odkazovaný řádek v cílové tabulce
-- Otevření v novém tabu nebo in-place navigace
-- Breadcrumb / back navigace
+**FR-FK-02**: FK Navigation
+- Click on FK value → navigate to referenced row in target table
+- Open in new tab or in-place navigation
+- Breadcrumb / back navigation
 
-**FR-FK-03**: Related data
-- Z detailu řádku: zobrazení záznamů z tabulek, které na tento řádek odkazují (reverse FK)
-- Odkaz pro otevření filtrovaného pohledu na child tabulku
+**FR-FK-03**: Related Data
+- From row detail: display records from tables that reference this row (reverse FK)
+- Link to open filtered view on child table
 
 ---
 
 ### 6.9 Query History
 
-**FR-HIST-01**: Automatické logování
-- Každý spuštěný dotaz se uloží do historie
-- Metadata: timestamp, connection, doba trvání, počet výsledků/affected rows, úspěch/chyba
+**FR-HIST-01**: Automatic Logging
+- Every executed query is saved to history
+- Metadata: timestamp, connection, duration, number of results/affected rows, success/error
 
-**FR-HIST-02**: Prohlížení historie
-- Searchable seznam historie dotazů
-- Filtrování podle connection
-- Filtrování podle časového rozsahu
+**FR-HIST-02**: View History
+- Searchable list of query history
+- Filtering by connection
+- Filtering by time range
 
-**FR-HIST-03**: Akce z historie
-- Opětovné spuštění dotazu z historie
-- Kopírování dotazu do konzole
-- Kopírování dotazu do schránky
+**FR-HIST-03**: Actions from History
+- Re-run query from history
+- Copy query to console
+- Copy query to clipboard
 
 ---
 
 ### 6.10 Schema Viewer (read-only)
 
-**FR-SCHEMA-01**: Zobrazení struktury tabulky
-- Seznam sloupců: název, datový typ, nullable, default, komentář
-- Primary key indikace
-- FK constraints s odkazy na cílové tabulky
+**FR-SCHEMA-01**: Display Table Structure
+- List of columns: name, data type, nullable, default, comment
+- Primary key indication
+- FK constraints with links to target tables
 
-**FR-SCHEMA-02**: Indexy
-- Seznam indexů tabulky: název, sloupce, typ (unique, btree, etc.)
+**FR-SCHEMA-02**: Indexes
+- List of table indexes: name, columns, type (unique, btree, etc.)
 
-**FR-SCHEMA-03**: Navigace
-- Ze schema vieweru: odkaz na data grid tabulky
-- Z FK: odkaz na schema cílové tabulky
+**FR-SCHEMA-03**: Navigation
+- From schema viewer: link to table data grid
+- From FK: link to schema of target table
 
 ---
 
-## 7. Ovládání a UX
+## 7. Controls and UX
 
-### 7.1 Klávesové zkratky
+### 7.1 Keyboard Shortcuts
 
-| Akce                        | Zkratka          |
+| Action                      | Shortcut         |
 |-----------------------------|------------------|
 | Command palette             | Ctrl+Shift+P     |
-| Nová SQL konzole            | Ctrl+N           |
-| Spustit dotaz               | Ctrl+Enter       |
-| Commit transakci            | Ctrl+Shift+Enter |
+| New SQL console             | Ctrl+N           |
+| Run query                   | Ctrl+Enter       |
+| Commit transaction          | Ctrl+Shift+Enter |
 | Rollback                    | Ctrl+Shift+R     |
-| Uložit view                 | Ctrl+S           |
-| Zavřít tab                  | Ctrl+W           |
-| Přepnutí tabů               | Ctrl+Tab         |
-| Hledání v sidebar           | Ctrl+Shift+F     |
-| Otevřít formulář řádku      | Enter (na řádku) |
-| Inline editace              | F2 / dvojklik    |
-| Smazat řádek                | Delete            |
+| Save view                   | Ctrl+S           |
+| Close tab                   | Ctrl+W           |
+| Switch tabs                 | Ctrl+Tab         |
+| Search in sidebar           | Ctrl+Shift+F     |
+| Open row form               | Enter (on row)   |
+| Inline editing              | F2 / double-click|
+| Delete row                  | Delete           |
 | Refresh data                | F5               |
 
 ### 7.2 Command Palette
 
-- Ctrl+Shift+P otevře command palette
-- Fuzzy search přes všechny dostupné příkazy
-- Zobrazení klávesové zkratky u každého příkazu
-- Nedávné příkazy nahoře
+- Ctrl+Shift+P opens command palette
+- Fuzzy search over all available commands
+- Display keyboard shortcut for each command
+- Recent commands at top
 
-### 7.3 Kontextová menu
+### 7.3 Context Menu
 
-- Pravý klik na buňku: kopírovat, editovat, set NULL, filtrovat dle hodnoty
-- Pravý klik na řádek: otevřít detail, smazat, duplikovat
-- Pravý klik na sloupec: řadit, filtrovat, skrýt, zobrazit schema
-- Pravý klik v sidebar: otevřít data, nová konzole, schema viewer
-
----
-
-## 8. Nefunkční požadavky
-
-**NFR-01**: Výkon
-- Data grid musí plynule scrollovat s 10 000+ řádky
-- Autocomplete musí reagovat do 100 ms
-- Otevření tabulky s daty do 500 ms (pro tabulky do 100k řádků)
-
-**NFR-02**: Stabilita
-- Pád jednoho connection nesmí ovlivnit ostatní
-- Graceful handling chyb z databáze (zobrazení chybové hlášky, ne crash)
-
-**NFR-03**: Rozšiřitelnost
-- Architektura databázových driverů musí umožnit přidání nového typu DB bez zásahu do core logiky
-- Abstraktní vrstva pro databázové operace (query, metadata, schema info)
-
-**NFR-04**: Bezpečnost
-- Connection stringy a hesla uloženy bezpečně (ne plaintext)
-- Žádná telemetrie ani odesílání dat
+- Right-click on cell: copy, edit, set NULL, filter by value
+- Right-click on row: open detail, delete, duplicate
+- Right-click on column: sort, filter, hide, show schema
+- Right-click in sidebar: open data, new console, schema viewer
 
 ---
 
-## 9. Out of scope (v1)
+## 8. Non-Functional Requirements
 
-- Schema management (CREATE, ALTER, DROP tabulek)
+**NFR-01**: Performance
+- Data grid must scroll smoothly with 10,000+ rows
+- Autocomplete must respond within 100 ms
+- Open table with data within 500 ms (for tables up to 100k rows)
+
+**NFR-02**: Stability
+- One connection crash must not affect others
+- Graceful error handling from database (display error message, not crash)
+
+**NFR-03**: Extensibility
+- Database driver architecture must allow adding new DB type without affecting core logic
+- Abstract layer for database operations (query, metadata, schema info)
+
+**NFR-04**: Security
+- Connection strings and passwords stored securely (not plaintext)
+- No telemetry or data transmission
+
+---
+
+## 9. Out of Scope (v1)
+
+- Schema management (CREATE, ALTER, DROP tables)
 - Stored procedures / functions editor
-- Data import (CSV → tabulka)
-- Vizuální query builder (drag & drop)
-- ER diagram / schema vizualizace
-- Collaboration / sdílení connections
-- Cloud sync nastavení
-- Podpora dalších DB (MySQL, MongoDB, atd.) — přijde v dalších verzích
-- Specifika ukládání konfigurace (řeší Electrobun / implementační detail)
+- Data import (CSV → table)
+- Visual query builder (drag & drop)
+- ER diagram / schema visualization
+- Collaboration / connection sharing
+- Cloud sync settings
+- Support for other DBs (MySQL, MongoDB, etc.) — coming in later versions
+- Specifics of configuration storage (handled by Electrobun / implementation detail)
 
 ---
 
-## 10. Metriky úspěchu
+## 10. Success Metrics
 
-- Aplikace je použitelná jako každodenní náhrada DataGrip pro práci s PostgreSQL a SQLite
-- Čas od spuštění do prvního dotazu < 3 sekundy
-- Editační workflow (editace → commit) je plynulý a bezchybný
-- Export funguje spolehlivě pro tabulky do 1M řádků
+- Application is usable as a daily replacement for DataGrip for working with PostgreSQL and SQLite
+- Time from launch to first query < 3 seconds
+- Editing workflow (edit → commit) is smooth and error-free
+- Export works reliably for tables up to 1M rows

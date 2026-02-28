@@ -4,46 +4,46 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-019]
 
-## Popis
+## Description
 
-Implementace virtual scrolling pro efektivní rendering velkých datasetů.
+Implementation of virtual scrolling for efficient rendering of large datasets.
 
-`VirtualScroller.tsx` — wrapper kolem `@tanstack/solid-virtual` (`createVirtualizer`):
+`VirtualScroller.tsx` — wrapper around `@tanstack/solid-virtual` (`createVirtualizer`):
 
-- `estimateSize` pro řádky (32px default)
-- `overscan` (5 řádků)
-- Kontejner s `overflow-y: auto`, renderuje pouze viditelné řádky
+- `estimateSize` for rows (32px default)
+- `overscan` (5 rows)
+- Container with `overflow-y: auto`, renders only visible rows
 
-`GridRow.tsx` — řádek gridu:
+`GridRow.tsx` — grid row:
 
-- Zobrazuje buňky pro každý viditelný sloupec
-- Klik pro výběr řádku (`selectedRows` v grid store)
-- Ctrl+klik pro multi-select
-- Shift+klik pro range select
-- Hover efekt
-- Zvýraznění vybraného řádku
-- Střídavé pozadí (zebra striping)
+- Displays cells for each visible column
+- Click to select row (`selectedRows` in grid store)
+- Ctrl+click for multi-select
+- Shift+click for range select
+- Hover effect
+- Selection highlighting
+- Alternating background (zebra striping)
 
-`GridCell.tsx` — buňka gridu, renderuje hodnotu dle datového typu:
+`GridCell.tsx` — grid cell, renders value based on data type:
 
-- NULL → šedý kurzívní text "NULL"
-- Dlouhé texty → zkrácení s ellipsis (tooltip s plnou hodnotou)
-- JSON/JSONB → formátovaný s odsazením v expandable view
-- Boolean → checkbox ikona
-- Timestamp → formátovaný datum
-- Čísla zarovnána doprava
+- NULL → gray italic text "NULL"
+- Long texts → truncated with ellipsis (tooltip with full value)
+- JSON/JSONB → formatted with indentation in expandable view
+- Boolean → checkbox icon
+- Timestamp → formatted date
+- Numbers aligned right
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/VirtualScroller.tsx` — virtual scrolling wrapper s `@tanstack/solid-virtual`, `estimateSize` a `overscan` konfigurací
-- `src/mainview/components/grid/GridRow.tsx` — řádek gridu s výběrem (single, multi, range), hover efektem a zebra stripingem
-- `src/mainview/components/grid/GridCell.tsx` — buňka gridu s type-aware renderováním (NULL, text, JSON, boolean, timestamp, čísla)
+- `src/mainview/components/grid/VirtualScroller.tsx` — virtual scrolling wrapper with `@tanstack/solid-virtual`, `estimateSize` and `overscan` configuration
+- `src/mainview/components/grid/GridRow.tsx` — grid row with selection (single, multi, range), hover effect and zebra striping
+- `src/mainview/components/grid/GridCell.tsx` — grid cell with type-aware rendering (NULL, text, JSON, boolean, timestamp, numbers)
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Virtual scrolling renderuje pouze viditelné řádky
-- [ ] Plynulý scroll s 10000+ řádky
-- [ ] NULL hodnoty jsou vizuálně odlišeny (šedý kurzívní text)
-- [ ] Datové typy se renderují správně (boolean, timestamp, JSON, čísla)
-- [ ] Výběr řádků funguje (single klik, Ctrl+klik multi, Shift+klik range)
-- [ ] Zebra striping je viditelný
+- [ ] Virtual scrolling renders only visible rows
+- [ ] Smooth scroll with 10000+ rows
+- [ ] NULL values are visually distinguished (gray italic text)
+- [ ] Data types render correctly (boolean, timestamp, JSON, numbers)
+- [ ] Row selection works (single click, Ctrl+click multi, Shift+click range)
+- [ ] Zebra striping is visible

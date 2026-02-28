@@ -1,25 +1,25 @@
-# DOTAZ-010: AppShell layout komponenty (sidebar, tabs, status bar)
+# DOTAZ-010: AppShell layout components (sidebar, tabs, status bar)
 
 **Phase**: 1 — Foundation
 **Type**: frontend
 **Dependencies**: [DOTAZ-003, DOTAZ-009]
 
-## Popis
+## Description
 
-Rozšíření AppShell o funkční layout komponenty. Sidebar.tsx — levý panel s pevnou šířkou (250px default), resize handle na pravém okraji (Resizer.tsx). Sidebar obsahuje header ("Connections"), scrollable content area pro connection tree (zatím placeholder), a collapse/expand toggle. TabBar.tsx — horizontální tab bar nad hlavním content area. Zobrazuje otevřené taby s ikonou dle typu (tabulka/SQL/schema), názvem, close button (×). Aktivní tab zvýrazněn. Tab overflow scrolling. StatusBar.tsx — spodní lišta s informacemi: aktivní connection name + status (barevná tečka), aktuální schema, počet řádků (pokud grid tab), tx stav (pokud v transakci). Resizer.tsx — vertikální resize handle mezi sidebar a content, drag pro změnu šířky, min 150px max 500px.
+Extension of AppShell with functional layout components. Sidebar.tsx — left panel with fixed width (250px default), resize handle on right edge (Resizer.tsx). Sidebar contains header ("Connections"), scrollable content area for connection tree (placeholder for now), and collapse/expand toggle. TabBar.tsx — horizontal tab bar above main content area. Displays open tabs with icon based on type (table/SQL/schema), name, close button (×). Active tab highlighted. Tab overflow scrolling. StatusBar.tsx — bottom bar with information: active connection name + status (colored dot), current schema, number of rows (if grid tab), tx state (if in transaction). Resizer.tsx — vertical resize handle between sidebar and content, drag to change width, min 150px max 500px.
 
-## Soubory
+## Files
 
-- `src/mainview/components/layout/AppShell.tsx` — úprava existujícího layoutu pro integraci nových komponent
-- `src/mainview/components/layout/Sidebar.tsx` — levý panel s connection tree placeholder, collapse/expand toggle
-- `src/mainview/components/layout/TabBar.tsx` — horizontální tab bar s ikonami, názvy a close tlačítky
-- `src/mainview/components/layout/StatusBar.tsx` — spodní informační lišta (connection, schema, řádky, tx stav)
-- `src/mainview/components/layout/Resizer.tsx` — vertikální resize handle mezi sidebar a content area
+- `src/mainview/components/layout/AppShell.tsx` — update existing layout to integrate new components
+- `src/mainview/components/layout/Sidebar.tsx` — left panel with connection tree placeholder, collapse/expand toggle
+- `src/mainview/components/layout/TabBar.tsx` — horizontal tab bar with icons, names and close buttons
+- `src/mainview/components/layout/StatusBar.tsx` — bottom information bar (connection, schema, rows, tx state)
+- `src/mainview/components/layout/Resizer.tsx` — vertical resize handle between sidebar and content area
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Layout se skládá z funkčních komponent
-- [ ] Sidebar je resizable s min/max constraints (150px–500px)
-- [ ] Tab bar zobrazuje taby s close tlačítky
-- [ ] Status bar ukazuje placeholder informace
-- [ ] Resize handle funguje plynule (bez performance issues)
+- [ ] Layout consists of functional components
+- [ ] Sidebar is resizable with min/max constraints (150px–500px)
+- [ ] Tab bar displays tabs with close buttons
+- [ ] Status bar shows placeholder information
+- [ ] Resize handle works smoothly (without performance issues)

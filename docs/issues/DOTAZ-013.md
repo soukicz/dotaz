@@ -1,16 +1,16 @@
-# DOTAZ-013: ConnectionDialog (add/edit formulář)
+# DOTAZ-013: ConnectionDialog (add/edit form)
 
 **Phase**: 2 — Connection Management
 **Type**: frontend
 **Dependencies**: [DOTAZ-012]
 
-## Popis
+## Description
 
-Implementace ConnectionDialog v `src/mainview/components/connection/ConnectionDialog.tsx`. Modální dialog (používá `common/Dialog.tsx` — jednoduchý modal wrapper) pro vytvoření nebo editaci connection.
+Implementation of ConnectionDialog in `src/mainview/components/connection/ConnectionDialog.tsx`. Modal dialog (uses `common/Dialog.tsx` — simple modal wrapper) for creating or editing a connection.
 
-Přepínač typu DB: PostgreSQL / SQLite.
+DB type switcher: PostgreSQL / SQLite.
 
-PostgreSQL formulář:
+PostgreSQL form:
 
 - `name`
 - `host` (default `localhost`)
@@ -20,23 +20,23 @@ PostgreSQL formulář:
 - `password` (masked)
 - SSL mode (dropdown: `disable`, `require`, `prefer`)
 
-SQLite formulář:
+SQLite form:
 
 - `name`
-- file path (s tlačítkem Browse pro native file picker přes RPC `system.showOpenDialog`)
+- file path (with Browse button for native file picker via RPC `system.showOpenDialog`)
 
-Test Connection tlačítko — volá `rpc.connections.test()`, zobrazí výsledek (success/error s message). Save tlačítko — validace povinných polí, volání `rpc.connections.create()` nebo `update()`. Formulář se otevře prázdný pro novou connection, nebo předvyplněný pro editaci.
+Test Connection button — calls `rpc.connections.test()`, displays result (success/error with message). Save button — validates required fields, calls `rpc.connections.create()` or `update()`. Form opens empty for new connection, or pre-filled for editing.
 
-## Soubory
+## Files
 
-- `src/mainview/components/connection/ConnectionDialog.tsx` — modální formulář pro vytvoření/editaci connection
-- `src/mainview/components/common/Dialog.tsx` — generický modal wrapper
+- `src/mainview/components/connection/ConnectionDialog.tsx` — modal form for creating/editing connection
+- `src/mainview/components/common/Dialog.tsx` — generic modal wrapper
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Dialog se otevře pro novou connection i editaci (předvyplněný formulář)
-- [ ] Formulář se mění dle typu DB (PostgreSQL vs SQLite)
-- [ ] Test Connection funguje a zobrazí výsledek (success/error s message)
-- [ ] Validace povinných polí před uložením
-- [ ] Save uloží connection a zavře dialog
-- [ ] Browse pro SQLite otevře native file picker přes RPC
+- [ ] Dialog opens for new connection and editing (pre-filled form)
+- [ ] Form changes based on DB type (PostgreSQL vs SQLite)
+- [ ] Test Connection works and displays result (success/error with message)
+- [ ] Validation of required fields before saving
+- [ ] Save saves connection and closes dialog
+- [ ] Browse for SQLite opens native file picker via RPC

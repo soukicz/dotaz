@@ -1,33 +1,33 @@
-# DOTAZ-025: QueryExecutor service s cancellation
+# DOTAZ-025: QueryExecutor service with cancellation
 
 **Phase**: 4 — SQL Editor
 **Type**: backend
 **Dependencies**: [DOTAZ-007]
 
-## Popis
+## Description
 
-Implementace `QueryExecutor` service v `src/bun/services/query-executor.ts` (rozšíření stávajícího souboru). Metoda `executeQuery(connectionId, sql, params?)` — získá driver přes `ConnectionManager`, spustí dotaz.
+Implementation of `QueryExecutor` service in `src/bun/services/query-executor.ts` (extension of existing file). Method `executeQuery(connectionId, sql, params?)` — gets driver via `ConnectionManager`, runs query.
 
-Podpora multi-statement: rozdělení SQL na jednotlivé statementy (split by `";"`), sekvenční spuštění, agregace výsledků.
+Multi-statement support: splits SQL into individual statements (split by `";"`), sequential execution, aggregates results.
 
-Query cancellation: každý running query má unikátní `queryId`, mapa `runningQueries` (`queryId` → `AbortController`). Metoda `cancelQuery(queryId)` — volá abort na controller, `driver.cancel()`.
+Query cancellation: each running query has unique `queryId`, map `runningQueries` (`queryId` → `AbortController`). Method `cancelQuery(queryId)` — calls abort on controller, `driver.cancel()`.
 
-Měření doby trvání dotazu (start → end, v ms).
+Measures query duration (start → end, in ms).
 
-Výsledek: `QueryResult` s `fields` (sloupce), `rows` (data), `rowCount` (affected rows pro DML), `duration` (ms), `error` (pokud chyba). Pro SELECT: vrací data. Pro INSERT/UPDATE/DELETE: vrací affected rows count.
+Result: `QueryResult` with `fields` (columns), `rows` (data), `rowCount` (affected rows for DML), `duration` (ms), `error` (if error). For SELECT: returns data. For INSERT/UPDATE/DELETE: returns affected rows count.
 
-Timeout: konfigurovatelný query timeout (default 30s).
+Timeout: configurable query timeout (default 30s).
 
-## Soubory
+## Files
 
-- `src/bun/services/query-executor.ts` — QueryExecutor service, multi-statement podpora, cancellation přes AbortController, měření duration, timeout handling
+- `src/bun/services/query-executor.ts` — QueryExecutor service, multi-statement support, cancellation via AbortController, duration measurement, timeout handling
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] SELECT dotazy vrací data s field metadata
-- [ ] DML dotazy vrací affected rows
-- [ ] Multi-statement funguje (vrací pole výsledků)
-- [ ] Cancellation funguje (dotaz se přeruší přes `cancelQuery`)
-- [ ] Duration je měřen (start → end v ms)
-- [ ] Timeout funguje (default 30s, konfigurovatelný)
-- [ ] Chyby jsou zachyceny a vráceny čitelně
+- [ ] SELECT queries return data with field metadata
+- [ ] DML queries return affected rows
+- [ ] Multi-statement works (returns array of results)
+- [ ] Cancellation works (query interrupted via `cancelQuery`)
+- [ ] Duration is measured (start → end in ms)
+- [ ] Timeout works (default 30s, configurable)
+- [ ] Errors are caught and returned legibly

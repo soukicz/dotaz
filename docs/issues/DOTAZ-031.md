@@ -4,29 +4,29 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-028, DOTAZ-012]
 
-## Popis
+## Description
 
-Implementace schema-aware SQL autocomplete v `SqlEditor`. Rozšíření CodeMirror 6 autocomplete: `@codemirror/autocomplete` (`autocompletion`).
+Implementation of schema-aware SQL autocomplete in `SqlEditor`. Extension of CodeMirror 6 autocomplete: `@codemirror/autocomplete` (`autocompletion`).
 
-Zdroje completions:
-- **SQL klíčová slova** (`SELECT`, `FROM`, `WHERE`, ...) — vestavěné v `@codemirror/lang-sql`
-- **Názvy tabulek** — z connection store (schemas → tables)
-- **Názvy sloupců** — kontextově závislé: po `"table."` nabízí sloupce dané tabulky
-- Po `FROM`/`JOIN` nabízí tabulky
-- **Funkce** dle DB typu (PG: `now()`, `pg_sleep()`, ...; SQLite: `datetime()`, ...)
-- **Schema prefixy** (pro PG: `schema.table`)
+Sources of completions:
+- **SQL keywords** (`SELECT`, `FROM`, `WHERE`, ...) — built-in in `@codemirror/lang-sql`
+- **Table names** — from connection store (schemas → tables)
+- **Column names** — context-dependent: after `"table."` offers columns of the given table
+- After `FROM`/`JOIN` offers tables
+- **Functions** according to DB type (PG: `now()`, `pg_sleep()`, ...; SQLite: `datetime()`, ...)
+- **Schema prefixes** (for PG: `schema.table`)
 
-Autocomplete se aktivuje automaticky po tečce nebo manuálně `Ctrl+Space`. Completions se cachují a aktualizují při změně connection nebo schema refresh.
+Autocomplete activates automatically after a dot or manually via `Ctrl+Space`. Completions are cached and updated when connection changes or schema is refreshed.
 
-## Soubory
+## Files
 
-- `src/mainview/components/editor/SqlEditor.tsx` — rozšíření o autocomplete (schema-aware completions, kontextové nabídky, cache)
+- `src/mainview/components/editor/SqlEditor.tsx` — extension with autocomplete (schema-aware completions, contextual suggestions, cache)
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Autocomplete nabízí SQL klíčová slova
-- [ ] Tabulky se nabízí po `FROM`/`JOIN`
-- [ ] Sloupce se nabízí po `"table."`
-- [ ] Completion je kontextově závislý na connection (PG vs SQLite)
-- [ ] `Ctrl+Space` aktivuje autocomplete manuálně
-- [ ] Completions se aktualizují při změně schema
+- [ ] Autocomplete offers SQL keywords
+- [ ] Tables are offered after `FROM`/`JOIN`
+- [ ] Columns are offered after `"table."`
+- [ ] Completion is context-dependent on connection (PG vs SQLite)
+- [ ] `Ctrl+Space` activates autocomplete manually
+- [ ] Completions are updated when schema changes

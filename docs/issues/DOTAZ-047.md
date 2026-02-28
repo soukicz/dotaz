@@ -4,21 +4,21 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-032, DOTAZ-029]
 
-## Popis
+## Description
 
-Kompletní transaction management UI. Implementace TransactionManager v src/bun/services/transaction-manager.ts — service pro správu transakcí per-connection. Sleduje stav otevřených transakcí. RPC handlery tx.begin, tx.commit, tx.rollback, tx.status — kompletní implementace (nahrazení stubs). Frontend: StatusBar rozšíření — zobrazení tx stavu (žluté "IN TRANSACTION" badge pokud aktivní tx). Varování při zavírání tabu s otevřenou transakcí (dialog: "You have an uncommitted transaction. Commit, Rollback, or Cancel?"). Varování při odpojení s otevřenou transakcí. Varování při zavírání aplikace (přes Electrobun window close handler). Data grid: při manual tx mode, Apply changes necommituje automaticky — uživatel musí explicitně commit/rollback.
+Complete transaction management UI. Implementation of TransactionManager in src/bun/services/transaction-manager.ts — service for managing transactions per-connection. Tracks state of open transactions. RPC handlers tx.begin, tx.commit, tx.rollback, tx.status — complete implementation (replacing stubs). Frontend: StatusBar extension — display tx state (yellow "IN TRANSACTION" badge if active tx). Warning when closing tab with open transaction (dialog: "You have an uncommitted transaction. Commit, Rollback, or Cancel?"). Warning when disconnecting with open transaction. Warning when closing application (via Electrobun window close handler). Data grid: in manual tx mode, Apply changes does not auto-commit — user must explicitly commit/rollback.
 
-## Soubory
+## Files
 
-- `src/bun/services/transaction-manager.ts` — TransactionManager service, správa transakcí per-connection
-- `src/bun/rpc-handlers.ts` — tx.begin, tx.commit, tx.rollback, tx.status kompletní implementace
-- `src/mainview/components/layout/StatusBar.tsx` — žluté "IN TRANSACTION" badge
-- `src/mainview/stores/editor.ts` — integrace tx stavu s editorem
+- `src/bun/services/transaction-manager.ts` — TransactionManager service, transaction management per-connection
+- `src/bun/rpc-handlers.ts` — tx.begin, tx.commit, tx.rollback, tx.status complete implementation
+- `src/mainview/components/layout/StatusBar.tsx` — yellow "IN TRANSACTION" badge
+- `src/mainview/stores/editor.ts` — integration of tx state with editor
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Begin/Commit/Rollback fungují end-to-end
-- [ ] Stav transakce je viditelný ve status baru
-- [ ] Varování při zavírání tabu s otevřenou transakcí
-- [ ] Varování při odpojení s aktivní transakcí
-- [ ] Manual tx mode v gridu funguje (Apply changes necommituje automaticky)
+- [ ] Begin/Commit/Rollback work end-to-end
+- [ ] Transaction state is visible in status bar
+- [ ] Warning when closing tab with open transaction
+- [ ] Warning when disconnecting with active transaction
+- [ ] Manual tx mode in grid works (Apply changes does not auto-commit)

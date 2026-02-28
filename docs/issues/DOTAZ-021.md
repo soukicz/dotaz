@@ -4,33 +4,33 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-020]
 
-## Popis
+## Description
 
-Implementace Pagination komponenty v `src/mainview/components/grid/Pagination.tsx`.
+Implementation of Pagination component in `src/mainview/components/grid/Pagination.tsx`.
 
-Zobrazuje:
+Displays:
 
-- "Showing X-Y of Z rows" (s formátováním tisíců)
-- Navigační tlačítka: First, Previous, čísla stránek, Next, Last
-- Aktuální stránka zvýrazněna
-- Dropdown pro page size (25, 50, 100, 250, 500)
+- "Showing X-Y of Z rows" (with thousand formatting)
+- Navigation buttons: First, Previous, page numbers, Next, Last
+- Current page highlighted
+- Dropdown for page size (25, 50, 100, 250, 500)
 
-Integrace s grid store:
+Integration with grid store:
 
-- Čte `currentPage`, `pageSize`, `totalCount`
-- Volá `setPage()`, `setPageSize()` akce
-- Při změně `pageSize` se vrátí na stránku 1
+- Reads `currentPage`, `pageSize`, `totalCount`
+- Calls `setPage()`, `setPageSize()` actions
+- When changing `pageSize`, returns to page 1
 
-Loading indikátor ve status baru při načítání nové stránky. Total count se načítá asynchronně (může být pomalý pro velké tabulky) — zobrazí "counting..." mezitím.
+Loading indicator in status bar when loading new page. Total count is loaded asynchronously (may be slow for large tables) — shows "counting..." in the meantime.
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/Pagination.tsx` — paginační komponenta s navigací, page size dropdown, zobrazením rozsahu řádků a asynchronním total count
+- `src/mainview/components/grid/Pagination.tsx` — pagination component with navigation, page size dropdown, row range display and asynchronous total count
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Paginace zobrazuje správný rozsah řádků ("Showing X-Y of Z rows")
-- [ ] Navigace funguje (first, prev, next, last, čísla stránek)
-- [ ] Page size dropdown funguje (25, 50, 100, 250, 500)
-- [ ] Total count se zobrazí (nebo "counting..." při načítání)
-- [ ] Změna stránky načte nová data přes grid store
+- [ ] Pagination displays correct row range ("Showing X-Y of Z rows")
+- [ ] Navigation works (first, prev, next, last, page numbers)
+- [ ] Page size dropdown works (25, 50, 100, 250, 500)
+- [ ] Total count is displayed (or "counting..." while loading)
+- [ ] Changing page loads new data via grid store

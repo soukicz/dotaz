@@ -1,38 +1,38 @@
-# DOTAZ-003: App shell s dark theme a základním layoutem
+# DOTAZ-003: App shell with dark theme and basic layout
 
 **Phase**: 0 — Project Setup
 **Type**: frontend
 **Dependencies**: DOTAZ-001
 
-## Popis
+## Description
 
-Vytvoření základního layoutu aplikace s dark theme. CSS proměnné pro barvy, fonty, spacing v src/mainview/styles/global.css (dark theme jako výchozí, inspirace DataGrip/VS Code).
+Create basic application layout with dark theme. CSS variables for colors, fonts, spacing in src/mainview/styles/global.css (dark theme as default, inspired by DataGrip/VS Code).
 
-Přepsání App.tsx — prázdný shell s třízónním layoutem:
-- **Sidebar** — levý panel, šířka 250px, resizable
-- **Main content** — pravý panel
-- **Status bar** — spodní lišta
+Rewrite App.tsx — empty shell with three-zone layout:
+- **Sidebar** — left panel, width 250px, resizable
+- **Main content** — right panel
+- **Status bar** — bottom bar
 
-Základní AppShell.tsx komponenta v src/mainview/components/layout/ s CSS grid/flexbox layoutem.
+Basic AppShell.tsx component in src/mainview/components/layout/ with CSS grid/flexbox layout.
 
-Font: system monospace pro data, sans-serif pro UI.
+Font: system monospace for data, sans-serif for UI.
 
-Barvy:
-- Tmavé pozadí: `#1e1e1e`
-- Panely: `#252526`
-- Bordery: `#3c3c3c`
+Colors:
+- Dark background: `#1e1e1e`
+- Panels: `#252526`
+- Borders: `#3c3c3c`
 - Text: `#cccccc`
 - Accent: `#007acc`
 
-## Soubory
+## Files
 
-- `src/mainview/styles/global.css` — CSS proměnné pro barvy, fonty, spacing; dark theme jako výchozí
-- `src/mainview/App.tsx` — přepsání na prázdný shell importující AppShell
-- `src/mainview/components/layout/AppShell.tsx` — třízónní layout (sidebar, main content, status bar) s CSS grid/flexbox
+- `src/mainview/styles/global.css` — CSS variables for colors, fonts, spacing; dark theme as default
+- `src/mainview/App.tsx` — rewrite to empty shell importing AppShell
+- `src/mainview/components/layout/AppShell.tsx` — three-zone layout (sidebar, main content, status bar) with CSS grid/flexbox
 
-## Akceptační kritéria
+## Acceptance criteria
 
-- [ ] Aplikace zobrazí dark theme layout se sidebar, main content a status bar
-- [ ] CSS proměnné jsou definovány pro celou aplikaci
-- [ ] Layout je responsivní (sidebar resizable)
-- [ ] Žádné scrollbary na celém app shell
+- [ ] Application displays dark theme layout with sidebar, main content and status bar
+- [ ] CSS variables are defined for the entire application
+- [ ] Layout is responsive (sidebar resizable)
+- [ ] No scrollbars on entire app shell

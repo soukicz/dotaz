@@ -1,12 +1,12 @@
-# DOTAZ-001: Inicializace Electrobun projektu pro Dotaz
+# DOTAZ-001: Electrobun project initialization for Dotaz
 
 **Phase**: 0 — Project Setup
 **Type**: backend
 **Dependencies**: none
 
-## Popis
+## Description
 
-Přizpůsobení existujícího Electrobun solid template pro Dotaz. Přejmenování app na "Dotaz" v electrobun.config.ts, package.json, index.html. Vytvoření adresářové struktury:
+Adapt existing Electrobun solid template for Dotaz. Rename app to "Dotaz" in electrobun.config.ts, package.json, index.html. Create directory structure:
 
 - `src/shared/types/`
 - `src/bun/db/`
@@ -14,7 +14,7 @@ Přizpůsobení existujícího Electrobun solid template pro Dotaz. Přejmenová
 - `src/bun/storage/`
 - `src/mainview/lib/`
 - `src/mainview/stores/`
-- `src/mainview/components/` se všemi podadresáři dle architektury:
+- `src/mainview/components/` with all subdirectories per architecture:
   - `src/mainview/components/layout/`
   - `src/mainview/components/connection/`
   - `src/mainview/components/grid/`
@@ -27,21 +27,21 @@ Přizpůsobení existujícího Electrobun solid template pro Dotaz. Přejmenová
   - `src/mainview/components/export/`
 - `src/mainview/styles/`
 
-Přidání závislostí do package.json: @tanstack/solid-virtual, codemirror, @codemirror/lang-sql, @codemirror/view, @codemirror/state.
+Add dependencies to package.json: @tanstack/solid-virtual, codemirror, @codemirror/lang-sql, @codemirror/view, @codemirror/state.
 
-Úprava window title v src/bun/index.ts na "Dotaz". Nastavení window rozměrů (1280x800).
+Update window title in src/bun/index.ts to "Dotaz". Set window dimensions (1280x800).
 
-## Soubory
+## Files
 
-- `electrobun.config.ts` — přejmenování app na "Dotaz"
-- `package.json` — přejmenování, přidání závislostí (@tanstack/solid-virtual, codemirror, @codemirror/lang-sql, @codemirror/view, @codemirror/state)
-- `src/bun/index.ts` — úprava window title na "Dotaz", nastavení rozměrů 1280x800
-- `src/mainview/index.html` — úprava `<title>` na "Dotaz"
-- nové adresáře — vytvoření kompletní adresářové struktury dle ARCHITECTURE.md
+- `electrobun.config.ts` — rename app to "Dotaz"
+- `package.json` — rename, add dependencies (@tanstack/solid-virtual, codemirror, @codemirror/lang-sql, @codemirror/view, @codemirror/state)
+- `src/bun/index.ts` — update window title to "Dotaz", set dimensions 1280x800
+- `src/mainview/index.html` — update `<title>` to "Dotaz"
+- new directories — create complete directory structure per ARCHITECTURE.md
 
-## Akceptační kritéria
+## Acceptance criteria
 
-- [ ] Aplikace se spustí pod názvem "Dotaz"
-- [ ] Adresářová struktura odpovídá ARCHITECTURE.md
-- [ ] Všechny závislosti jsou v package.json
-- [ ] `bun install` proběhne bez chyb
+- [ ] Application runs under the name "Dotaz"
+- [ ] Directory structure matches ARCHITECTURE.md
+- [ ] All dependencies are in package.json
+- [ ] `bun install` runs without errors

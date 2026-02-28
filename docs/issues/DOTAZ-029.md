@@ -4,31 +4,31 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-027, DOTAZ-028]
 
-## Popis
+## Description
 
-Implementace `QueryToolbar` v `src/mainview/components/editor/QueryToolbar.tsx`. Toolbar nad SQL editorem s akcemi:
+Implementation of `QueryToolbar` in `src/mainview/components/editor/QueryToolbar.tsx`. Toolbar above SQL editor with actions:
 
-- **Run / Cancel** tlačítko — přepíná se dle `isRunning` stavu. RunAll — spustí celý obsah. Run Selected — aktivní jen pokud je vybraný text.
-- **Format SQL** tlačítko.
+- **Run / Cancel** button — toggles based on `isRunning` state. RunAll — runs entire content. Run Selected — active only if text is selected.
+- **Format SQL** button.
 - Separator.
-- **Transaction mode** přepínač: Auto-commit / Manual (toggle nebo dropdown). Pokud Manual mode: Begin Transaction, Commit, Rollback tlačítka. Vizuální indikace otevřené transakce (žluté/oranžové zvýraznění).
+- **Transaction mode** toggle: Auto-commit / Manual (toggle or dropdown). If Manual mode: Begin Transaction, Commit, Rollback buttons. Visual indication of open transaction (yellow/orange highlight).
 - Separator.
-- **Connection info**: jméno aktivní connection + schema dropdown.
-- Zobrazení doby trvání posledního dotazu (`"123 ms"`).
+- **Connection info**: active connection name + schema dropdown.
+- Display of duration of last query (`"123 ms"`).
 
-Tlačítka mají tooltips s klávesovými zkratkami.
+Buttons have tooltips with keyboard shortcuts.
 
-## Soubory
+## Files
 
-- `src/mainview/components/editor/QueryToolbar.tsx` — toolbar s run/cancel, format, transaction controls, connection info, duration display
+- `src/mainview/components/editor/QueryToolbar.tsx` — toolbar with run/cancel, format, transaction controls, connection info, duration display
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Run/Cancel přepíná dle stavu (`isRunning`)
-- [ ] Run spustí dotaz
-- [ ] Cancel přeruší běžící dotaz
-- [ ] Format naformátuje SQL
-- [ ] Transaction mode přepínač funguje (auto-commit / manual)
-- [ ] Commit/Rollback viditelné jen v manual mode
-- [ ] Duration se zobrazí po dokončení dotazu
-- [ ] Tooltips obsahují klávesové zkratky
+- [ ] Run/Cancel toggles based on state (`isRunning`)
+- [ ] Run executes query
+- [ ] Cancel interrupts running query
+- [ ] Format formats SQL
+- [ ] Transaction mode toggle works (auto-commit / manual)
+- [ ] Commit/Rollback visible only in manual mode
+- [ ] Duration is displayed after query completion
+- [ ] Tooltips contain keyboard shortcuts

@@ -1,21 +1,21 @@
-# DOTAZ-009: Frontend RPC klient (Electroview)
+# DOTAZ-009: Frontend RPC client (Electroview)
 
 **Phase**: 1 — Foundation
 **Type**: frontend
 **Dependencies**: [DOTAZ-008, DOTAZ-003]
 
-## Popis
+## Description
 
-Vytvoření frontend RPC wrapper v src/mainview/lib/rpc.ts. Wrapper kolem Electrobun Electroview RPC API, který poskytuje typované volání backendu. Import z "electrobun/webview" (Electroview API). Vytvoření funkcí pro každou skupinu RPC metod (connections, schema, data, query, tx, export, history, views, settings, system). Každá funkce wrappuje RPC volání s error handling — chyby se transformují na user-friendly zprávy. Export jako singleton objekt `rpc` s namespace přístupem: rpc.connections.list(), rpc.schema.getTables(), atd. Typy importované z src/shared/types/.
+Creation of frontend RPC wrapper in src/mainview/lib/rpc.ts. Wrapper around Electrobun Electroview RPC API, which provides typed backend calls. Import from "electrobun/webview" (Electroview API). Creation of functions for each group of RPC methods (connections, schema, data, query, tx, export, history, views, settings, system). Each function wraps RPC call with error handling — errors are transformed into user-friendly messages. Export as singleton object `rpc` with namespace access: rpc.connections.list(), rpc.schema.getTables(), etc. Types imported from src/shared/types/.
 
-## Soubory
+## Files
 
-- `src/mainview/lib/rpc.ts` — RPC klient s typovanými metodami pro všechny skupiny (connections, schema, data, query, tx, export, history, views, settings, system)
+- `src/mainview/lib/rpc.ts` — RPC client with typed methods for all groups (connections, schema, data, query, tx, export, history, views, settings, system)
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] RPC klient je typově bezpečný
-- [ ] Odpovídá RPC schema z shared types
-- [ ] Chyby jsou zachyceny a transformovány na user-friendly zprávy
-- [ ] Volání backendu funguje end-to-end
-- [ ] Export jako jednoduchý import pro komponenty a stores
+- [ ] RPC client is type-safe
+- [ ] Corresponds to RPC schema from shared types
+- [ ] Errors are caught and transformed into user-friendly messages
+- [ ] Backend calls work end-to-end
+- [ ] Export as simple import for components and stores

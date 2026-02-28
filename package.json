@@ -8,7 +8,11 @@
 		"dev": "electrobun dev --watch",
 		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
 		"hmr": "vite --port 5173",
-		"build:canary": "vite build && electrobun build --env=canary"
+		"build:canary": "vite build && electrobun build --env=canary",
+		"test": "bun test",
+		"test:sqlite": "bun test tests/sqlite-smoke.test.ts",
+		"test:pg": "bun test tests/pg-smoke.test.ts",
+		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
 		"electrobun": "1.14.4"

@@ -1,18 +1,18 @@
-# DOTAZ-008: Kompletni RPC schema + wiring
+# DOTAZ-008: Complete RPC schema + wiring
 
 **Phase**: 1 — Foundation
 **Type**: backend
 **Dependencies**: [DOTAZ-002, DOTAZ-007]
 
-## Popis
+## Description
 
-Implementace kompletniho RPC wiring mezi backendem a frontendem. Soubor `src/bun/rpc-handlers.ts` — registrace vsech RPC handleru dle schema definovane v `src/shared/types/rpc.ts`. Integrace s Electrobun RPC systemem pres `BrowserWindow.rpc`.
+Implementation of complete RPC wiring between backend and frontend. File `src/bun/rpc-handlers.ts` — registration of all RPC handlers according to schema defined in `src/shared/types/rpc.ts`. Integration with Electrobun RPC system via `BrowserWindow.rpc`.
 
-V teto fazi implementovat handlery pro:
+In this phase implement handlers for:
 - **connections.\***: `list`, `create`, `update`, `delete`, `test`, `connect`, `disconnect`
 - **schema.\***: `getSchemas`, `getTables`, `getColumns`, `getIndexes`, `getForeignKeys`
 
-Ostatni handlery registrovat jako stubs s TODO:
+Register remaining handlers as stubs with TODO:
 - **data.\*** — stub
 - **query.\*** — stub
 - **tx.\*** — stub
@@ -21,18 +21,18 @@ Ostatni handlery registrovat jako stubs s TODO:
 - **views.\*** — stub
 - **settings.\*** — stub
 
-Uprava `src/bun/index.ts` — import a inicializace RPC handleru po vytvoreni BrowserWindow.
+Update `src/bun/index.ts` — import and initialize RPC handlers after BrowserWindow creation.
 
-## Soubory
+## Files
 
-- `src/bun/rpc-handlers.ts` — registrace vsech RPC handleru, implementace connections.* a schema.*, stub handlery pro ostatni
-- `src/bun/index.ts` — uprava: import a inicializace RPC handleru po vytvoreni BrowserWindow
+- `src/bun/rpc-handlers.ts` — registration of all RPC handlers, implementation of connections.* and schema.*, stub handlers for others
+- `src/bun/index.ts` — update: import and initialize RPC handlers after BrowserWindow creation
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] RPC handlery jsou registrovany a volatelne z frontendu
-- [ ] `connections.*` handlery fungujou end-to-end (list, create, update, delete, test, connect, disconnect)
-- [ ] `schema.*` handlery fungujou pro pripojene connections (getSchemas, getTables, getColumns, getIndexes, getForeignKeys)
-- [ ] Stub handlery vraceji srozumitelnou chybu (napr. "Not implemented yet")
-- [ ] TypeScript typy jsou konzistentni mezi FE a BE (sdilene pres src/shared/types/rpc.ts)
-- [ ] RPC handlery se inicializuji po vytvoreni BrowserWindow v index.ts
+- [ ] RPC handlers are registered and callable from frontend
+- [ ] `connections.*` handlers work end-to-end (list, create, update, delete, test, connect, disconnect)
+- [ ] `schema.*` handlers work for connected connections (getSchemas, getTables, getColumns, getIndexes, getForeignKeys)
+- [ ] Stub handlers return understandable error (e.g. "Not implemented yet")
+- [ ] TypeScript types are consistent between FE and BE (shared via src/shared/types/rpc.ts)
+- [ ] RPC handlers are initialized after BrowserWindow creation in index.ts

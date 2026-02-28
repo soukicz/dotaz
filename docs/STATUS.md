@@ -1,0 +1,175 @@
+# Dotaz — Implementation Status
+
+> This file is maintained by the implementing agent to track progress, decisions, and lessons learned.
+> Update this file after completing each issue or when encountering important findings.
+
+---
+
+## Overall Progress
+
+| Phase | Name                  | Issues          | Status      | Notes |
+|-------|-----------------------|-----------------|-------------|-------|
+| 0     | Project Setup         | DOTAZ-001 – 003 | not started |       |
+| 1     | Foundation            | DOTAZ-004 – 011 | not started |       |
+| 2     | Connection Management | DOTAZ-012 – 016 | not started |       |
+| 3     | Data Grid             | DOTAZ-017 – 024 | not started |       |
+| 4     | SQL Editor            | DOTAZ-025 – 031 | not started |       |
+| 5     | Data Editing          | DOTAZ-032 – 035 | not started |       |
+| 6     | Advanced Features     | DOTAZ-036 – 043 | not started |       |
+| 7     | Polish                | DOTAZ-044 – 053 | not started |       |
+
+**Legend**: `not started` · `in progress` · `done` · `blocked`
+
+---
+
+## Issue Map
+
+### Phase 0 — Project Setup
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-001 | Electrobun project initialization for Dotaz | not started | |
+| DOTAZ-002 | Create shared types | not started | |
+| DOTAZ-003 | App shell with dark theme and basic layout | not started | |
+
+### Phase 1 — Foundation
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-004 | Local app SQLite database with migrations | not started | |
+| DOTAZ-005 | DatabaseDriver interface + SQLite driver | not started | |
+| DOTAZ-006 | PostgreSQL driver | not started | |
+| DOTAZ-007 | ConnectionManager service | not started | |
+| DOTAZ-008 | Complete RPC schema + wiring | not started | |
+| DOTAZ-009 | Frontend RPC client (Electroview) | not started | |
+| DOTAZ-010 | AppShell layout components (sidebar, tabs, status bar) | not started | |
+| DOTAZ-011 | Tab management store + TabBar | not started | |
+
+### Phase 2 — Connection Management
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-012 | Connection store (frontend state) | not started | |
+| DOTAZ-013 | ConnectionDialog (add/edit form) | not started | |
+| DOTAZ-014 | File dialog + save dialog RPC handlers | not started | |
+| DOTAZ-015 | ConnectionTree (sidebar tree) | not started | |
+| DOTAZ-016 | Context menu for connections | not started | |
+
+### Phase 3 — Data Grid
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-017 | getTableData RPC with pagination, sort, filter | not started | |
+| DOTAZ-018 | Grid store (data grid state) | not started | |
+| DOTAZ-019 | DataGrid container + GridHeader | not started | |
+| DOTAZ-020 | Virtual scrolling + GridRow + GridCell | not started | |
+| DOTAZ-021 | Pagination + total count | not started | |
+| DOTAZ-022 | FilterBar (column filtering) | not started | |
+| DOTAZ-023 | ColumnManager (visibility, sorting, pin) | not started | |
+| DOTAZ-024 | Clipboard support (Ctrl+C) | not started | |
+
+### Phase 4 — SQL Editor
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-025 | QueryExecutor service with cancellation | not started | |
+| DOTAZ-026 | SQL console RPC handlers (execute, cancel, format) | not started | |
+| DOTAZ-027 | Editor store (SQL console state) | not started | |
+| DOTAZ-028 | SqlEditor with CodeMirror 6 | not started | |
+| DOTAZ-029 | QueryToolbar (run/cancel/tx controls) | not started | |
+| DOTAZ-030 | SqlResultPanel (query results) | not started | |
+| DOTAZ-031 | SQL autocomplete (schema-aware) | not started | |
+
+### Phase 5 — Data Editing
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-032 | Data editing backend (INSERT/UPDATE/DELETE generation) | not started | |
+| DOTAZ-033 | InlineEditor (cell editing in grid) | not started | |
+| DOTAZ-034 | RowDetailDialog (form view of row detail) | not started | |
+| DOTAZ-035 | PendingChanges panel + apply/revert workflow | not started | |
+
+### Phase 6 — Advanced Features
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-036 | Saved views backend (CRUD) | not started | |
+| DOTAZ-037 | SavedViewPicker + SaveViewDialog | not started | |
+| DOTAZ-038 | FK navigation (follow foreign keys) | not started | |
+| DOTAZ-039 | Export service (CSV, JSON, SQL INSERT) | not started | |
+| DOTAZ-040 | ExportDialog | not started | |
+| DOTAZ-041 | Query history backend + RPC | not started | |
+| DOTAZ-042 | QueryHistory component | not started | |
+| DOTAZ-043 | SchemaViewer | not started | |
+
+### Phase 7 — Polish
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-044 | CommandPalette | not started | |
+| DOTAZ-045 | Keyboard shortcut system | not started | |
+| DOTAZ-046 | Context menus (grid, editor, tabs) | not started | |
+| DOTAZ-047 | Transaction management UI | not started | |
+| DOTAZ-048 | Error handling + toast notifications | not started | |
+| DOTAZ-049 | Application menu with all actions | not started | |
+| DOTAZ-050 | Reconnect logic + connection resilience | not started | |
+| DOTAZ-051 | Settings storage + preferences | not started | |
+| DOTAZ-052 | Data refresh (F5) + stale indication | not started | |
+| DOTAZ-053 | Visual polish + responsive layout | not started | |
+
+---
+
+## Current Focus
+
+<!-- Update this section when starting work on a new issue -->
+
+**Active issue**: —
+**Branch**: —
+**Started**: —
+
+---
+
+## Decisions Log
+
+<!-- Record architectural and implementation decisions here.
+     Format: date, context, decision, rationale. -->
+
+| Date | Issue | Decision | Rationale |
+|------|-------|----------|-----------|
+| | | | |
+
+---
+
+## Lessons Learned
+
+<!-- Capture insights, gotchas, and patterns discovered during implementation.
+     These help avoid repeating mistakes and accelerate future work. -->
+
+### Electrobun / Bun
+<!-- Runtime quirks, RPC patterns, build issues, etc. -->
+
+### Solid.js / Frontend
+<!-- Reactivity pitfalls, store patterns, component patterns, etc. -->
+
+### Database Drivers
+<!-- Bun.SQL behavior, PostgreSQL vs SQLite differences, query building, etc. -->
+
+### Testing & Debugging
+<!-- What works, what doesn't, useful debugging techniques, etc. -->
+
+### General
+<!-- Anything else worth remembering. -->
+
+---
+
+## Blockers & Open Questions
+
+<!-- Track things that are blocking progress or need clarification. -->
+
+| Issue | Blocker / Question | Status | Resolution |
+|-------|--------------------|--------|------------|
+| | | | |
+
+---
+
+## Agent Notes
+
+<!-- Free-form scratchpad for the implementing agent.
+     Use this for temporary context, in-progress thoughts, or anything
+     that doesn't fit the sections above. Clean up periodically. -->
+
+---
+
+*Last updated: —*

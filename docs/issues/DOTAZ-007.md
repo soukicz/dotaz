@@ -4,30 +4,30 @@
 **Type**: backend
 **Dependencies**: [DOTAZ-004, DOTAZ-005, DOTAZ-006]
 
-## Popis
+## Description
 
-Implementace `ConnectionManager` v `src/bun/services/connection-manager.ts`. Sprava zivotniho cyklu connections:
-- **connect** — vytvori driver instanci dle typu (PostgresDriver nebo SqliteDriver), validuje konfiguraci, vola `driver.connect()`
-- **disconnect** — vola `driver.disconnect()` a odstrani z mapy aktivnich connections
+Implementation of `ConnectionManager` in `src/bun/services/connection-manager.ts`. Manages connection lifecycle:
+- **connect** — creates driver instance based on type (PostgresDriver or SqliteDriver), validates configuration, calls `driver.connect()`
+- **disconnect** — calls `driver.disconnect()` and removes from map of active connections
 - **reconnect** — disconnect + connect
 
-Udrzuje mapu aktivnich connections (`connectionId` -> driver instance). Poskytuje `getDriver(connectionId)` pro ostatni services — vraci aktivni driver nebo hazi chybu pokud connection neni aktivni.
+Maintains map of active connections (`connectionId` -> driver instance). Provides `getDriver(connectionId)` for other services — returns active driver or throws error if connection is not active.
 
-Integruje se s `AppDatabase` pro persistenci connection konfigurace (nacitani ulozenych connections, ukladani novych).
+Integrates with `AppDatabase` for persistence of connection configuration (loading saved connections, saving new ones).
 
-Emituje status changed udalosti (pro notifikaci frontendu pres RPC) — napr. `connected`, `disconnected`, `error`.
+Emits status changed events (for frontend notification via RPC) — e.g. `connected`, `disconnected`, `error`.
 
-## Soubory
+## Files
 
-- `src/bun/services/connection-manager.ts` — ConnectionManager trida, sprava zivotniho cyklu connections, mapa aktivnich connections, integrace s AppDatabase a drivery
+- `src/bun/services/connection-manager.ts` — ConnectionManager class, connection lifecycle management, map of active connections, integration with AppDatabase and drivers
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Dokaze spravovat vice soucasnych connections
-- [ ] Spravne vytvari PostgresDriver nebo SqliteDriver dle typu connection
-- [ ] `connect` validuje konfiguraci pred vytvorenim driveru
-- [ ] `disconnect` provede cleanup (vola driver.disconnect(), odstrani z mapy)
-- [ ] `reconnect` spravne provede disconnect + connect
-- [ ] `getDriver(connectionId)` vraci aktivni driver nebo hazi chybu
-- [ ] Connection konfigurace se persistuje pres AppDatabase
-- [ ] Emituje status changed udalosti pri zmene stavu connection
+- [ ] Can manage multiple simultaneous connections
+- [ ] Correctly creates PostgresDriver or SqliteDriver based on connection type
+- [ ] `connect` validates configuration before creating driver
+- [ ] `disconnect` performs cleanup (calls driver.disconnect(), removes from map)
+- [ ] `reconnect` correctly performs disconnect + connect
+- [ ] `getDriver(connectionId)` returns active driver or throws error
+- [ ] Connection configuration is persisted via AppDatabase
+- [ ] Emits status changed events when connection state changes

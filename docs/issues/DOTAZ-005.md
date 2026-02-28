@@ -4,29 +4,29 @@
 **Type**: backend
 **Dependencies**: [DOTAZ-002]
 
-## Popis
+## Description
 
-Definice abstraktniho `DatabaseDriver` interface v `src/bun/db/driver.ts`. Interface pokryva:
+Define abstract `DatabaseDriver` interface in `src/bun/db/driver.ts`. Interface covers:
 - **Lifecycle**: `connect`, `disconnect`, `isConnected`
-- **Query execution**: `execute` s parametry, `cancel`
-- **Schema introspekce**: `getSchemas`, `getTables`, `getColumns`, `getIndexes`, `getForeignKeys`, `getPrimaryKey`
-- **Transakce**: `beginTransaction`, `commit`, `rollback`, `inTransaction`
+- **Query execution**: `execute` with parameters, `cancel`
+- **Schema introspection**: `getSchemas`, `getTables`, `getColumns`, `getIndexes`, `getForeignKeys`, `getPrimaryKey`
+- **Transactions**: `beginTransaction`, `commit`, `rollback`, `inTransaction`
 - **Metadata**: `getDriverType`, `quoteIdentifier`
 
-Implementace SQLite driveru v `src/bun/db/sqlite-driver.ts` pomoci Bun.SQL (`import { SQL } from "bun"`) s unified API. SQLite schema introspekce pres `sqlite_master` a PRAGMA prikazy (`table_info`, `index_list`, `index_info`, `foreign_key_list`). SQLite nema schemas — vraci default `"main"`.
+Implementation of SQLite driver in `src/bun/db/sqlite-driver.ts` using Bun.SQL (`import { SQL } from "bun"`) with unified API. SQLite schema introspection via `sqlite_master` and PRAGMA commands (`table_info`, `index_list`, `index_info`, `foreign_key_list`). SQLite has no schemas — return default `"main"`.
 
-## Soubory
+## Files
 
-- `src/bun/db/driver.ts` — abstraktni DatabaseDriver interface, typy pro query result, column info, index info, foreign key info
-- `src/bun/db/sqlite-driver.ts` — SQLite implementace DatabaseDriver interface, schema introspekce pres sqlite_master a PRAGMA
+- `src/bun/db/driver.ts` — abstract DatabaseDriver interface, types for query result, column info, index info, foreign key info
+- `src/bun/db/sqlite-driver.ts` — SQLite implementation of DatabaseDriver interface, schema introspection via sqlite_master and PRAGMA
 
-## Akceptační kritéria
+## Acceptance criteria
 
-- [ ] DatabaseDriver interface je kompletni dle ARCHITECTURE.md
-- [ ] SQLite driver implementuje vsechny metody interface
-- [ ] `connect` otevre SQLite soubor, `disconnect` ho zavre
-- [ ] `execute` vraci typovana data (rows, columns, affectedRows)
-- [ ] Schema introspekce (`getTables`, `getColumns`, `getIndexes`, `getForeignKeys`, `getPrimaryKey`) vraci spravna data
-- [ ] `getSchemas` vraci `["main"]` pro SQLite
-- [ ] `quoteIdentifier` spravne quotuje identifikatory pro SQLite
-- [ ] Transakce (`beginTransaction`, `commit`, `rollback`) fungujou spravne
+- [ ] DatabaseDriver interface is complete per ARCHITECTURE.md
+- [ ] SQLite driver implements all interface methods
+- [ ] `connect` opens SQLite file, `disconnect` closes it
+- [ ] `execute` returns typed data (rows, columns, affectedRows)
+- [ ] Schema introspection (`getTables`, `getColumns`, `getIndexes`, `getForeignKeys`, `getPrimaryKey`) returns correct data
+- [ ] `getSchemas` returns `["main"]` for SQLite
+- [ ] `quoteIdentifier` correctly quotes identifiers for SQLite
+- [ ] Transactions (`beginTransaction`, `commit`, `rollback`) work correctly

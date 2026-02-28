@@ -4,22 +4,22 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-033, DOTAZ-034]
 
-## Popis
+## Description
 
-Implementace PendingChanges panelu v src/mainview/components/edit/PendingChanges.tsx. Panel zobrazujici seznam vsech pending zmen v aktualnim data grid tabu. Kazda zmena: typ (INSERT/UPDATE/DELETE) s ikonou a barvou, tabulka, popis (pro UPDATE: "Column X: old -> new", pro INSERT: "New row", pro DELETE: "Row PK=..."). Tlacitka: Apply All (odesle vsechny zmeny na backend pres rpc.data.applyChanges), Revert All (zahodi vsechny pending changes), Preview SQL (zobrazi generovany SQL pres rpc.data.generateSql). Revert jednotlive zmeny (x tlacitko u kazde). Apply spusti v transakci -> pri uspechu clear pendingChanges a reload dat. Pri chybe zobrazi error a ponecha pendingChanges. Counter v toolbaru gridu: "3 pending changes" badge. Varovani pri zavirani tabu s pending changes.
+Implementation of PendingChanges panel in src/mainview/components/edit/PendingChanges.tsx. Panel displaying list of all pending changes in current data grid tab. Each change: type (INSERT/UPDATE/DELETE) with icon and color, table, description (for UPDATE: "Column X: old -> new", for INSERT: "New row", for DELETE: "Row PK=..."). Buttons: Apply All (sends all changes to backend via rpc.data.applyChanges), Revert All (discards all pending changes), Preview SQL (displays generated SQL via rpc.data.generateSql). Revert individual changes (x button for each). Apply runs in transaction -> on success clear pendingChanges and reload data. On error displays error and keeps pendingChanges. Counter in grid toolbar: "3 pending changes" badge. Warning when closing tab with pending changes.
 
-## Soubory
+## Files
 
-- `src/mainview/components/edit/PendingChanges.tsx` — panel se seznamem pending zmen
-- `src/mainview/components/grid/DataGrid.tsx` — integrace pending changes badge do toolbaru
+- `src/mainview/components/edit/PendingChanges.tsx` — panel with list of pending changes
+- `src/mainview/components/grid/DataGrid.tsx` — integration of pending changes badge into toolbar
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Panel zobrazuje vsechny pending changes s typem a popisem
-- [ ] Apply All odesle zmeny na backend a reloadne data
-- [ ] Revert All vycisti vsechny pending changes
-- [ ] Revert jednotlive zmeny funguje (x tlacitko)
-- [ ] Preview SQL zobrazi generovany SQL
-- [ ] Chyba pri apply zobrazi error a ponecha pendingChanges
-- [ ] Badge s poctem pending changes v toolbaru gridu
-- [ ] Varovani pri zavirani tabu s neulozenymi zmenami
+- [ ] Panel displays all pending changes with type and description
+- [ ] Apply All sends changes to backend and reloads data
+- [ ] Revert All clears all pending changes
+- [ ] Revert individual changes works (x button)
+- [ ] Preview SQL displays generated SQL
+- [ ] Error on apply displays error and keeps pendingChanges
+- [ ] Badge with count of pending changes in grid toolbar
+- [ ] Warning when closing tab with unsaved changes

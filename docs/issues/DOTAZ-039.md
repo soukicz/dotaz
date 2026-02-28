@@ -4,21 +4,21 @@
 **Type**: backend
 **Dependencies**: [DOTAZ-007, DOTAZ-014]
 
-## Popis
+## Description
 
-Implementace ExportService v src/bun/services/export-service.ts a export.* RPC handleru. Handler export.preview(connectionId, schema, table, format, filters?, limit=10) — vraci nahled exportovanych dat (prvnich N radku ve zvolenem formatu). Handler export.exportData(connectionId, schema, table, format, filePath, options) — exportuje data do souboru. Formaty: CSV (konfigurovatelny delimiter: comma/semicolon/tab, header row, kodovani UTF-8), JSON (array of objects, pretty print), SQL INSERT (INSERT INTO statements, batch size). Export respektuje aktivni filtry a sort. Streaming export pro velke datasety (nepracuje s celou tabulkou v pameti). Vyber sloupcu (jen viditelne). Progress callback pro UI.
+Implementation of ExportService in src/bun/services/export-service.ts and export.* RPC handlers. Handler export.preview(connectionId, schema, table, format, filters?, limit=10) — returns a preview of exported data (first N rows in the chosen format). Handler export.exportData(connectionId, schema, table, format, filePath, options) — exports data to a file. Formats: CSV (configurable delimiter: comma/semicolon/tab, header row, UTF-8 encoding), JSON (array of objects, pretty print), SQL INSERT (INSERT INTO statements, batch size). Export respects active filters and sort. Streaming export for large datasets (doesn't work with the entire table in memory). Column selection (only visible columns). Progress callback for UI.
 
-## Soubory
+## Files
 
-- `src/bun/services/export-service.ts` — ExportService s podporou CSV, JSON, SQL INSERT formatu
-- `src/bun/rpc-handlers.ts` — export.preview a export.exportData handlery
+- `src/bun/services/export-service.ts` — ExportService with support for CSV, JSON, SQL INSERT formats
+- `src/bun/rpc-handlers.ts` — export.preview and export.exportData handlers
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] CSV export generuje validni CSV s konfigurovatelnym delimiterem
-- [ ] JSON export generuje validni JSON (array of objects, pretty print)
-- [ ] SQL export generuje spustitelne INSERT INTO statements
-- [ ] Preview vraci nahled prvnich N radku ve zvolenem formatu
-- [ ] Aktivni filtry a sort se aplikuji na export
-- [ ] Velke datasety se exportuji bez OOM (streaming)
-- [ ] Soubor se ulozi pres native save dialog
+- [ ] CSV export generates valid CSV with configurable delimiter
+- [ ] JSON export generates valid JSON (array of objects, pretty print)
+- [ ] SQL export generates executable INSERT INTO statements
+- [ ] Preview returns a preview of the first N rows in the chosen format
+- [ ] Active filters and sort are applied to the export
+- [ ] Large datasets are exported without OOM (streaming)
+- [ ] File is saved via native save dialog

@@ -1,23 +1,23 @@
-# DOTAZ-042: QueryHistory komponenta
+# DOTAZ-042: QueryHistory component
 
 **Phase**: 6 — Advanced Features
 **Type**: frontend
 **Dependencies**: [DOTAZ-041]
 
-## Popis
+## Description
 
-Implementace QueryHistory v src/mainview/components/history/QueryHistory.tsx. Panel nebo tab zobrazujici historii spustenych dotazu. Seznam s: SQL text (zkraceny), connection name, timestamp, duration, status (ikona success/error), row count. Search input pro filtrovani historie. Dropdown pro filtr dle connection. Kliknuti na polozku: rozbali plny SQL text. Akce: "Run Again" (otevre SQL konzoli s timto dotazem), "Copy to Clipboard", "Copy to Console" (vlozi do aktivni konzole). Infinite scroll nebo paginace pro dlouhou historii. Clear History tlacitko s potvrzenim.
+Implementation of QueryHistory in src/mainview/components/history/QueryHistory.tsx. Panel or tab displaying history of executed queries. List with: SQL text (truncated), connection name, timestamp, duration, status (success/error icon), row count. Search input for filtering history. Dropdown to filter by connection. Clicking on an item: expands full SQL text. Actions: "Run Again" (opens SQL console with this query), "Copy to Clipboard", "Copy to Console" (inserts into active console). Infinite scroll or pagination for long history. Clear History button with confirmation.
 
-## Soubory
+## Files
 
-- `src/mainview/components/history/QueryHistory.tsx` — panel s historii dotazu
+- `src/mainview/components/history/QueryHistory.tsx` — panel with query history
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Historie zobrazuje spustene dotazy s SQL textem, timestamp, duration a status
-- [ ] Search filtruje historii dle SQL textu
-- [ ] Filtr dle connection funguje
-- [ ] Run Again otevre novou SQL konzoli s vybranym dotazem
-- [ ] Copy to Clipboard a Copy to Console funguji
-- [ ] Clear History smaze historii s potvrzovacim dialogem
-- [ ] Infinite scroll nebo paginace pro velkou historii
+- [ ] History displays executed queries with SQL text, timestamp, duration and status
+- [ ] Search filters history by SQL text
+- [ ] Filter by connection works
+- [ ] Run Again opens new SQL console with selected query
+- [ ] Copy to Clipboard and Copy to Console work
+- [ ] Clear History deletes history with confirmation dialog
+- [ ] Infinite scroll or pagination for large history

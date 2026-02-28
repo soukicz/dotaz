@@ -1,24 +1,24 @@
-# DOTAZ-032: Data editing backend (INSERT/UPDATE/DELETE generace)
+# DOTAZ-032: Data editing backend (INSERT/UPDATE/DELETE generation)
 
 **Phase**: 5 — Data Editing
 **Type**: backend
 **Dependencies**: [DOTAZ-008, DOTAZ-007]
 
-## Popis
+## Description
 
-Implementace backend logiky pro editaci dat. Rozsirenni src/bun/rpc-handlers.ts o data.applyChanges handler. Prijima connectionId, schema, table, changes (pole pending zmen). Kazda zmena ma typ: "insert" (novy radek s hodnotami), "update" (PK hodnoty + changed columns + new values), "delete" (PK hodnoty). Handler generuje SQL pro kazdou zmenu: INSERT INTO table (cols) VALUES (params), UPDATE table SET col=param WHERE pk=val, DELETE FROM table WHERE pk=val. Vse se spousti v jedne transakci (BEGIN -> statements -> COMMIT, ROLLBACK pri chybe). Handler data.generateSql — stejna logika ale vraci generovany SQL string misto spusteni (pro preview). Validace: kontrola PK existence, escapovani identifikatoru, parametrizovane hodnoty. Podpora pro SET NULL (explicitni null hodnota).
+Implementation of backend logic for data editing. Extension of src/bun/rpc-handlers.ts with data.applyChanges handler. Receives connectionId, schema, table, changes (array of pending changes). Each change has a type: "insert" (new row with values), "update" (PK values + changed columns + new values), "delete" (PK values). Handler generates SQL for each change: INSERT INTO table (cols) VALUES (params), UPDATE table SET col=param WHERE pk=val, DELETE FROM table WHERE pk=val. Everything runs in a single transaction (BEGIN -> statements -> COMMIT, ROLLBACK on error). Handler data.generateSql — same logic but returns generated SQL string instead of execution (for preview). Validation: check PK existence, escape identifiers, parameterized values. Support for SET NULL (explicit null value).
 
-## Soubory
+## Files
 
-- `src/bun/rpc-handlers.ts` — data.applyChanges a data.generateSql handlery
-- `src/bun/services/query-executor.ts` — SQL generace helper funkce
+- `src/bun/rpc-handlers.ts` — data.applyChanges and data.generateSql handlers
+- `src/bun/services/query-executor.ts` — SQL generation helper functions
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] INSERT generuje spravny SQL s parametry
-- [ ] UPDATE meni jen changed sloupce
-- [ ] DELETE pouziva PK v WHERE klauzuli
-- [ ] Vse bezi v jedne transakci (BEGIN/COMMIT/ROLLBACK)
-- [ ] generateSql vraci citelny SQL string pro preview
-- [ ] NULL hodnoty funguji spravne (SET NULL)
-- [ ] Chyba v jednom statementu rollbackne vsechny zmeny
+- [ ] INSERT generates correct SQL with parameters
+- [ ] UPDATE changes only modified columns
+- [ ] DELETE uses PK in WHERE clause
+- [ ] Everything runs in one transaction (BEGIN/COMMIT/ROLLBACK)
+- [ ] generateSql returns readable SQL string for preview
+- [ ] NULL values work correctly (SET NULL)
+- [ ] Error in one statement rolls back all changes

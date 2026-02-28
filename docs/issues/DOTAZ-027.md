@@ -1,45 +1,45 @@
-# DOTAZ-027: Editor store (SQL console stav)
+# DOTAZ-027: Editor store (SQL console state)
 
 **Phase**: 4 — SQL Editor
 **Type**: frontend
 **Dependencies**: [DOTAZ-009, DOTAZ-026]
 
-## Popis
+## Description
 
-Implementace editor store v `src/mainview/stores/editor.ts`. Solid.js `createStore` pro stav SQL konzole.
+Implementation of editor store in `src/mainview/stores/editor.ts`. Solid.js `createStore` for SQL console state.
 
-Stav per-tab (každý SQL console tab má vlastní editor state):
+State per-tab (each SQL console tab has its own editor state):
 - `content` — SQL text
-- `results` — pole `QueryResult` (pro multi-statement)
+- `results` — array of `QueryResult` (for multi-statement)
 - `isRunning` — boolean
 - `error` — `string | null`
 - `duration` — ms
-- `queryId` — pro cancellation
+- `queryId` — for cancellation
 - `txMode` — `"auto-commit" | "manual"`
 - `inTransaction` — boolean
 
-Akce:
-- `executeQuery(tabId)` — generuje `queryId`, volá `rpc.query.execute()`, aktualizuje `results`/`error`/`duration`
-- `executeSelected(tabId, selectedText)` — spustí jen vybraný text
-- `cancelQuery(tabId)` — volá `rpc.query.cancel(queryId)`
-- `formatSql(tabId)` — volá `rpc.query.format()`
+Actions:
+- `executeQuery(tabId)` — generates `queryId`, calls `rpc.query.execute()`, updates `results`/`error`/`duration`
+- `executeSelected(tabId, selectedText)` — runs only selected text
+- `cancelQuery(tabId)` — calls `rpc.query.cancel(queryId)`
+- `formatSql(tabId)` — calls `rpc.query.format()`
 - `setTxMode(tabId, mode)`
 - `beginTransaction(tabId)`
 - `commitTransaction(tabId)`
 - `rollbackTransaction(tabId)`
 
-Historie spuštěných dotazů se automaticky loguje (volá history RPC).
+History of executed queries is automatically logged (calls history RPC).
 
-## Soubory
+## Files
 
-- `src/mainview/stores/editor.ts` — editor store s per-tab stavem, execute/cancel/format akcemi, transaction managementem
+- `src/mainview/stores/editor.ts` — editor store with per-tab state, execute/cancel/format actions, transaction management
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Store spravuje SQL obsah a výsledky per-tab
-- [ ] `executeQuery` volá RPC a aktualizuje stav
-- [ ] `cancelQuery` funguje (přeruší běžící dotaz)
-- [ ] `isRunning` se správně nastavuje (true při spuštění, false po dokončení)
-- [ ] Error se zobrazí při chybě dotazu
-- [ ] Duration se uloží po dokončení dotazu
-- [ ] Transaction mode funguje (auto-commit / manual s begin/commit/rollback)
+- [ ] Store manages SQL content and results per-tab
+- [ ] `executeQuery` calls RPC and updates state
+- [ ] `cancelQuery` works (interrupts running query)
+- [ ] `isRunning` is set correctly (true when running, false when finished)
+- [ ] Error is displayed on query error
+- [ ] Duration is saved after query completion
+- [ ] Transaction mode works (auto-commit / manual with begin/commit/rollback)

@@ -1,39 +1,39 @@
-# DOTAZ-022: FilterBar (sloupcové filtrování)
+# DOTAZ-022: FilterBar (column filtering)
 
 **Phase**: 3 — Data Grid
 **Type**: frontend
 **Dependencies**: [DOTAZ-019, DOTAZ-018]
 
-## Popis
+## Description
 
-Implementace FilterBar v `src/mainview/components/grid/FilterBar.tsx`. Panel pod header řádkem pro přidání filtrů.
+Implementation of FilterBar in `src/mainview/components/grid/FilterBar.tsx`. Panel below header row for adding filters.
 
-Tlačítko "Add Filter" → dropdown s výběrem sloupce → výběr operátoru (`=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`) → input pro hodnotu.
+"Add Filter" button → dropdown with column selection → operator selection (`=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`, `IN`) → input for value.
 
-Aktivní filtry zobrazeny jako "chips" (sloupec operátor hodnota) s tlačítkem x pro odstranění. "Clear All" tlačítko pro reset všech filtrů.
+Active filters displayed as "chips" (column operator value) with x button to remove. "Clear All" button to reset all filters.
 
-Speciální chování operátorů:
+Special operator behavior:
 
-- `IS NULL` a `IS NOT NULL` nevyžadují hodnotu
-- `IN` zobrazí input pro čárkou oddělené hodnoty
+- `IS NULL` and `IS NOT NULL` do not require a value
+- `IN` displays input for comma-separated values
 
-Po přidání/odebrání filtru: automatický reload dat přes grid store.
+After adding/removing filter: automatic data reload via grid store.
 
-Inteligentní výběr operátorů dle typu sloupce:
+Intelligent operator selection based on column type:
 
-- Text → `LIKE` dostupný
-- Čísla → porovnávací operátory
-- Boolean → jen `=` / `!=`
+- Text → `LIKE` available
+- Numbers → comparison operators
+- Boolean → only `=` / `!=`
 
-## Soubory
+## Files
 
-- `src/mainview/components/grid/FilterBar.tsx` — filter bar s přidáváním filtrů, chip zobrazením aktivních filtrů, type-aware výběrem operátorů a automatickým reloadem dat
+- `src/mainview/components/grid/FilterBar.tsx` — filter bar with filter adding, active filter chip display, type-aware operator selection and automatic data reload
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Lze přidat filtr s výběrem sloupce, operátoru a hodnoty
-- [ ] Aktivní filtry jsou zobrazeny jako chips
-- [ ] Odstranění filtru kliknutím na x funguje
-- [ ] Clear All funguje (reset všech filtrů)
-- [ ] Data se automaticky přenačtou po přidání/odebrání filtru
-- [ ] Operátory odpovídají typu sloupce (text, čísla, boolean)
+- [ ] Can add filter with column, operator and value selection
+- [ ] Active filters are displayed as chips
+- [ ] Filter removal by clicking x works
+- [ ] Clear All works (reset all filters)
+- [ ] Data automatically reloads after adding/removing filter
+- [ ] Operators correspond to column type (text, numbers, boolean)

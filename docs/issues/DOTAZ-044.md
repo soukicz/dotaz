@@ -4,21 +4,21 @@
 **Type**: frontend
 **Dependencies**: [DOTAZ-011, DOTAZ-012]
 
-## Popis
+## Description
 
-Implementace CommandPalette v src/mainview/components/common/CommandPalette.tsx. Ctrl+Shift+P otevře command palette — overlay dialog s vyhledávacím inputem. Command registry v src/mainview/lib/commands.ts — singleton registr příkazů. Každý command má: id, label (zobrazený text), shortcut (klávesová zkratka), category (Connection, Query, Grid, Navigation, View), handler (funkce). Registrované příkazy: New SQL Console, Close Tab, Close All Tabs, Connect/Disconnect, Open Settings, Format SQL, Run Query, Cancel Query, Refresh Data, Save View, Export Data, Toggle Sidebar, Command Palette. Fuzzy search v labelu — zadání textu filtruje příkazy. Nedávno použité příkazy nahoře. Enter spustí vybraný příkaz. Šipky pro navigaci v seznamu. Escape zavře palette. Zobrazení shortcutu vedle labelu.
+Implementation of CommandPalette in src/mainview/components/common/CommandPalette.tsx. Ctrl+Shift+P opens command palette — overlay dialog with search input. Command registry in src/mainview/lib/commands.ts — singleton registry of commands. Each command has: id, label (displayed text), shortcut (keyboard shortcut), category (Connection, Query, Grid, Navigation, View), handler (function). Registered commands: New SQL Console, Close Tab, Close All Tabs, Connect/Disconnect, Open Settings, Format SQL, Run Query, Cancel Query, Refresh Data, Save View, Export Data, Toggle Sidebar, Command Palette. Fuzzy search in label — typing text filters commands. Recently used commands at top. Enter executes selected command. Arrow keys for navigation in list. Escape closes palette. Display shortcut next to label.
 
-## Soubory
+## Files
 
-- `src/mainview/components/common/CommandPalette.tsx` — overlay dialog s vyhledávacím inputem, seznam příkazů, fuzzy search, navigace šipkami
-- `src/mainview/lib/commands.ts` — singleton command registry, registrace všech příkazů, fuzzy search logika
+- `src/mainview/components/common/CommandPalette.tsx` — overlay dialog with search input, command list, fuzzy search, arrow navigation
+- `src/mainview/lib/commands.ts` — singleton command registry, registration of all commands, fuzzy search logic
 
-## Akceptační kritéria
+## Acceptance Criteria
 
-- [ ] Ctrl+Shift+P otevře palette
-- [ ] Fuzzy search filtruje příkazy
-- [ ] Enter spustí vybraný příkaz
-- [ ] Escape zavře palette
-- [ ] Shortcuts jsou zobrazeny vedle labelu
-- [ ] Nedávné příkazy se zobrazují nahoře
-- [ ] Všechny hlavní příkazy jsou registrovány
+- [ ] Ctrl+Shift+P opens palette
+- [ ] Fuzzy search filters commands
+- [ ] Enter executes selected command
+- [ ] Escape closes palette
+- [ ] Shortcuts are displayed next to label
+- [ ] Recently used commands are displayed at top
+- [ ] All main commands are registered
