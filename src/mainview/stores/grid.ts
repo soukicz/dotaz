@@ -780,14 +780,12 @@ function buildDataChanges(tabId: string): DataChange[] {
 				values[col.name] = row[col.name];
 			}
 		}
-		if (Object.keys(values).length > 0) {
-			changes.push({
-				type: "insert",
-				schema: tab.schema,
-				table: tab.table,
-				values,
-			});
-		}
+		changes.push({
+			type: "insert",
+			schema: tab.schema,
+			table: tab.table,
+			values,
+		});
 	}
 
 	// Collect deletes

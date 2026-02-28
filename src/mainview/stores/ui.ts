@@ -28,6 +28,9 @@ const [state, setState] = createStore<UIState>({
 	toasts: [],
 });
 
+/** Maps toast ID to its auto-dismiss timer, so we can cancel on manual dismiss. */
+const toastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 // ── Toast actions ────────────────────────────────────────
 
 function addToast(type: ToastType, message: string, options?: ToastOptions): string {
@@ -39,13 +42,22 @@ function addToast(type: ToastType, message: string, options?: ToastOptions): str
 	setState("toasts", (prev) => [...prev, toast]);
 
 	if (duration > 0) {
-		setTimeout(() => removeToast(id), duration);
+		const timer = setTimeout(() => {
+			toastTimers.delete(id);
+			removeToast(id);
+		}, duration);
+		toastTimers.set(id, timer);
 	}
 
 	return id;
 }
 
 function removeToast(id: string) {
+	const timer = toastTimers.get(id);
+	if (timer) {
+		clearTimeout(timer);
+		toastTimers.delete(id);
+	}
 	setState("toasts", (prev) => prev.filter((t) => t.id !== id));
 }
 

@@ -92,6 +92,10 @@ async function runQuery(tabId: string, sql: string) {
 
 	try {
 		const results = await rpc.query.execute(tab.connectionId, sql, queryId);
+
+		// Discard stale results if a newer query was started
+		if (state.tabs[tabId]?.queryId !== queryId) return;
+
 		const duration = Math.round(performance.now() - startTime);
 
 		setState("tabs", tabId, {
@@ -102,6 +106,9 @@ async function runQuery(tabId: string, sql: string) {
 			queryId: null,
 		});
 	} catch (err) {
+		// Discard stale errors if a newer query was started
+		if (state.tabs[tabId]?.queryId !== queryId) return;
+
 		const duration = Math.round(performance.now() - startTime);
 		const errorMessage = err instanceof Error ? err.message : String(err);
 

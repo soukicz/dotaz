@@ -156,6 +156,7 @@ function activateNextTab() {
 	const tabs = state.openTabs;
 	if (tabs.length <= 1) return;
 	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
+	if (idx === -1) return;
 	const next = (idx + 1) % tabs.length;
 	setState("activeTabId", tabs[next].id);
 }
@@ -164,6 +165,7 @@ function activatePrevTab() {
 	const tabs = state.openTabs;
 	if (tabs.length <= 1) return;
 	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
+	if (idx === -1) return;
 	const prev = (idx - 1 + tabs.length) % tabs.length;
 	setState("activeTabId", tabs[prev].id);
 }
