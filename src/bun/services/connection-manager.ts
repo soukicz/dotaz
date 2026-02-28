@@ -16,6 +16,27 @@ export interface StatusChangeEvent {
 
 export type StatusChangeListener = (event: StatusChangeEvent) => void;
 
+// ── Health check / reconnect defaults ────────────────────────
+const DEFAULTS = {
+	healthCheckIntervalMs: 30_000,
+	reconnectBaseDelayMs: 1_000,
+	reconnectMaxDelayMs: 30_000,
+	reconnectMaxAttempts: 5,
+};
+
+export interface ConnectionManagerOptions {
+	healthCheckIntervalMs?: number;
+	reconnectBaseDelayMs?: number;
+	reconnectMaxDelayMs?: number;
+	reconnectMaxAttempts?: number;
+}
+
+interface ReconnectState {
+	attempt: number;
+	timer: ReturnType<typeof setTimeout> | null;
+	cancelled: boolean;
+}
+
 export class ConnectionManager {
 	private drivers = new Map<string, DatabaseDriver>();
 	private states = new Map<
@@ -24,9 +45,16 @@ export class ConnectionManager {
 	>();
 	private listeners: StatusChangeListener[] = [];
 	private appDb: AppDatabase;
+	private opts: Required<ConnectionManagerOptions>;
 
-	constructor(appDb: AppDatabase) {
+	// Health check timers keyed by connectionId
+	private healthTimers = new Map<string, ReturnType<typeof setInterval>>();
+	// Active auto-reconnect state keyed by connectionId
+	private reconnectStates = new Map<string, ReconnectState>();
+
+	constructor(appDb: AppDatabase, opts?: ConnectionManagerOptions) {
 		this.appDb = appDb;
+		this.opts = { ...DEFAULTS, ...opts };
 	}
 
 	// ── Connection lifecycle ────────────────────────────────
@@ -36,6 +64,9 @@ export class ConnectionManager {
 		if (!connInfo) {
 			throw new Error(`Connection not found: ${connectionId}`);
 		}
+
+		// Cancel any pending auto-reconnect
+		this.cancelAutoReconnect(connectionId);
 
 		// Disconnect existing driver if already active
 		if (this.drivers.has(connectionId)) {
@@ -50,6 +81,7 @@ export class ConnectionManager {
 			await driver.connect(connInfo.config);
 			this.drivers.set(connectionId, driver);
 			this.setConnectionState(connectionId, "connected");
+			this.startHealthCheck(connectionId);
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Unknown connection error";
@@ -59,13 +91,17 @@ export class ConnectionManager {
 	}
 
 	async disconnect(connectionId: string): Promise<void> {
-		await this.disconnectDriver(connectionId);
+		this.cancelAutoReconnect(connectionId);
+		this.stopHealthCheck(connectionId);
+		await this.gracefulDisconnect(connectionId);
 		this.setConnectionState(connectionId, "disconnected");
 	}
 
 	async reconnect(connectionId: string): Promise<void> {
+		this.cancelAutoReconnect(connectionId);
+		this.stopHealthCheck(connectionId);
 		if (this.drivers.has(connectionId)) {
-			await this.disconnectDriver(connectionId);
+			await this.gracefulDisconnect(connectionId);
 		}
 		await this.connect(connectionId);
 	}
@@ -120,6 +156,8 @@ export class ConnectionManager {
 	}
 
 	async deleteConnection(id: string): Promise<void> {
+		this.cancelAutoReconnect(id);
+		this.stopHealthCheck(id);
 		// Disconnect if active before deleting
 		if (this.drivers.has(id)) {
 			await this.disconnectDriver(id);
@@ -157,9 +195,155 @@ export class ConnectionManager {
 	// ── Cleanup ─────────────────────────────────────────────
 
 	async disconnectAll(): Promise<void> {
+		// Cancel all pending auto-reconnects (may not have a driver entry)
+		for (const id of [...this.reconnectStates.keys()]) {
+			this.cancelAutoReconnect(id);
+		}
+		// Stop all health checks
+		for (const id of [...this.healthTimers.keys()]) {
+			this.stopHealthCheck(id);
+		}
+		// Disconnect all active drivers
 		const ids = [...this.drivers.keys()];
 		for (const id of ids) {
 			await this.disconnect(id);
+		}
+	}
+
+	// ── Health check ────────────────────────────────────────
+
+	private startHealthCheck(connectionId: string): void {
+		this.stopHealthCheck(connectionId);
+		const timer = setInterval(() => {
+			this.performHealthCheck(connectionId);
+		}, this.opts.healthCheckIntervalMs);
+		this.healthTimers.set(connectionId, timer);
+	}
+
+	private stopHealthCheck(connectionId: string): void {
+		const timer = this.healthTimers.get(connectionId);
+		if (timer) {
+			clearInterval(timer);
+			this.healthTimers.delete(connectionId);
+		}
+	}
+
+	private async performHealthCheck(connectionId: string): Promise<void> {
+		const driver = this.drivers.get(connectionId);
+		if (!driver) return;
+
+		try {
+			await driver.execute("SELECT 1");
+		} catch {
+			// Connection lost — stop health checks and begin auto-reconnect
+			this.stopHealthCheck(connectionId);
+			this.drivers.delete(connectionId);
+			this.setConnectionState(connectionId, "disconnected", "Connection lost");
+			this.startAutoReconnect(connectionId);
+		}
+	}
+
+	// ── Auto-reconnect with exponential backoff ─────────────
+
+	private startAutoReconnect(connectionId: string): void {
+		this.cancelAutoReconnect(connectionId);
+		const rs: ReconnectState = { attempt: 0, timer: null, cancelled: false };
+		this.reconnectStates.set(connectionId, rs);
+		this.scheduleReconnectAttempt(connectionId, rs);
+	}
+
+	private cancelAutoReconnect(connectionId: string): void {
+		const rs = this.reconnectStates.get(connectionId);
+		if (rs) {
+			rs.cancelled = true;
+			if (rs.timer) clearTimeout(rs.timer);
+			this.reconnectStates.delete(connectionId);
+		}
+	}
+
+	private scheduleReconnectAttempt(connectionId: string, rs: ReconnectState): void {
+		if (rs.cancelled) return;
+		if (rs.attempt >= this.opts.reconnectMaxAttempts) {
+			this.reconnectStates.delete(connectionId);
+			this.setConnectionState(
+				connectionId,
+				"error",
+				`Reconnect failed after ${this.opts.reconnectMaxAttempts} attempts`,
+			);
+			return;
+		}
+
+		const delay = Math.min(
+			this.opts.reconnectBaseDelayMs * Math.pow(2, rs.attempt),
+			this.opts.reconnectMaxDelayMs,
+		);
+
+		rs.timer = setTimeout(() => {
+			if (rs.cancelled) return;
+			this.attemptReconnect(connectionId, rs);
+		}, delay);
+	}
+
+	private async attemptReconnect(connectionId: string, rs: ReconnectState): Promise<void> {
+		if (rs.cancelled) return;
+
+		const connInfo = this.appDb.getConnectionById(connectionId);
+		if (!connInfo) {
+			this.cancelAutoReconnect(connectionId);
+			return;
+		}
+
+		rs.attempt++;
+		this.setConnectionState(connectionId, "reconnecting");
+
+		try {
+			const driver = createDriver(connInfo.config);
+			await driver.connect(connInfo.config);
+
+			if (rs.cancelled) {
+				// Was cancelled while we were connecting
+				await driver.disconnect();
+				return;
+			}
+
+			this.drivers.set(connectionId, driver);
+			this.reconnectStates.delete(connectionId);
+			this.setConnectionState(connectionId, "connected");
+			this.startHealthCheck(connectionId);
+		} catch {
+			if (rs.cancelled) return;
+			this.scheduleReconnectAttempt(connectionId, rs);
+		}
+	}
+
+	// ── Graceful disconnect ─────────────────────────────────
+
+	private async gracefulDisconnect(connectionId: string): Promise<void> {
+		const driver = this.drivers.get(connectionId);
+		if (!driver) return;
+
+		try {
+			// Rollback any open transaction
+			if (driver.inTransaction()) {
+				try {
+					await driver.rollback();
+				} catch {
+					// Best-effort rollback
+				}
+			}
+
+			// Cancel any running query
+			try {
+				await driver.cancel();
+			} catch {
+				// Best-effort cancel
+			}
+		} finally {
+			try {
+				await driver.disconnect();
+			} finally {
+				this.drivers.delete(connectionId);
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@ export interface SqliteConnectionConfig {
 
 export type ConnectionConfig = PostgresConnectionConfig | SqliteConnectionConfig;
 
-export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
+export type ConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting" | "error";
 
 export interface ConnectionInfo {
 	id: string;

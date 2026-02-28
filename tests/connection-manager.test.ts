@@ -545,4 +545,229 @@ describe("ConnectionManager", () => {
 			expect(conn.config.type).toBe("postgresql");
 		});
 	});
+
+	// ── Health check ────────────────────────────────────────
+
+	describe("health check", () => {
+		test("detects connection loss via health check", async () => {
+			const events: StatusChangeEvent[] = [];
+			manager.onStatusChanged((e) => events.push(e));
+
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await manager.connect(conn.id);
+
+			// Manually disconnect the driver to simulate connection loss
+			const driver = manager.getDriver(conn.id);
+			await driver.disconnect();
+
+			// Trigger health check manually via private method
+			await (manager as any).performHealthCheck(conn.id);
+
+			// Should have detected the failure and set state to disconnected
+			const lastEvent = events[events.length - 1];
+			expect(lastEvent.state).toBe("disconnected");
+			expect(lastEvent.error).toBe("Connection lost");
+		});
+
+		test("health check succeeds on healthy connection", async () => {
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await manager.connect(conn.id);
+
+			const eventsBefore: StatusChangeEvent[] = [];
+			manager.onStatusChanged((e) => eventsBefore.push(e));
+
+			// Health check on a working connection should emit no events
+			await (manager as any).performHealthCheck(conn.id);
+			expect(eventsBefore).toHaveLength(0);
+			expect(manager.getConnectionState(conn.id)).toBe("connected");
+		});
+
+		test("health check is a no-op when no driver exists", async () => {
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+
+			// No connect, so no driver — should not throw
+			await (manager as any).performHealthCheck(conn.id);
+		});
+	});
+
+	// ── Auto-reconnect ──────────────────────────────────────
+
+	describe("auto-reconnect", () => {
+		let fastManager: ConnectionManager;
+
+		beforeEach(() => {
+			// Reuse the parent's appDb — avoid resetting the singleton
+			fastManager = new ConnectionManager(appDb, {
+				healthCheckIntervalMs: 60_000, // won't fire during test
+				reconnectBaseDelayMs: 50,
+				reconnectMaxDelayMs: 200,
+				reconnectMaxAttempts: 3,
+			});
+		});
+
+		afterEach(async () => {
+			await fastManager.disconnectAll();
+		});
+
+		test("auto-reconnect recovers after health check failure", async () => {
+			const conn = fastManager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await fastManager.connect(conn.id);
+
+			const events: StatusChangeEvent[] = [];
+			fastManager.onStatusChanged((e) => events.push(e));
+
+			// Simulate connection loss
+			const driver = fastManager.getDriver(conn.id);
+			await driver.disconnect();
+			await (fastManager as any).performHealthCheck(conn.id);
+
+			// Wait for auto-reconnect to succeed (50ms first attempt)
+			await Bun.sleep(200);
+
+			expect(fastManager.getConnectionState(conn.id)).toBe("connected");
+
+			// Should have seen: disconnected → reconnecting → connected
+			const states = events.map((e) => e.state);
+			expect(states).toContain("disconnected");
+			expect(states).toContain("reconnecting");
+			expect(states[states.length - 1]).toBe("connected");
+		});
+
+		test("auto-reconnect stops after max attempts", async () => {
+			const conn = fastManager.createConnection({
+				name: "Bad SQLite",
+				config: { type: "sqlite", path: "/nonexistent/dir/impossible.db" },
+			});
+
+			// Manually set up state as if it was connected then lost
+			(fastManager as any).states.set(conn.id, { state: "connected" });
+
+			const events: StatusChangeEvent[] = [];
+			fastManager.onStatusChanged((e) => events.push(e));
+
+			// Trigger auto-reconnect directly
+			(fastManager as any).startAutoReconnect(conn.id);
+
+			// Wait for 3 attempts: 50ms + 100ms + 200ms = 350ms + some buffer
+			await Bun.sleep(600);
+
+			expect(fastManager.getConnectionState(conn.id)).toBe("error");
+			const lastEvent = events[events.length - 1];
+			expect(lastEvent.error).toContain("Reconnect failed after 3 attempts");
+		});
+
+		test("manual reconnect cancels auto-reconnect", async () => {
+			const conn = fastManager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await fastManager.connect(conn.id);
+
+			// Simulate connection loss
+			const driver = fastManager.getDriver(conn.id);
+			await driver.disconnect();
+			await (fastManager as any).performHealthCheck(conn.id);
+
+			// Auto-reconnect started — now do manual reconnect immediately
+			await fastManager.reconnect(conn.id);
+
+			expect(fastManager.getConnectionState(conn.id)).toBe("connected");
+			// Reconnect state should be cleared
+			expect((fastManager as any).reconnectStates.has(conn.id)).toBe(false);
+		});
+
+		test("disconnect cancels auto-reconnect", async () => {
+			const conn = fastManager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await fastManager.connect(conn.id);
+
+			// Simulate connection loss
+			const driver = fastManager.getDriver(conn.id);
+			await driver.disconnect();
+			await (fastManager as any).performHealthCheck(conn.id);
+
+			// Auto-reconnect started — now disconnect
+			await fastManager.disconnect(conn.id);
+
+			expect(fastManager.getConnectionState(conn.id)).toBe("disconnected");
+			expect((fastManager as any).reconnectStates.has(conn.id)).toBe(false);
+
+			// Wait to ensure no reconnect attempts happen
+			await Bun.sleep(200);
+			expect(fastManager.getConnectionState(conn.id)).toBe("disconnected");
+		});
+	});
+
+	// ── Graceful disconnect ─────────────────────────────────
+
+	describe("graceful disconnect", () => {
+		test("rolls back open transaction on disconnect", async () => {
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await manager.connect(conn.id);
+			const driver = manager.getDriver(conn.id);
+
+			// Create a table and start a transaction
+			await driver.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)");
+			await driver.execute("INSERT INTO test (val) VALUES ('initial')");
+			await driver.beginTransaction();
+			await driver.execute("INSERT INTO test (val) VALUES ('in-tx')");
+
+			expect(driver.inTransaction()).toBe(true);
+
+			// Disconnect should rollback
+			await manager.disconnect(conn.id);
+			expect(manager.getConnectionState(conn.id)).toBe("disconnected");
+		});
+
+		test("disconnect works even without open transaction", async () => {
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await manager.connect(conn.id);
+
+			await manager.disconnect(conn.id);
+			expect(manager.getConnectionState(conn.id)).toBe("disconnected");
+			expect(() => manager.getDriver(conn.id)).toThrow("No active connection");
+		});
+
+		test("reconnect gracefully disconnects before reconnecting", async () => {
+			const conn = manager.createConnection({
+				name: "SQLite",
+				config: sqliteConfig,
+			});
+			await manager.connect(conn.id);
+			const driver = manager.getDriver(conn.id);
+
+			// Start a transaction
+			await driver.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)");
+			await driver.beginTransaction();
+			await driver.execute("INSERT INTO test (val) VALUES ('in-tx')");
+
+			// Reconnect should gracefully disconnect first (rolling back tx)
+			await manager.reconnect(conn.id);
+			expect(manager.getConnectionState(conn.id)).toBe("connected");
+
+			// New driver should not be in a transaction
+			const newDriver = manager.getDriver(conn.id);
+			expect(newDriver.inTransaction()).toBe(false);
+		});
+	});
 });

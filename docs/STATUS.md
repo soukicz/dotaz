@@ -104,7 +104,7 @@
 | DOTAZ-047 | Transaction management UI | done | TransactionManager service; tx RPC handlers; StatusBar "IN TRANSACTION" badge; tab/disconnect warnings; manual tx mode in grid skips auto-commit |
 | DOTAZ-048 | Error handling + toast notifications | done | UI store with toast management; ToastContainer in AppShell; friendlyErrorMessage in rpc-errors.ts; global error/rejection handlers; connection error toasts |
 | DOTAZ-049 | Application menu with all actions | done | ApplicationMenu via Electrobun; Edit items use native roles; custom actions forwarded to frontend via `menu.action` RPC message → commandRegistry.execute; new commands: new-connection, reconnect, zoom-in/out/reset, about, settings |
-| DOTAZ-050 | Reconnect logic + connection resilience | not started | |
+| DOTAZ-050 | Reconnect logic + connection resilience | done | Health check (SELECT 1 every 30s); auto-reconnect with exponential backoff (1s–30s, max 5 attempts); "reconnecting" state; graceful disconnect (rollback tx, cancel queries); configurable intervals via ConnectionManagerOptions |
 | DOTAZ-051 | Settings storage + preferences | not started | |
 | DOTAZ-052 | Data refresh (F5) + stale indication | not started | |
 | DOTAZ-053 | Visual polish + responsive layout | not started | |
@@ -255,6 +255,9 @@
 | 2026-02-28 | DOTAZ-049 | Custom menu actions forwarded via `menu.action` RPC message | Backend listens for `application-menu-clicked`, extracts `action` string, sends to frontend; frontend dispatches to `commandRegistry.execute` |
 | 2026-02-28 | DOTAZ-049 | Zoom via `document.documentElement.style.zoom` | Simple CSS zoom approach; range 0.5–2.0 with 0.1 increments |
 | 2026-02-28 | DOTAZ-049 | Settings command shows placeholder toast | DOTAZ-051 will implement full settings; menu item wired up and ready |
+| 2026-02-28 | DOTAZ-050 | Configurable intervals via `ConnectionManagerOptions` | Allows tests to use fast timers (50ms base) instead of production values (30s health check, 1s reconnect base); avoids flaky timing-dependent tests |
+| 2026-02-28 | DOTAZ-050 | `disconnectAll` cleans up reconnect states and health timers | Auto-reconnect creates orphaned timers (driver removed from map but timer pending); `disconnectAll` must iterate `reconnectStates` and `healthTimers` independently of `drivers` |
+| 2026-02-28 | DOTAZ-050 | Graceful disconnect: rollback tx → cancel query → disconnect | Best-effort rollback and cancel before closing driver; errors during cleanup are swallowed to ensure disconnect completes |
 
 ---
 
@@ -312,4 +315,4 @@
 
 ---
 
-*Last updated: 2026-02-28 (DOTAZ-049)*
+*Last updated: 2026-02-28 (DOTAZ-050)*
