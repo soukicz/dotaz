@@ -7,6 +7,8 @@ import {
 	buildQuickSearchClause,
 	splitStatements,
 	QueryExecutor,
+	offsetToLineColumn,
+	parseErrorPosition,
 } from "../src/bun/services/query-executor";
 import type { DatabaseDriver } from "../src/bun/db/driver";
 import type { ColumnFilter, SortColumn } from "../src/shared/types/grid";
@@ -723,5 +725,140 @@ describe("QueryExecutor", () => {
 		const results = await executor.executeQuery("conn-1", "");
 		expect(results).toEqual([]);
 		expect(driver.execute).not.toHaveBeenCalled();
+	});
+
+	test("captures error position from PostgreSQL-style error", async () => {
+		const pgError = Object.assign(new Error('syntax error at or near "SELEC"'), {
+			position: "1",
+		});
+		const driver = makeMockDriver({
+			execute: mock(async () => { throw pgError; }),
+		});
+		const cm = makeMockConnectionManager(driver);
+		const executor = new QueryExecutor(cm);
+
+		const results = await executor.executeQuery("conn-1", "SELEC * FROM users");
+
+		expect(results).toHaveLength(1);
+		expect(results[0].error).toContain("syntax error");
+		expect(results[0].errorPosition).toBeDefined();
+		expect(results[0].errorPosition!.line).toBe(1);
+		expect(results[0].errorPosition!.column).toBe(1);
+		expect(results[0].errorPosition!.offset).toBe(1);
+	});
+
+	test("captures error position on second line", async () => {
+		const pgError = Object.assign(new Error("syntax error"), {
+			position: "15",
+		});
+		const driver = makeMockDriver({
+			execute: mock(async () => { throw pgError; }),
+		});
+		const cm = makeMockConnectionManager(driver);
+		const executor = new QueryExecutor(cm);
+
+		const results = await executor.executeQuery("conn-1", "SELECT *\nFROM  nope");
+
+		expect(results[0].errorPosition).toBeDefined();
+		expect(results[0].errorPosition!.line).toBe(2);
+		expect(results[0].errorPosition!.column).toBe(6);
+		expect(results[0].errorPosition!.offset).toBe(15);
+	});
+
+	test("no errorPosition for errors without position info", async () => {
+		const driver = makeMockDriver({
+			execute: mock(async () => { throw new Error("connection lost"); }),
+		});
+		const cm = makeMockConnectionManager(driver);
+		const executor = new QueryExecutor(cm);
+
+		const results = await executor.executeQuery("conn-1", "SELECT 1");
+
+		expect(results[0].error).toBe("connection lost");
+		expect(results[0].errorPosition).toBeUndefined();
+	});
+});
+
+// ── offsetToLineColumn ────────────────────────────────────
+
+describe("offsetToLineColumn", () => {
+	test("offset 1 on single line", () => {
+		expect(offsetToLineColumn("SELECT 1", 1)).toEqual({ line: 1, column: 1 });
+	});
+
+	test("offset in the middle of single line", () => {
+		expect(offsetToLineColumn("SELECT 1", 5)).toEqual({ line: 1, column: 5 });
+	});
+
+	test("offset on second line", () => {
+		expect(offsetToLineColumn("SELECT *\nFROM users", 10)).toEqual({ line: 2, column: 1 });
+	});
+
+	test("offset in the middle of second line", () => {
+		expect(offsetToLineColumn("SELECT *\nFROM users", 14)).toEqual({ line: 2, column: 5 });
+	});
+
+	test("offset at the end of first line (newline char)", () => {
+		expect(offsetToLineColumn("SELECT *\nFROM users", 9)).toEqual({ line: 1, column: 9 });
+	});
+
+	test("offset on third line", () => {
+		expect(offsetToLineColumn("SELECT *\nFROM users\nWHERE id = 1", 21)).toEqual({ line: 3, column: 1 });
+	});
+
+	test("offset past end of string clamps", () => {
+		expect(offsetToLineColumn("SELECT 1", 100)).toEqual({ line: 1, column: 9 });
+	});
+});
+
+// ── parseErrorPosition ──────────────────────────────────
+
+describe("parseErrorPosition", () => {
+	test("parses PostgreSQL position field", () => {
+		const err = Object.assign(new Error("syntax error"), { position: "7" });
+		const result = parseErrorPosition(err, "SELEC * FROM users");
+		expect(result).toBeDefined();
+		expect(result!.offset).toBe(7);
+		expect(result!.line).toBe(1);
+		expect(result!.column).toBe(7);
+	});
+
+	test("parses numeric position", () => {
+		const err = Object.assign(new Error("syntax error"), { position: 7 });
+		const result = parseErrorPosition(err, "SELEC * FROM users");
+		expect(result).toBeDefined();
+		expect(result!.offset).toBe(7);
+	});
+
+	test("returns undefined for errors without position", () => {
+		const err = new Error("connection lost");
+		expect(parseErrorPosition(err, "SELECT 1")).toBeUndefined();
+	});
+
+	test("returns undefined for null input", () => {
+		expect(parseErrorPosition(null, "SELECT 1")).toBeUndefined();
+	});
+
+	test("returns undefined for non-object input", () => {
+		expect(parseErrorPosition("string error", "SELECT 1")).toBeUndefined();
+	});
+
+	test("parses SQLite offset from error message", () => {
+		const err = new Error('near "SELEC": syntax error at offset 0');
+		const result = parseErrorPosition(err, "SELEC * FROM users");
+		expect(result).toBeDefined();
+		expect(result!.offset).toBe(1); // 0-based converted to 1-based
+		expect(result!.line).toBe(1);
+		expect(result!.column).toBe(1);
+	});
+
+	test("returns undefined for invalid position value", () => {
+		const err = Object.assign(new Error("error"), { position: "abc" });
+		expect(parseErrorPosition(err, "SELECT 1")).toBeUndefined();
+	});
+
+	test("returns undefined for position 0", () => {
+		const err = Object.assign(new Error("error"), { position: "0" });
+		expect(parseErrorPosition(err, "SELECT 1")).toBeUndefined();
 	});
 });

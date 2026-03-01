@@ -1,6 +1,6 @@
 import type { DatabaseDriver } from "../db/driver";
 import type { ColumnFilter, SortColumn } from "../../shared/types/grid";
-import type { QueryResult } from "../../shared/types/query";
+import type { QueryResult, ErrorPosition } from "../../shared/types/query";
 import type { DataChange } from "../../shared/types/rpc";
 import type { ConnectionManager } from "./connection-manager";
 import type { AppDatabase } from "../storage/app-db";
@@ -709,12 +709,15 @@ export class QueryExecutor {
 				return makeCancelledResult(durationMs);
 			}
 
+			const errorPosition = parseErrorPosition(err, sql);
+
 			return {
 				columns: [],
 				rows: [],
 				rowCount: 0,
 				durationMs,
 				error: err instanceof Error ? err.message : String(err),
+				errorPosition,
 			};
 		} finally {
 			cancelTimeout();
@@ -750,6 +753,59 @@ export class QueryExecutor {
 			// Don't let history logging failures break query execution
 		}
 	}
+}
+
+/**
+ * Convert a 1-based character offset into line/column numbers.
+ * Both line and column in the result are 1-based.
+ */
+export function offsetToLineColumn(sql: string, offset: number): { line: number; column: number } {
+	let line = 1;
+	let col = 1;
+	// offset is 1-based from PostgreSQL
+	const target = Math.min(offset - 1, sql.length);
+	for (let i = 0; i < target; i++) {
+		if (sql[i] === "\n") {
+			line++;
+			col = 1;
+		} else {
+			col++;
+		}
+	}
+	return { line, column: col };
+}
+
+/**
+ * Extract error position from database error objects.
+ * PostgreSQL errors include a `position` field (1-based character offset).
+ * SQLite errors may include offset info in the message.
+ */
+export function parseErrorPosition(err: unknown, sql: string): ErrorPosition | undefined {
+	if (!err || typeof err !== "object") return undefined;
+
+	const errObj = err as Record<string, unknown>;
+
+	// PostgreSQL: position is a 1-based character offset in the query
+	if (errObj.position != null) {
+		const offset = Number(errObj.position);
+		if (!Number.isNaN(offset) && offset > 0) {
+			const { line, column } = offsetToLineColumn(sql, offset);
+			return { line, column, offset };
+		}
+	}
+
+	// SQLite: try to parse offset from error message
+	// Common pattern: "... near "xxx", at offset N"
+	if (err instanceof Error) {
+		const match = err.message.match(/at offset (\d+)/);
+		if (match) {
+			const offset = Number(match[1]) + 1; // convert 0-based to 1-based
+			const { line, column } = offsetToLineColumn(sql, offset);
+			return { line, column, offset };
+		}
+	}
+
+	return undefined;
 }
 
 function makeCancelledResult(durationMs = 0): QueryResult {

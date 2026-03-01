@@ -118,6 +118,11 @@
 	font-size: var(--font-size-sm);
 }
 
+.sql-result-panel__error-position {
+	font-weight: 400;
+	color: var(--ink-secondary);
+}
+
 .sql-result-panel__error-message {
 	color: var(--ink);
 	font-family: var(--font-mono);

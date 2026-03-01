@@ -156,7 +156,17 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 								<Switch>
 									<Match when={result().error}>
 										<div class="sql-result-panel__error">
-											<div class="sql-result-panel__error-title">Error</div>
+											<div class="sql-result-panel__error-title">
+												Error
+												<Show when={result().errorPosition?.line != null}>
+													<span class="sql-result-panel__error-position">
+														{" "}at line {result().errorPosition!.line}
+														<Show when={result().errorPosition!.column != null}>
+															, column {result().errorPosition!.column}
+														</Show>
+													</span>
+												</Show>
+											</div>
 											<div class="sql-result-panel__error-message">
 												{result().error}
 											</div>

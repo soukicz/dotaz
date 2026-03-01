@@ -24,6 +24,8 @@ export interface TabEditorState {
 	inTransaction: boolean;
 	/** Range of the last executed statement (for visual flash feedback) */
 	executedRange: { from: number; to: number } | null;
+	/** Error position in the editor (character offset, 0-based) for highlighting */
+	errorOffset: number | null;
 }
 
 function createDefaultEditorState(connectionId: string, database?: string): TabEditorState {
@@ -41,6 +43,7 @@ function createDefaultEditorState(connectionId: string, database?: string): TabE
 		txMode: "auto-commit",
 		inTransaction: false,
 		executedRange: null,
+		errorOffset: null,
 	};
 }
 
@@ -101,7 +104,7 @@ function syncLatestHistory(connectionId: string) {
 	}).catch((e) => console.warn("Failed to fetch latest history:", e));
 }
 
-async function runQuery(tabId: string, sql: string) {
+async function runQuery(tabId: string, sql: string, baseOffset = 0) {
 	const tab = ensureTab(tabId);
 	const queryId = crypto.randomUUID();
 
@@ -111,6 +114,7 @@ async function runQuery(tabId: string, sql: string) {
 		queryId,
 		results: [],
 		duration: 0,
+		errorOffset: null,
 	});
 
 	const startTime = performance.now();
@@ -123,12 +127,19 @@ async function runQuery(tabId: string, sql: string) {
 
 		const duration = Math.round(performance.now() - startTime);
 
+		// Extract error position from the first result that has an error
+		const errorResult = results.find((r) => r.error && r.errorPosition);
+		const errorOffset = errorResult?.errorPosition?.offset != null
+			? baseOffset + errorResult.errorPosition.offset - 1 // Convert 1-based to 0-based
+			: null;
+
 		setState("tabs", tabId, {
 			results,
 			duration,
 			isRunning: false,
 			error: null,
 			queryId: null,
+			errorOffset,
 		});
 
 		syncLatestHistory(tab.connectionId);
@@ -144,6 +155,7 @@ async function runQuery(tabId: string, sql: string) {
 			duration,
 			isRunning: false,
 			queryId: null,
+			errorOffset: null,
 		});
 
 		syncLatestHistory(tab.connectionId);
@@ -155,7 +167,9 @@ async function executeQuery(tabId: string) {
 	const sql = tab.content.trim();
 	if (!sql) return;
 
-	await runQuery(tabId, sql);
+	// Base offset accounts for leading whitespace stripped by trim()
+	const baseOffset = tab.content.length - tab.content.trimStart().length;
+	await runQuery(tabId, sql, baseOffset);
 }
 
 async function executeSelected(tabId: string, selectedText: string) {
@@ -176,7 +190,7 @@ async function executeStatement(tabId: string) {
 	const result = getStatementAtCursor(tab.content, tab.cursorPosition);
 	if (result) {
 		setState("tabs", tabId, "executedRange", { from: result.from, to: result.to });
-		await runQuery(tabId, result.text);
+		await runQuery(tabId, result.text, result.from);
 	}
 }
 

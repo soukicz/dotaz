@@ -11,6 +11,12 @@ export interface QueryResultColumn {
 	dataType: string;
 }
 
+export interface ErrorPosition {
+	line?: number;
+	column?: number;
+	offset?: number;
+}
+
 export interface QueryResult {
 	columns: QueryResultColumn[];
 	rows: Record<string, unknown>[];
@@ -18,6 +24,7 @@ export interface QueryResult {
 	affectedRows?: number;
 	durationMs: number;
 	error?: string;
+	errorPosition?: ErrorPosition;
 }
 
 export type QueryHistoryStatus = "success" | "error";

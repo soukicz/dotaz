@@ -152,6 +152,31 @@ const executedHighlightField = StateField.define<DecorationSet>({
 	provide: (f) => EditorView.decorations.from(f),
 });
 
+// ── SQL error position highlight ──────────────────────────
+
+const setErrorHighlight = StateEffect.define<{ from: number; to: number } | null>();
+
+const errorHighlightField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none;
+	},
+	update(value, tr) {
+		// Clear error highlight on doc changes
+		if (tr.docChanged) return Decoration.none;
+		for (const effect of tr.effects) {
+			if (effect.is(setErrorHighlight)) {
+				if (effect.value) {
+					const mark = Decoration.mark({ class: "cm-error-highlight" });
+					return Decoration.set([mark.range(effect.value.from, effect.value.to)]);
+				}
+				return Decoration.none;
+			}
+		}
+		return value;
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
+
 const DIALECT_MAP: Record<ConnectionType, typeof PostgreSQL> = {
 	postgresql: PostgreSQL,
 	sqlite: SQLite,
@@ -270,6 +295,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 				executeKeymap,
 				updateListener,
 				executedHighlightField,
+				errorHighlightField,
 				placeholder("Write your SQL query here..."),
 				EditorView.lineWrapping,
 			],
@@ -342,6 +368,28 @@ export default function SqlEditor(props: SqlEditorProps) {
 				effects: setExecutedHighlight.of(null),
 			});
 		}, 1500);
+	});
+
+	// Show/clear error position highlight
+	createEffect(() => {
+		const tab = editorStore.getTab(props.tabId);
+		const offset = tab?.errorOffset;
+		if (!editorView) return;
+
+		if (offset == null) {
+			editorView.dispatch({ effects: setErrorHighlight.of(null) });
+			return;
+		}
+
+		const docLen = editorView.state.doc.length;
+		const from = Math.min(offset, docLen);
+		// Highlight the rest of the line from the error position
+		const line = editorView.state.doc.lineAt(from);
+		const to = Math.min(line.to, docLen);
+		// Ensure a visible range (at least 1 char if possible)
+		const end = to > from ? to : Math.min(from + 1, docLen);
+
+		editorView.dispatch({ effects: setErrorHighlight.of({ from, to: end }) });
 	});
 
 	onCleanup(() => {
