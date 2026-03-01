@@ -41,7 +41,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-082 | Standardize error handling with domain error types | done | DatabaseError hierarchy with codes, driver error mapping, RPC errorCode propagation, frontend friendlyErrorMessage using codes, silent catches → console.debug |
 | DOTAZ-083 | Driver-aware query placeholder generation | done | `placeholder()` on SqlDialect/DatabaseDriver, builders use it, MySQL regex removed |
 | DOTAZ-084 | Improve shared domain model type safety | done | DataChange discriminated union (InsertChange/UpdateChange/DeleteChange), DatabaseDataType enum with driver mappings, SavedViewConfig reuses SortColumn/ColumnFilter, centralized column-types.ts |
-| DOTAZ-085 | AppDatabase transaction wrapping and storage improvements | not started | Atomic restores, history pruning, typed settings, pool limits |
+| DOTAZ-085 | AppDatabase transaction wrapping and storage improvements | done | transaction() method, migratePasswords wrapped, auto history pruning, getNumberSetting/getBooleanSetting, maxActiveDatabases pool limit |
 | DOTAZ-086 | Frontend architecture cleanup | not started | Centralize layout constants, fix command registry leak, IndexedDB error handling |
 
 ---
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-01 — DOTAZ-084 done*
+*Last updated: 2026-03-01 — DOTAZ-085 done*
 

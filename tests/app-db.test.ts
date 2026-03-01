@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { AppDatabase } from "../src/backend-shared/storage/app-db";
+import { AppDatabase, DEFAULT_SETTINGS } from "../src/backend-shared/storage/app-db";
 import { getSchemaVersion } from "../src/backend-shared/storage/migrations";
 import type { PostgresConnectionConfig, SqliteConnectionConfig } from "../src/shared/types/connection";
 import { hkdfSync } from "crypto";
@@ -636,6 +636,139 @@ describe("AppDatabase", () => {
 
 			const found = appDb.getConnectionById(conn.id)!;
 			expect((found.config as PostgresConnectionConfig).password).toBe("secret-password");
+		});
+	});
+
+	// ── Transaction ──────────────────────────────────────────
+
+	describe("transaction", () => {
+		test("commits on success", () => {
+			appDb.transaction(() => {
+				appDb.setSetting("txKey", "txValue");
+			});
+			expect(appDb.getSetting("txKey")).toBe("txValue");
+		});
+
+		test("rolls back on error", () => {
+			appDb.setSetting("rollbackKey", "original");
+			try {
+				appDb.transaction(() => {
+					appDb.setSetting("rollbackKey", "changed");
+					throw new Error("simulated failure");
+				});
+			} catch {
+				// expected
+			}
+			expect(appDb.getSetting("rollbackKey")).toBe("original");
+		});
+
+		test("re-throws the original error", () => {
+			expect(() =>
+				appDb.transaction(() => {
+					throw new Error("test error");
+				}),
+			).toThrow("test error");
+		});
+
+		test("returns the value from the function", () => {
+			const result = appDb.transaction(() => 42);
+			expect(result).toBe(42);
+		});
+	});
+
+	// ── Typed settings ───────────────────────────────────────
+
+	describe("typed settings", () => {
+		test("getNumberSetting returns number for valid numeric string", () => {
+			appDb.setSetting("pageSize", "50");
+			expect(appDb.getNumberSetting("pageSize")).toBe(50);
+		});
+
+		test("getNumberSetting returns null for non-numeric string", () => {
+			appDb.setSetting("bad", "abc");
+			expect(appDb.getNumberSetting("bad")).toBeNull();
+		});
+
+		test("getNumberSetting falls back to DEFAULT_SETTINGS", () => {
+			expect(appDb.getNumberSetting("defaultPageSize")).toBe(Number(DEFAULT_SETTINGS.defaultPageSize));
+		});
+
+		test("getNumberSetting returns null for unknown key without default", () => {
+			expect(appDb.getNumberSetting("nonexistent")).toBeNull();
+		});
+
+		test("getBooleanSetting returns true for 'true'", () => {
+			appDb.setSetting("flag", "true");
+			expect(appDb.getBooleanSetting("flag")).toBe(true);
+		});
+
+		test("getBooleanSetting returns false for 'false'", () => {
+			appDb.setSetting("flag", "false");
+			expect(appDb.getBooleanSetting("flag")).toBe(false);
+		});
+
+		test("getBooleanSetting returns null for non-boolean string", () => {
+			appDb.setSetting("flag", "maybe");
+			expect(appDb.getBooleanSetting("flag")).toBeNull();
+		});
+
+		test("getBooleanSetting falls back to DEFAULT_SETTINGS", () => {
+			expect(appDb.getBooleanSetting("clipboardIncludeHeaders")).toBe(true);
+		});
+
+		test("getBooleanSetting returns null for unknown key without default", () => {
+			expect(appDb.getBooleanSetting("nonexistent")).toBeNull();
+		});
+	});
+
+	// ── History pruning ──────────────────────────────────────
+
+	describe("history pruning", () => {
+		let connectionId: string;
+
+		beforeEach(() => {
+			const conn = appDb.createConnection({
+				name: "Test",
+				config: { type: "sqlite", path: ":memory:" },
+			});
+			connectionId = conn.id;
+		});
+
+		test("prunes oldest entries when exceeding maxHistoryEntries", () => {
+			appDb.setSetting("maxHistoryEntries", "5");
+
+			for (let i = 0; i < 7; i++) {
+				appDb.addHistory({ connectionId, sql: `SELECT ${i}`, status: "success" });
+			}
+
+			const entries = appDb.listHistory({});
+			expect(entries).toHaveLength(5);
+			// Should keep the newest 5 (indices 2-6)
+			const sqls = entries.map(e => e.sql);
+			expect(sqls).not.toContain("SELECT 0");
+			expect(sqls).not.toContain("SELECT 1");
+			expect(sqls).toContain("SELECT 6");
+		});
+
+		test("does not prune when under limit", () => {
+			appDb.setSetting("maxHistoryEntries", "10");
+
+			for (let i = 0; i < 5; i++) {
+				appDb.addHistory({ connectionId, sql: `SELECT ${i}`, status: "success" });
+			}
+
+			const entries = appDb.listHistory({});
+			expect(entries).toHaveLength(5);
+		});
+
+		test("uses default maxHistoryEntries when not explicitly set", () => {
+			// Default is 1000, so 5 entries should be fine
+			for (let i = 0; i < 5; i++) {
+				appDb.addHistory({ connectionId, sql: `SELECT ${i}`, status: "success" });
+			}
+
+			const entries = appDb.listHistory({});
+			expect(entries).toHaveLength(5);
 		});
 	});
 });

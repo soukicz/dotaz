@@ -63,6 +63,15 @@ export class AppDatabase {
 	}
 
 	/**
+	 * Run a function inside a SQLite transaction. If the function throws,
+	 * the transaction is rolled back and the error re-thrown.
+	 */
+	transaction<T>(fn: () => T): T {
+		const wrapped = this.db.transaction(fn);
+		return wrapped();
+	}
+
+	/**
 	 * Reset the singleton (for testing only).
 	 */
 	static resetInstance(): void {
@@ -97,19 +106,21 @@ export class AppDatabase {
 
 	private migratePasswords(): void {
 		if (!this.localKey) return;
-		const rows = this.db.prepare("SELECT id, config FROM connections").all() as ConnectionRow[];
-		const update = this.db.prepare("UPDATE connections SET config = ? WHERE id = ?");
-		for (const row of rows) {
-			try {
-				const config = JSON.parse(row.config) as ConnectionConfig;
-				if (isServerConfig(config) && !isEncryptedPassword(config.password)) {
-					const encrypted = { ...config, password: encryptLocalPassword(config.password, this.localKey!) };
-					update.run(JSON.stringify(encrypted), row.id);
+		this.transaction(() => {
+			const rows = this.db.prepare("SELECT id, config FROM connections").all() as ConnectionRow[];
+			const update = this.db.prepare("UPDATE connections SET config = ? WHERE id = ?");
+			for (const row of rows) {
+				try {
+					const config = JSON.parse(row.config) as ConnectionConfig;
+					if (isServerConfig(config) && !isEncryptedPassword(config.password)) {
+						const encrypted = { ...config, password: encryptLocalPassword(config.password, this.localKey!) };
+						update.run(JSON.stringify(encrypted), row.id);
+					}
+				} catch {
+					// Skip corrupted configs
 				}
-			} catch {
-				// Skip corrupted configs
 			}
-		}
+		});
 	}
 
 	private toConnectionInfo(row: ConnectionRow): ConnectionInfo {
@@ -168,6 +179,21 @@ export class AppDatabase {
 	getSetting(key: string): string | null {
 		const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | null;
 		return row?.value ?? null;
+	}
+
+	getNumberSetting(key: string): number | null {
+		const raw = this.getSetting(key) ?? DEFAULT_SETTINGS[key] ?? null;
+		if (raw === null) return null;
+		const num = Number(raw);
+		return Number.isFinite(num) ? num : null;
+	}
+
+	getBooleanSetting(key: string): boolean | null {
+		const raw = this.getSetting(key) ?? DEFAULT_SETTINGS[key] ?? null;
+		if (raw === null) return null;
+		if (raw === "true") return true;
+		if (raw === "false") return false;
+		return null;
 	}
 
 	setSetting(key: string, value: string): void {
@@ -249,7 +275,18 @@ export class AppDatabase {
 			params.rowCount ?? null,
 			params.errorMessage ?? null,
 		) as HistoryRow;
+
+		this.pruneHistory();
+
 		return rowToHistoryEntry(result);
+	}
+
+	private pruneHistory(): void {
+		const max = this.getNumberSetting("maxHistoryEntries");
+		if (max === null || max <= 0) return;
+		this.db.prepare(
+			"DELETE FROM query_history WHERE id NOT IN (SELECT id FROM query_history ORDER BY executed_at DESC, id DESC LIMIT ?)",
+		).run(max);
 	}
 
 	listHistory(params: HistoryListParams): QueryHistoryEntry[] {
