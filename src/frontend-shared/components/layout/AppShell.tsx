@@ -439,6 +439,19 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "toggle-value-editor",
+			label: "Toggle Value Editor Panel",
+			shortcut: "Ctrl+Shift+E",
+			category: "Grid",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "data-grid") {
+					gridStore.toggleValueEditor(tab.id);
+				}
+			},
+		});
+
+		commandRegistry.register({
 			id: "new-connection",
 			label: "New Connection",
 			category: "Connection",
@@ -532,6 +545,7 @@ export default function AppShell() {
 		keyboardManager.register("Delete", "delete-rows", "data-grid");
 		keyboardManager.register("Ctrl+S", "save-view", "data-grid");
 		keyboardManager.register("Ctrl+Shift+T", "toggle-transpose", "data-grid");
+		keyboardManager.register("Ctrl+Shift+E", "toggle-value-editor", "data-grid");
 	}
 
 	return (

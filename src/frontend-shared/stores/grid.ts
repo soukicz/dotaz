@@ -98,6 +98,8 @@ export interface TabGridState {
 	activeViewName: string | null;
 	fkNavigationHistory: FkNavigationEntry[];
 	transposed: boolean;
+	valueEditorOpen: boolean;
+	valueEditorWidth: number;
 }
 
 function createDefaultPendingChanges(): PendingChanges {
@@ -139,6 +141,8 @@ function createDefaultTabState(
 		activeViewName: null,
 		fkNavigationHistory: [],
 		transposed: false,
+		valueEditorOpen: false,
+		valueEditorWidth: 350,
 	};
 }
 
@@ -1104,6 +1108,16 @@ function toggleTranspose(tabId: string) {
 	setState("tabs", tabId, "transposed", !tab.transposed);
 }
 
+function toggleValueEditor(tabId: string) {
+	const tab = ensureTab(tabId);
+	setState("tabs", tabId, "valueEditorOpen", !tab.valueEditorOpen);
+}
+
+function setValueEditorWidth(tabId: string, width: number) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "valueEditorWidth", Math.min(800, Math.max(200, width)));
+}
+
 function removeTab(tabId: string) {
 	latestFetchId.delete(tabId);
 	setState("tabs", tabId, undefined!);
@@ -1154,6 +1168,10 @@ export const gridStore = {
 
 	// Transpose
 	toggleTranspose,
+
+	// Value editor
+	toggleValueEditor,
+	setValueEditorWidth,
 
 	// FK navigation
 	navigateToFkTarget,

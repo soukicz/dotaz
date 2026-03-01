@@ -17,6 +17,7 @@ import Pagination from "./Pagination";
 import RowDetailDialog from "../edit/RowDetailDialog";
 import AggregatePanel from "./AggregatePanel";
 import TransposedGrid from "./TransposedGrid";
+import ValueEditorPanel from "./ValueEditorPanel";
 import PendingChanges from "../edit/PendingChanges";
 import SaveViewDialog from "../views/SaveViewDialog";
 import ExportDialog from "../export/ExportDialog";
@@ -28,6 +29,7 @@ import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Save from "lucide-solid/icons/save";
 import Pencil from "lucide-solid/icons/pencil";
 import ArrowLeftRight from "lucide-solid/icons/arrow-left-right";
+import PanelRightOpen from "lucide-solid/icons/panel-right-open";
 import { HEADER_HEIGHT } from "../../lib/layout-constants";
 import "./DataGrid.css";
 
@@ -978,6 +980,14 @@ export default function DataGrid(props: DataGridProps) {
 							</button>
 							<button
 								class="data-grid__toolbar-btn"
+								classList={{ "data-grid__toolbar-btn--active": !!tabState().valueEditorOpen }}
+								onClick={() => gridStore.toggleValueEditor(props.tabId)}
+								title="Value editor panel (Ctrl+Shift+E)"
+							>
+								<PanelRightOpen size={12} /> Value
+							</button>
+							<button
+								class="data-grid__toolbar-btn"
 								onClick={handleRefresh}
 								disabled={tabState().loading}
 								title="Refresh data (F5)"
@@ -992,55 +1002,78 @@ export default function DataGrid(props: DataGridProps) {
 			<Show when={tab()}>
 				{(tabState) => (
 					<>
-						<Show when={tabState().loading && tabState().rows.length === 0}>
-							<div class="data-grid__skeleton">
-								<div class="data-grid__skeleton-header">
-									<div class="skeleton" style={{ width: "80px", height: "14px" }} />
-									<div class="skeleton" style={{ width: "120px", height: "14px" }} />
-									<div class="skeleton" style={{ width: "100px", height: "14px" }} />
-									<div class="skeleton" style={{ width: "90px", height: "14px" }} />
-									<div class="skeleton" style={{ width: "110px", height: "14px" }} />
-								</div>
-								{Array.from({ length: 8 }).map(() => (
-									<div class="data-grid__skeleton-row">
-										<div class="skeleton" style={{ width: "70px", height: "12px" }} />
-										<div class="skeleton" style={{ width: "110px", height: "12px" }} />
-										<div class="skeleton" style={{ width: "90px", height: "12px" }} />
-										<div class="skeleton" style={{ width: "80px", height: "12px" }} />
-										<div class="skeleton" style={{ width: "100px", height: "12px" }} />
+						<div class="data-grid__body">
+							<div class="data-grid__main">
+								<Show when={tabState().loading && tabState().rows.length === 0}>
+									<div class="data-grid__skeleton">
+										<div class="data-grid__skeleton-header">
+											<div class="skeleton" style={{ width: "80px", height: "14px" }} />
+											<div class="skeleton" style={{ width: "120px", height: "14px" }} />
+											<div class="skeleton" style={{ width: "100px", height: "14px" }} />
+											<div class="skeleton" style={{ width: "90px", height: "14px" }} />
+											<div class="skeleton" style={{ width: "110px", height: "14px" }} />
+										</div>
+										{Array.from({ length: 8 }).map(() => (
+											<div class="data-grid__skeleton-row">
+												<div class="skeleton" style={{ width: "70px", height: "12px" }} />
+												<div class="skeleton" style={{ width: "110px", height: "12px" }} />
+												<div class="skeleton" style={{ width: "90px", height: "12px" }} />
+												<div class="skeleton" style={{ width: "80px", height: "12px" }} />
+												<div class="skeleton" style={{ width: "100px", height: "12px" }} />
+											</div>
+										))}
 									</div>
-								))}
-							</div>
-						</Show>
+								</Show>
 
-						<div
-							ref={scrollRef}
-							class="data-grid__table-container"
-							classList={{ "data-grid__table-container--loading": tabState().loading }}
-						>
-							<Show
-								when={tabState().transposed}
-								fallback={
-									<>
-										<GridHeader
-											columns={visibleColumns()}
-											sort={tabState().sort}
-											columnConfig={tabState().columnConfig}
-											pinStyles={pinStyles()}
-											fkColumns={fkColumns()}
-											onToggleSort={handleToggleSort}
-											onResizeColumn={handleResizeColumn}
-											onHeaderContextMenu={handleHeaderContextMenu}
-										/>
+								<div
+									ref={scrollRef}
+									class="data-grid__table-container"
+									classList={{ "data-grid__table-container--loading": tabState().loading }}
+								>
+									<Show
+										when={tabState().transposed}
+										fallback={
+											<>
+												<GridHeader
+													columns={visibleColumns()}
+													sort={tabState().sort}
+													columnConfig={tabState().columnConfig}
+													pinStyles={pinStyles()}
+													fkColumns={fkColumns()}
+													onToggleSort={handleToggleSort}
+													onResizeColumn={handleResizeColumn}
+													onHeaderContextMenu={handleHeaderContextMenu}
+												/>
 
-										<VirtualScroller
-											scrollElement={() => scrollRef}
+												<VirtualScroller
+													scrollElement={() => scrollRef}
+													rows={tabState().rows}
+													columns={visibleColumns()}
+													columnConfig={tabState().columnConfig}
+													pinStyles={pinStyles()}
+													selectedRows={tabState().selectedRows}
+													scrollMargin={HEADER_HEIGHT}
+													onRowClick={handleRowClick}
+													onRowDblClick={handleRowDblClick}
+													editingCell={tabState().editingCell}
+													getChangedCells={getChangedCells}
+													isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
+													isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
+													fkMap={fkMap()}
+													onCellSave={handleCellSave}
+													onCellCancel={handleCellCancel}
+													onCellMoveNext={handleCellMoveNext}
+													onCellMoveDown={handleCellMoveDown}
+													onFkClick={handleFkClick}
+												/>
+											</>
+										}
+									>
+										<TransposedGrid
 											rows={tabState().rows}
 											columns={visibleColumns()}
 											columnConfig={tabState().columnConfig}
-											pinStyles={pinStyles()}
 											selectedRows={tabState().selectedRows}
-											scrollMargin={HEADER_HEIGHT}
 											onRowClick={handleRowClick}
 											onRowDblClick={handleRowDblClick}
 											editingCell={tabState().editingCell}
@@ -1054,41 +1087,50 @@ export default function DataGrid(props: DataGridProps) {
 											onCellMoveDown={handleCellMoveDown}
 											onFkClick={handleFkClick}
 										/>
-									</>
-								}
-							>
-								<TransposedGrid
-									rows={tabState().rows}
-									columns={visibleColumns()}
-									columnConfig={tabState().columnConfig}
-									selectedRows={tabState().selectedRows}
-									onRowClick={handleRowClick}
-									onRowDblClick={handleRowDblClick}
-									editingCell={tabState().editingCell}
-									getChangedCells={getChangedCells}
-									isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
-									isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
-									fkMap={fkMap()}
-									onCellSave={handleCellSave}
-									onCellCancel={handleCellCancel}
-									onCellMoveNext={handleCellMoveNext}
-									onCellMoveDown={handleCellMoveDown}
-									onFkClick={handleFkClick}
-								/>
-							</Show>
+									</Show>
 
-							<Show when={!tabState().loading && tabState().rows.length === 0}>
-								<div class="empty-state" style={{ "padding-top": "48px" }}>
-									<Icon name="table" size={32} class="empty-state__icon" />
-									<div class="empty-state__title">No data</div>
-									<div class="empty-state__subtitle">
-										{tabState().quickSearch
-											? "No rows match the current search."
-											: tabState().filters.length > 0
-												? "No rows match the current filters."
-												: "This table is empty."}
-									</div>
+									<Show when={!tabState().loading && tabState().rows.length === 0}>
+										<div class="empty-state" style={{ "padding-top": "48px" }}>
+											<Icon name="table" size={32} class="empty-state__icon" />
+											<div class="empty-state__title">No data</div>
+											<div class="empty-state__subtitle">
+												{tabState().quickSearch
+													? "No rows match the current search."
+													: tabState().filters.length > 0
+														? "No rows match the current filters."
+														: "This table is empty."}
+											</div>
+										</div>
+									</Show>
 								</div>
+							</div>
+
+							<Show when={tabState().valueEditorOpen && tabState().focusedCell}>
+								{(_) => {
+									const focused = () => tabState().focusedCell!;
+									const col = () => visibleColumns().find((c) => c.name === focused().column) ?? tabState().columns.find((c) => c.name === focused().column);
+									const cellValue = () => tabState().rows[focused().row]?.[focused().column];
+									return (
+										<Show when={col()}>
+											{(column) => (
+												<ValueEditorPanel
+													value={cellValue()}
+													column={column()}
+													rowIndex={focused().row}
+													width={tabState().valueEditorWidth}
+													readOnly={isReadOnly()}
+													onSave={(value) => {
+														gridStore.setCellValue(props.tabId, focused().row, focused().column, value);
+													}}
+													onResize={(delta) => {
+														gridStore.setValueEditorWidth(props.tabId, tabState().valueEditorWidth + delta);
+													}}
+													onClose={() => gridStore.toggleValueEditor(props.tabId)}
+												/>
+											)}
+										</Show>
+									);
+								}}
 							</Show>
 						</div>
 
