@@ -25,7 +25,7 @@ function setup() {
 	AppDatabase.resetInstance();
 	const appDb = AppDatabase.getInstance(":memory:");
 	const cm = new ConnectionManager(appDb);
-	const handlers = createHandlers(cm);
+	const handlers = createHandlers(cm, undefined, appDb);
 	return { appDb, cm, handlers };
 }
 

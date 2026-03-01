@@ -1,6 +1,7 @@
 import { WasmSqliteDriver } from "./wasm-sqlite-driver";
 import { DemoAppState } from "./demo-state";
-import { createDemoHandlers } from "./demo-handlers";
+import { DemoAdapter } from "./demo-adapter";
+import { createHandlers } from "../shared/rpc/handlers";
 import bookstoreDbUrl from "../../scripts/seed/bookstore.db?url";
 
 type EmitMessage = (channel: string, payload: any) => void;
@@ -54,12 +55,13 @@ export async function initDemo(emitMessage: EmitMessage) {
 	// Enable foreign keys
 	db.exec("PRAGMA foreign_keys = ON");
 
-	// 4. Create driver and state
+	// 4. Create driver, state, and adapter
 	const driver = new WasmSqliteDriver(db);
 	const state = new DemoAppState();
+	const adapter = new DemoAdapter(driver, state, emitMessage);
 
-	// 5. Create handlers
-	const handlers = createDemoHandlers(driver, state, emitMessage);
+	// 5. Create handlers from shared definition
+	const handlers = createHandlers(adapter);
 
 	return { handlers };
 }
