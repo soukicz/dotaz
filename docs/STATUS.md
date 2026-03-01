@@ -97,6 +97,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-092 | Data format profiles | not started | Global date/number/NULL display settings |
 | DOTAZ-093 | Advanced Paste into data grid | not started | Multi-row paste with delimiter detection |
 | DOTAZ-094 | AI SQL generation from natural language | not started | LLM-powered SQL with schema context |
+| DOTAZ-095 | Workspace persistence (tabs, editor state, layout) | not started | Restore open tabs, SQL content, layout after restart |
 
 ---
 
