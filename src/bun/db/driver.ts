@@ -3,6 +3,7 @@ import type { SqlDialect } from "../../shared/sql/dialect";
 import type { QueryResult } from "../../shared/types/query";
 import type {
 	SchemaInfo,
+	SchemaData,
 	TableInfo,
 	ColumnInfo,
 	IndexInfo,
@@ -20,7 +21,10 @@ export interface DatabaseDriver extends SqlDialect {
 	execute(sql: string, params?: unknown[]): Promise<QueryResult>;
 	cancel(): Promise<void>;
 
-	// Schema introspection
+	// Schema introspection (bulk)
+	loadSchema(): Promise<SchemaData>;
+
+	// Schema introspection (per-table)
 	getSchemas(): Promise<SchemaInfo[]>;
 	getTables(schema: string): Promise<TableInfo[]>;
 	getColumns(schema: string, table: string): Promise<ColumnInfo[]>;

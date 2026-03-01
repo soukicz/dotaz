@@ -1,5 +1,4 @@
 import type { RpcAdapter } from "./adapter";
-import type { SchemaData } from "../types/database";
 import type { ExportOptions, ExportPreviewRequest } from "../types/export";
 import type {
 	HistoryListParams,
@@ -46,36 +45,9 @@ export function createHandlers(adapter: RpcAdapter) {
 		},
 
 		// ── Schema ───────────────────────────────────────
-		"schema.load": async ({ connectionId, database }: { connectionId: string; database?: string }): Promise<SchemaData> => {
+		"schema.load": async ({ connectionId, database }: { connectionId: string; database?: string }) => {
 			const driver = adapter.getDriver(connectionId, database);
-			const schemas = await driver.getSchemas();
-
-			const tables: SchemaData["tables"] = {};
-			const columns: SchemaData["columns"] = {};
-			const indexes: SchemaData["indexes"] = {};
-			const foreignKeys: SchemaData["foreignKeys"] = {};
-			const referencingForeignKeys: SchemaData["referencingForeignKeys"] = {};
-
-			for (const schema of schemas) {
-				const schemaTables = await driver.getTables(schema.name);
-				tables[schema.name] = schemaTables;
-
-				for (const table of schemaTables) {
-					const key = `${schema.name}.${table.name}`;
-					const [cols, idxs, fks, refFks] = await Promise.all([
-						driver.getColumns(schema.name, table.name),
-						driver.getIndexes(schema.name, table.name),
-						driver.getForeignKeys(schema.name, table.name),
-						driver.getReferencingForeignKeys(schema.name, table.name),
-					]);
-					columns[key] = cols;
-					indexes[key] = idxs;
-					foreignKeys[key] = fks;
-					referencingForeignKeys[key] = refFks;
-				}
-			}
-
-			return { schemas, tables, columns, indexes, foreignKeys, referencingForeignKeys };
+			return driver.loadSchema();
 		},
 
 		// ── Query Execution ──────────────────────────────

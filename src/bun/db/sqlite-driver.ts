@@ -4,6 +4,7 @@ import type { ConnectionConfig } from "../../shared/types/connection";
 import type { QueryResult, QueryResultColumn } from "../../shared/types/query";
 import type {
 	SchemaInfo,
+	SchemaData,
 	TableInfo,
 	ColumnInfo,
 	IndexInfo,
@@ -63,6 +64,55 @@ export class SqliteDriver implements DatabaseDriver {
 	async cancel(): Promise<void> {
 		// SQLite operations are synchronous under the hood;
 		// cancellation is not supported.
+	}
+
+	async loadSchema(): Promise<SchemaData> {
+		this.ensureConnected();
+
+		const schemas = await this.getSchemas();
+		const schemaName = schemas[0].name;
+		const tableList = await this.getTables(schemaName);
+
+		const tables: SchemaData["tables"] = { [schemaName]: tableList };
+		const columns: SchemaData["columns"] = {};
+		const indexes: SchemaData["indexes"] = {};
+		const foreignKeys: SchemaData["foreignKeys"] = {};
+		const referencingForeignKeys: SchemaData["referencingForeignKeys"] = {};
+
+		// Build referencing FK map from forward FK scan
+		const refFkMap = new Map<string, ReferencingForeignKeyInfo[]>();
+
+		for (const table of tableList) {
+			const key = `${schemaName}.${table.name}`;
+
+			columns[key] = await this.getColumns(schemaName, table.name);
+			indexes[key] = await this.getIndexes(schemaName, table.name);
+
+			// Get FKs and also build referencing FK data
+			const fks = await this.getForeignKeys(schemaName, table.name);
+			foreignKeys[key] = fks;
+
+			// For each FK, record the reverse reference
+			for (const fk of fks) {
+				const refKey = `${fk.referencedSchema}.${fk.referencedTable}`;
+				if (!refFkMap.has(refKey)) refFkMap.set(refKey, []);
+				refFkMap.get(refKey)!.push({
+					constraintName: fk.name,
+					referencingSchema: schemaName,
+					referencingTable: table.name,
+					referencingColumns: fk.columns,
+					referencedColumns: fk.referencedColumns,
+				});
+			}
+		}
+
+		// Assign referencing FKs
+		for (const table of tableList) {
+			const key = `${schemaName}.${table.name}`;
+			referencingForeignKeys[key] = refFkMap.get(key) ?? [];
+		}
+
+		return { schemas, tables, columns, indexes, foreignKeys, referencingForeignKeys };
 	}
 
 	async getSchemas(): Promise<SchemaInfo[]> {

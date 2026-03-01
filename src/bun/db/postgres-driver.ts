@@ -5,6 +5,7 @@ import type { ConnectionConfig } from "../../shared/types/connection";
 import type { QueryResult, QueryResultColumn } from "../../shared/types/query";
 import type {
 	SchemaInfo,
+	SchemaData,
 	TableInfo,
 	ColumnInfo,
 	IndexInfo,
@@ -86,6 +87,227 @@ export class PostgresDriver implements DatabaseDriver {
 			this.activeQuery.cancel();
 			this.activeQuery = null;
 		}
+	}
+
+	async loadSchema(): Promise<SchemaData> {
+		this.ensureConnected();
+		const conn = this.reservedConn ?? this.db!;
+
+		const schemas = await this.getSchemas();
+		const schemaNames = schemas.map((s) => s.name);
+
+		const tables: SchemaData["tables"] = {};
+		for (const schema of schemas) {
+			tables[schema.name] = await this.getTables(schema.name);
+		}
+
+		const [allColumns, allIndexes, allForeignKeys, allReferencingForeignKeys] = await Promise.all([
+			// All columns across all schemas
+			conn.unsafe(
+				`SELECT
+					c.table_schema,
+					c.table_name,
+					c.column_name,
+					c.data_type,
+					c.udt_name,
+					c.is_nullable,
+					c.column_default,
+					c.character_maximum_length,
+					CASE
+						WHEN pk.column_name IS NOT NULL THEN true
+						ELSE false
+					END AS is_primary_key
+				FROM information_schema.columns c
+				LEFT JOIN (
+					SELECT kcu.table_schema, kcu.table_name, kcu.column_name
+					FROM information_schema.table_constraints tc
+					JOIN information_schema.key_column_usage kcu
+						ON tc.constraint_name = kcu.constraint_name
+						AND tc.table_schema = kcu.table_schema
+					WHERE tc.constraint_type = 'PRIMARY KEY'
+						AND tc.table_schema = ANY($1)
+				) pk ON pk.table_schema = c.table_schema
+					AND pk.table_name = c.table_name
+					AND pk.column_name = c.column_name
+				WHERE c.table_schema = ANY($1)
+				ORDER BY c.table_schema, c.table_name, c.ordinal_position`,
+				[schemaNames],
+			),
+			// All indexes across all schemas
+			conn.unsafe(
+				`SELECT
+					n.nspname AS table_schema,
+					t.relname AS table_name,
+					i.relname AS index_name,
+					ix.indisunique AS is_unique,
+					ix.indisprimary AS is_primary,
+					array_agg(a.attname ORDER BY k.n) AS columns
+				FROM pg_catalog.pg_index ix
+				JOIN pg_catalog.pg_class t ON t.oid = ix.indrelid
+				JOIN pg_catalog.pg_class i ON i.oid = ix.indexrelid
+				JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+				CROSS JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS k(attnum, n)
+				JOIN pg_catalog.pg_attribute a
+					ON a.attrelid = t.oid AND a.attnum = k.attnum
+				WHERE n.nspname = ANY($1)
+				GROUP BY n.nspname, t.relname, i.relname, ix.indisunique, ix.indisprimary
+				ORDER BY n.nspname, t.relname, i.relname`,
+				[schemaNames],
+			),
+			// All foreign keys across all schemas
+			conn.unsafe(
+				`SELECT
+					nsp_src.nspname AS table_schema,
+					cl_src.relname AS table_name,
+					con.conname AS constraint_name,
+					array_agg(att_src.attname ORDER BY u.pos) AS columns,
+					nsp_ref.nspname AS referenced_schema,
+					cl_ref.relname AS referenced_table,
+					array_agg(att_ref.attname ORDER BY u.pos) AS referenced_columns,
+					CASE con.confupdtype
+						WHEN 'a' THEN 'NO ACTION'
+						WHEN 'r' THEN 'RESTRICT'
+						WHEN 'c' THEN 'CASCADE'
+						WHEN 'n' THEN 'SET NULL'
+						WHEN 'd' THEN 'SET DEFAULT'
+					END AS on_update,
+					CASE con.confdeltype
+						WHEN 'a' THEN 'NO ACTION'
+						WHEN 'r' THEN 'RESTRICT'
+						WHEN 'c' THEN 'CASCADE'
+						WHEN 'n' THEN 'SET NULL'
+						WHEN 'd' THEN 'SET DEFAULT'
+					END AS on_delete
+				FROM pg_catalog.pg_constraint con
+				JOIN pg_catalog.pg_class cl_src ON cl_src.oid = con.conrelid
+				JOIN pg_catalog.pg_namespace nsp_src ON nsp_src.oid = cl_src.relnamespace
+				JOIN pg_catalog.pg_class cl_ref ON cl_ref.oid = con.confrelid
+				JOIN pg_catalog.pg_namespace nsp_ref ON nsp_ref.oid = cl_ref.relnamespace
+				CROSS JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS u(src_attnum, ref_attnum, pos)
+				JOIN pg_catalog.pg_attribute att_src
+					ON att_src.attrelid = con.conrelid AND att_src.attnum = u.src_attnum
+				JOIN pg_catalog.pg_attribute att_ref
+					ON att_ref.attrelid = con.confrelid AND att_ref.attnum = u.ref_attnum
+				WHERE con.contype = 'f'
+					AND nsp_src.nspname = ANY($1)
+				GROUP BY nsp_src.nspname, cl_src.relname, con.conname,
+					nsp_ref.nspname, cl_ref.relname, con.confupdtype, con.confdeltype
+				ORDER BY nsp_src.nspname, cl_src.relname, con.conname`,
+				[schemaNames],
+			),
+			// All referencing foreign keys across all schemas
+			conn.unsafe(
+				`SELECT
+					nsp_ref.nspname AS referenced_schema,
+					cl_ref.relname AS referenced_table,
+					con.conname AS constraint_name,
+					nsp_src.nspname AS referencing_schema,
+					cl_src.relname AS referencing_table,
+					array_agg(att_src.attname ORDER BY u.pos) AS referencing_columns,
+					array_agg(att_ref.attname ORDER BY u.pos) AS referenced_columns
+				FROM pg_catalog.pg_constraint con
+				JOIN pg_catalog.pg_class cl_src ON cl_src.oid = con.conrelid
+				JOIN pg_catalog.pg_namespace nsp_src ON nsp_src.oid = cl_src.relnamespace
+				JOIN pg_catalog.pg_class cl_ref ON cl_ref.oid = con.confrelid
+				JOIN pg_catalog.pg_namespace nsp_ref ON nsp_ref.oid = cl_ref.relnamespace
+				CROSS JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS u(src_attnum, ref_attnum, pos)
+				JOIN pg_catalog.pg_attribute att_src
+					ON att_src.attrelid = con.conrelid AND att_src.attnum = u.src_attnum
+				JOIN pg_catalog.pg_attribute att_ref
+					ON att_ref.attrelid = con.confrelid AND att_ref.attnum = u.ref_attnum
+				WHERE con.contype = 'f'
+					AND nsp_ref.nspname = ANY($1)
+				GROUP BY nsp_ref.nspname, cl_ref.relname, con.conname,
+					nsp_src.nspname, cl_src.relname
+				ORDER BY nsp_ref.nspname, cl_ref.relname, con.conname`,
+				[schemaNames],
+			),
+		]);
+
+		// Group columns by schema.table
+		const columns: SchemaData["columns"] = {};
+		for (const row of allColumns as any[]) {
+			const key = `${row.table_schema}.${row.table_name}`;
+			if (!columns[key]) columns[key] = [];
+			columns[key].push({
+				name: row.column_name,
+				dataType: this.normalizeDataType(row.data_type, row.udt_name),
+				nullable: row.is_nullable === "YES",
+				defaultValue: row.column_default,
+				isPrimaryKey: row.is_primary_key,
+				isAutoIncrement:
+					row.is_primary_key &&
+					typeof row.column_default === "string" &&
+					row.column_default.startsWith("nextval("),
+				maxLength: row.character_maximum_length ?? undefined,
+			});
+		}
+
+		// Group indexes by schema.table
+		const indexes: SchemaData["indexes"] = {};
+		for (const row of allIndexes as any[]) {
+			const key = `${row.table_schema}.${row.table_name}`;
+			if (!indexes[key]) indexes[key] = [];
+			indexes[key].push({
+				name: row.index_name,
+				columns: typeof row.columns === "string"
+					? row.columns.replace(/^\{|\}$/g, "").split(",")
+					: row.columns,
+				isUnique: row.is_unique,
+				isPrimary: row.is_primary,
+			});
+		}
+
+		// Group foreign keys by schema.table
+		const foreignKeys: SchemaData["foreignKeys"] = {};
+		for (const row of allForeignKeys as any[]) {
+			const key = `${row.table_schema}.${row.table_name}`;
+			if (!foreignKeys[key]) foreignKeys[key] = [];
+			foreignKeys[key].push({
+				name: row.constraint_name,
+				columns: typeof row.columns === "string"
+					? row.columns.replace(/^\{|\}$/g, "").split(",")
+					: row.columns,
+				referencedSchema: row.referenced_schema,
+				referencedTable: row.referenced_table,
+				referencedColumns: typeof row.referenced_columns === "string"
+					? row.referenced_columns.replace(/^\{|\}$/g, "").split(",")
+					: row.referenced_columns,
+				onUpdate: row.on_update,
+				onDelete: row.on_delete,
+			});
+		}
+
+		// Group referencing foreign keys by schema.table (the referenced table)
+		const referencingForeignKeys: SchemaData["referencingForeignKeys"] = {};
+		for (const row of allReferencingForeignKeys as any[]) {
+			const key = `${row.referenced_schema}.${row.referenced_table}`;
+			if (!referencingForeignKeys[key]) referencingForeignKeys[key] = [];
+			referencingForeignKeys[key].push({
+				constraintName: row.constraint_name,
+				referencingSchema: row.referencing_schema,
+				referencingTable: row.referencing_table,
+				referencingColumns: typeof row.referencing_columns === "string"
+					? row.referencing_columns.replace(/^\{|\}$/g, "").split(",")
+					: row.referencing_columns,
+				referencedColumns: typeof row.referenced_columns === "string"
+					? row.referenced_columns.replace(/^\{|\}$/g, "").split(",")
+					: row.referenced_columns,
+			});
+		}
+
+		// Ensure every table has entries (even if empty)
+		for (const schema of schemas) {
+			for (const table of tables[schema.name]) {
+				const key = `${schema.name}.${table.name}`;
+				if (!columns[key]) columns[key] = [];
+				if (!indexes[key]) indexes[key] = [];
+				if (!foreignKeys[key]) foreignKeys[key] = [];
+				if (!referencingForeignKeys[key]) referencingForeignKeys[key] = [];
+			}
+		}
+
+		return { schemas, tables, columns, indexes, foreignKeys, referencingForeignKeys };
 	}
 
 	async getSchemas(): Promise<SchemaInfo[]> {
