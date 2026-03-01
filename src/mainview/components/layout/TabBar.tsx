@@ -121,6 +121,12 @@ export default function TabBar(props: TabBarProps) {
 								"tab-bar__tab--dirty": tab.dirty,
 							}}
 							onClick={() => props.onSelectTab(tab.id)}
+							onMouseDown={(e) => {
+								if (e.button === 1) {
+									e.preventDefault();
+									props.onCloseTab(tab.id);
+								}
+							}}
 							onContextMenu={(e) => handleContextMenu(e, tab.id)}
 							onDblClick={() => handleDoubleClick(tab)}
 						>
