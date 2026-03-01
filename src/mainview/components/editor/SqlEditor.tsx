@@ -217,16 +217,8 @@ export default function SqlEditor(props: SqlEditorProps) {
 			{
 				key: "Ctrl-Shift-Enter",
 				mac: "Cmd-Shift-Enter",
-				run: (view) => {
-					const selection = view.state.sliceDoc(
-						view.state.selection.main.from,
-						view.state.selection.main.to,
-					);
-					if (selection) {
-						editorStore.executeSelected(props.tabId, selection);
-					} else {
-						editorStore.executeQuery(props.tabId);
-					}
+				run: () => {
+					editorStore.executeStatement(props.tabId);
 					return true;
 				},
 			},
@@ -237,10 +229,11 @@ export default function SqlEditor(props: SqlEditorProps) {
 				const content = update.state.doc.toString();
 				editorStore.setContent(props.tabId, content);
 			}
-			if (update.selectionSet) {
+			if (update.selectionSet || update.docChanged) {
 				const { from, to } = update.state.selection.main;
 				const selected = from !== to ? update.state.sliceDoc(from, to) : "";
 				editorStore.setSelectedText(props.tabId, selected);
+				editorStore.setCursorPosition(props.tabId, from);
 			}
 		});
 
@@ -401,14 +394,9 @@ export default function SqlEditor(props: SqlEditorProps) {
 			},
 			"separator",
 			{
-				label: "Run Selected",
+				label: "Run Statement",
 				action: () => {
-					const text = getSelectedText();
-					if (text) {
-						editorStore.executeSelected(props.tabId, text);
-					} else {
-						editorStore.executeQuery(props.tabId);
-					}
+					editorStore.executeStatement(props.tabId);
 				},
 			},
 			{

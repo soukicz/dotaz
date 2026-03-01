@@ -23,7 +23,6 @@ export default function QueryToolbar(props: QueryToolbarProps) {
 
 	const isRunning = () => tab()?.isRunning ?? false;
 	const hasContent = () => (tab()?.content.trim().length ?? 0) > 0;
-	const hasSelection = () => (tab()?.selectedText.trim().length ?? 0) > 0;
 	const duration = () => tab()?.duration ?? 0;
 	const txMode = () => tab()?.txMode ?? "auto-commit";
 	const inTransaction = () => tab()?.inTransaction ?? false;
@@ -32,11 +31,8 @@ export default function QueryToolbar(props: QueryToolbarProps) {
 		editorStore.executeQuery(props.tabId);
 	}
 
-	function handleRunSelected() {
-		const selected = tab()?.selectedText ?? "";
-		if (selected.trim()) {
-			editorStore.executeSelected(props.tabId, selected);
-		}
+	function handleRunStatement() {
+		editorStore.executeStatement(props.tabId);
 	}
 
 	function handleCancel() {
@@ -93,14 +89,14 @@ export default function QueryToolbar(props: QueryToolbarProps) {
 				</button>
 			</Show>
 
-			{/* Run Selected */}
+			{/* Run Statement */}
 			<button
 				class="query-toolbar__btn"
-				onClick={handleRunSelected}
-				disabled={!hasSelection() || isRunning()}
-				title="Run Selected (Ctrl+Shift+Enter)"
+				onClick={handleRunStatement}
+				disabled={!hasContent() || isRunning()}
+				title="Run Statement (Ctrl+Shift+Enter)"
 			>
-				<Play size={12} /> Run Selected
+				<Play size={12} /> Run Statement
 			</button>
 
 			{/* Format */}

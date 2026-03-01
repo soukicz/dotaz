@@ -3,6 +3,7 @@ import type { QueryResult } from "../../shared/types/query";
 import { rpc } from "../lib/rpc";
 import { isStateless } from "../lib/mode";
 import { putHistoryEntry } from "../lib/browser-storage";
+import { getStatementAtCursor } from "../lib/sql-utils";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export interface TabEditorState {
 	database?: string;
 	content: string;
 	selectedText: string;
+	cursorPosition: number;
 	results: QueryResult[];
 	isRunning: boolean;
 	error: string | null;
@@ -28,6 +30,7 @@ function createDefaultEditorState(connectionId: string, database?: string): TabE
 		database,
 		content: "",
 		selectedText: "",
+		cursorPosition: 0,
 		results: [],
 		isRunning: false,
 		error: null,
@@ -78,6 +81,11 @@ function setContent(tabId: string, content: string) {
 function setSelectedText(tabId: string, selectedText: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "selectedText", selectedText);
+}
+
+function setCursorPosition(tabId: string, position: number) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "cursorPosition", position);
 }
 
 function syncLatestHistory(connectionId: string) {
@@ -153,6 +161,19 @@ async function executeSelected(tabId: string, selectedText: string) {
 	if (!sql) return;
 
 	await runQuery(tabId, sql);
+}
+
+async function executeStatement(tabId: string) {
+	const tab = ensureTab(tabId);
+	// If text is selected, run that; otherwise detect statement at cursor
+	if (tab.selectedText.trim()) {
+		await runQuery(tabId, tab.selectedText.trim());
+		return;
+	}
+	const stmt = getStatementAtCursor(tab.content, tab.cursorPosition);
+	if (stmt) {
+		await runQuery(tabId, stmt);
+	}
 }
 
 async function cancelQuery(tabId: string) {
@@ -231,8 +252,10 @@ export const editorStore = {
 	initTab,
 	setContent,
 	setSelectedText,
+	setCursorPosition,
 	executeQuery,
 	executeSelected,
+	executeStatement,
 	cancelQuery,
 	formatSql,
 	setTxMode,
