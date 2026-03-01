@@ -24,7 +24,8 @@ export class PostgresDriver implements DatabaseDriver {
 				"PostgresDriver requires a postgresql connection config",
 			);
 		}
-		const url = `postgres://${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@${config.host}:${config.port}/${encodeURIComponent(config.database)}`;
+		const sslmode = config.ssl ?? "prefer";
+		const url = `postgres://${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@${config.host}:${config.port}/${encodeURIComponent(config.database)}?sslmode=${sslmode}`;
 		this.db = new SQL({ url });
 		// Verify the connection works
 		await this.db`SELECT 1`;

@@ -2,6 +2,10 @@
 
 export type ConnectionType = "postgresql" | "sqlite" | "mysql";
 
+export type SSLMode = "disable" | "allow" | "prefer" | "require" | "verify-ca" | "verify-full";
+
+export const SSL_MODES: SSLMode[] = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"];
+
 export interface PostgresConnectionConfig {
 	type: "postgresql";
 	host: string;
@@ -9,7 +13,7 @@ export interface PostgresConnectionConfig {
 	database: string;
 	user: string;
 	password: string;
-	ssl?: boolean;
+	ssl?: SSLMode;
 	activeDatabases?: string[];
 }
 

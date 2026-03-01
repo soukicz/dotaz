@@ -58,6 +58,21 @@ const migrations: Migration[] = [
 			`);
 		},
 	},
+	{
+		version: 2,
+		description: "Migrate SSL boolean to SSLMode string in connection configs",
+		up: (db) => {
+			const rows = db.prepare("SELECT id, config FROM connections WHERE type = 'postgresql' OR type = 'mysql'").all() as { id: string; config: string }[];
+			const update = db.prepare("UPDATE connections SET config = ? WHERE id = ?");
+			for (const row of rows) {
+				const config = JSON.parse(row.config);
+				if (typeof config.ssl === "boolean") {
+					config.ssl = config.ssl ? "require" : "disable";
+					update.run(JSON.stringify(config), row.id);
+				}
+			}
+		},
+	},
 ];
 
 /**

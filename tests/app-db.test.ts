@@ -27,12 +27,37 @@ describe("AppDatabase", () => {
 
 	test("migrations run automatically on initialization", () => {
 		const version = getSchemaVersion(appDb.db);
-		expect(version).toBe(1);
+		expect(version).toBe(2);
 	});
 
 	test("schema_version table tracks current version", () => {
-		const row = appDb.db.prepare("SELECT version FROM schema_version").get() as { version: number };
-		expect(row.version).toBe(1);
+		const rows = appDb.db.prepare("SELECT version FROM schema_version ORDER BY version").all() as { version: number }[];
+		expect(rows.map(r => r.version)).toEqual([1, 2]);
+	});
+
+	test("migration 002 converts boolean SSL to SSLMode string", () => {
+		// Simulate a pre-migration connection with boolean ssl by inserting raw JSON
+		const now = new Date().toISOString();
+		const boolTrueConfig = JSON.stringify({ type: "postgresql", host: "h", port: 5432, database: "d", user: "u", password: "p", ssl: true });
+		const boolFalseConfig = JSON.stringify({ type: "postgresql", host: "h", port: 5432, database: "d", user: "u", password: "p", ssl: false });
+		appDb.db.prepare("INSERT INTO connections (id, name, type, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("test-ssl-true", "SSL True", "postgresql", boolTrueConfig, now, now);
+		appDb.db.prepare("INSERT INTO connections (id, name, type, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("test-ssl-false", "SSL False", "postgresql", boolFalseConfig, now, now);
+
+		// Re-run migration 2 manually (it's idempotent for already-migrated data)
+		const rows = appDb.db.prepare("SELECT id, config FROM connections WHERE id IN ('test-ssl-true', 'test-ssl-false')").all() as { id: string; config: string }[];
+		const update = appDb.db.prepare("UPDATE connections SET config = ? WHERE id = ?");
+		for (const row of rows) {
+			const config = JSON.parse(row.config);
+			if (typeof config.ssl === "boolean") {
+				config.ssl = config.ssl ? "require" : "disable";
+				update.run(JSON.stringify(config), row.id);
+			}
+		}
+
+		const connTrue = appDb.getConnectionById("test-ssl-true")!;
+		const connFalse = appDb.getConnectionById("test-ssl-false")!;
+		expect((connTrue.config as any).ssl).toBe("require");
+		expect((connFalse.config as any).ssl).toBe("disable");
 	});
 
 	test("all tables are created by migration 001", () => {
@@ -125,9 +150,9 @@ describe("AppDatabase", () => {
 		});
 
 		test("config is persisted as JSON and parsed back correctly", () => {
-			const conn = appDb.createConnection({ name: "PG SSL", config: { ...pgConfig, ssl: true } });
+			const conn = appDb.createConnection({ name: "PG SSL", config: { ...pgConfig, ssl: "require" } });
 			const found = appDb.getConnectionById(conn.id)!;
-			expect(found.config).toEqual({ ...pgConfig, ssl: true });
+			expect(found.config).toEqual({ ...pgConfig, ssl: "require" });
 		});
 	});
 

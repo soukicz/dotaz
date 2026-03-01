@@ -3,8 +3,9 @@ import type {
 	ConnectionConfig,
 	ConnectionInfo,
 	ConnectionType,
+	SSLMode,
 } from "../../../shared/types/connection";
-import { CONNECTION_TYPE_META } from "../../../shared/types/connection";
+import { CONNECTION_TYPE_META, SSL_MODES } from "../../../shared/types/connection";
 import { connectionsStore } from "../../stores/connections";
 import { isStateless } from "../../lib/mode";
 import { rpc } from "../../lib/rpc";
@@ -29,7 +30,7 @@ function defaultPgFields() {
 		database: "",
 		user: "",
 		password: "",
-		ssl: false,
+		ssl: "prefer" as SSLMode,
 	};
 }
 
@@ -61,7 +62,7 @@ function parseConnectionString(input: string): { fields: ReturnType<typeof defau
 		const port = url.port || defaultPort;
 		const database = url.pathname.replace(/^\//, "");
 		const sslmode = url.searchParams.get("sslmode");
-		const ssl = sslmode === "require" || sslmode === "verify-full" || sslmode === "verify-ca";
+		const ssl: SSLMode = sslmode && SSL_MODES.includes(sslmode as SSLMode) ? sslmode as SSLMode : "prefer";
 		const name = user && host && database ? `${user}@${host}/${database}` : "";
 		return { fields: { name, host, port, database, user, password, ssl }, type };
 	} catch {
@@ -97,6 +98,11 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 			setDbType(conn.config.type);
 			setRememberPassword(connectionsStore.getRememberPassword(conn.id));
 			if (conn.config.type === "postgresql" || conn.config.type === "mysql") {
+				const rawSsl = conn.config.ssl;
+				// Handle legacy boolean values from pre-migration data
+				const ssl: SSLMode = typeof rawSsl === "boolean"
+					? (rawSsl ? "require" : "disable")
+					: (rawSsl ?? "prefer");
 				setPgFields({
 					name: conn.name,
 					host: conn.config.host,
@@ -104,7 +110,7 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 					database: conn.config.database,
 					user: conn.config.user,
 					password: conn.config.password,
-					ssl: conn.config.ssl ?? false,
+					ssl,
 				});
 			} else {
 				setSqliteFields({
@@ -125,8 +131,20 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 		const meta = CONNECTION_TYPE_META[dbType()];
 		if (meta.hasHost) {
 			const f = pgFields();
+			const type = dbType() as "postgresql" | "mysql";
+			if (type === "mysql") {
+				return {
+					type,
+					host: f.host,
+					port: Number(f.port) || meta.defaultPort!,
+					database: f.database,
+					user: f.user,
+					password: f.password,
+					ssl: f.ssl !== "disable",
+				};
+			}
 			return {
-				type: dbType() as "postgresql" | "mysql",
+				type,
 				host: f.host,
 				port: Number(f.port) || meta.defaultPort!,
 				database: f.database,
@@ -401,15 +419,17 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 						/>
 					</div>
 
-					<div class="conn-dialog__field conn-dialog__field--inline">
-						<label class="conn-dialog__label conn-dialog__label--checkbox">
-							<input
-								type="checkbox"
-								checked={pgFields().ssl}
-								onChange={(e) => updatePgField("ssl", e.currentTarget.checked)}
-							/>
-							Use SSL
-						</label>
+					<div class="conn-dialog__field">
+						<label class="conn-dialog__label">SSL Mode</label>
+						<select
+							class="conn-dialog__input"
+							value={pgFields().ssl}
+							onChange={(e) => updatePgField("ssl", e.currentTarget.value)}
+						>
+							{SSL_MODES.map((mode) => (
+								<option value={mode}>{mode}</option>
+							))}
+						</select>
 					</div>
 
 					<Show when={isStateless()}>
