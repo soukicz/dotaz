@@ -87,9 +87,18 @@
 
 .tree-item__icon {
 	flex-shrink: 0;
-	font-size: var(--font-size-sm);
 	width: 16px;
-	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.tree-icon--postgresql {
+	color: var(--color-info);
+}
+
+.tree-icon--sqlite {
+	color: var(--text-secondary);
 }
 
 .tree-item__label {
@@ -115,7 +124,7 @@
 }
 
 .tree-item--view .tree-item__icon {
-	font-size: 10px;
+	color: var(--text-muted);
 }
 
 /* ── Spinner ─────────────────────────────────────────── */

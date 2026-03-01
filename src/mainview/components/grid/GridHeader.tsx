@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import type { GridColumnDef, SortColumn } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
+import { ChevronUp, ChevronDown } from "lucide-solid";
 import "./GridHeader.css";
 
 interface GridHeaderProps {
@@ -116,7 +117,7 @@ export default function GridHeader(props: GridHeaderProps) {
 
 							<Show when={sortDir()}>
 								<span class="grid-header__sort-indicator">
-									{sortDir() === "asc" ? "\u25B2" : "\u25BC"}
+									{sortDir() === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
 									<Show when={props.sort.length > 1 && sortIdx() >= 0}>
 										<span class="grid-header__sort-index">
 											{sortIdx() + 1}

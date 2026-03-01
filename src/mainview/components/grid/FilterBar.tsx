@@ -4,6 +4,7 @@ import type {
 	FilterOperator,
 	GridColumnDef,
 } from "../../../shared/types/grid";
+import { X } from "lucide-solid";
 import "./FilterBar.css";
 
 interface FilterBarProps {
@@ -171,7 +172,7 @@ export default function FilterBar(props: FilterBarProps) {
 								onClick={() => props.onRemoveFilter(filter.column)}
 								title="Remove filter"
 							>
-								&times;
+								<X size={12} />
 							</button>
 						</span>
 					)}

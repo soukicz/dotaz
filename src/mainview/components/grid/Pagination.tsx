@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js";
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-solid";
 import "./Pagination.css";
 
 interface PaginationProps {
@@ -70,7 +71,7 @@ export default function Pagination(props: PaginationProps) {
 					onClick={() => props.onPageChange(1)}
 					title="First page"
 				>
-					«
+					<ChevronsLeft size={14} />
 				</button>
 				<button
 					class="pagination__btn"
@@ -78,7 +79,7 @@ export default function Pagination(props: PaginationProps) {
 					onClick={() => props.onPageChange(props.currentPage - 1)}
 					title="Previous page"
 				>
-					‹
+					<ChevronLeft size={14} />
 				</button>
 
 				<For each={getPageNumbers(props.currentPage, totalPages())}>
@@ -104,7 +105,7 @@ export default function Pagination(props: PaginationProps) {
 					onClick={() => props.onPageChange(props.currentPage + 1)}
 					title="Next page"
 				>
-					›
+					<ChevronRight size={14} />
 				</button>
 				<button
 					class="pagination__btn"
@@ -112,7 +113,7 @@ export default function Pagination(props: PaginationProps) {
 					onClick={() => props.onPageChange(totalPages())}
 					title="Last page"
 				>
-					»
+					<ChevronsRight size={14} />
 				</button>
 			</div>
 

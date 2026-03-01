@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show, type JSX } from "solid-js";
 import type { ConnectionInfo, ConnectionState } from "../../../shared/types/connection";
 import type { SchemaInfo, TableInfo } from "../../../shared/types/database";
 import type { SavedView } from "../../../shared/types/rpc";
@@ -7,6 +7,7 @@ import { tabsStore } from "../../stores/tabs";
 import { viewsStore } from "../../stores/views";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
+import { Database, Eye, Table, Bookmark, FolderOpen } from "lucide-solid";
 import ContextMenu, { type ContextMenuEntry } from "../common/ContextMenu";
 import ConnectionTreeItem from "./ConnectionTreeItem";
 import "./ConnectionTree.css";
@@ -24,8 +25,8 @@ const STATUS_COLORS: Record<ConnectionState, string | undefined> = {
 	disconnected: undefined,
 };
 
-function getConnectionIcon(type: string): string {
-	return type === "postgresql" ? "\uD83D\uDC18" : "\uD83D\uDDC4";
+function getConnectionIcon(type: string): JSX.Element {
+	return <Database size={14} class={type === "postgresql" ? "tree-icon--postgresql" : "tree-icon--sqlite"} />;
 }
 
 interface ContextMenuState {
@@ -335,7 +336,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 					label={table.name}
 					level={baseLevel}
 					type="table"
-					icon={table.type === "view" ? "\u{1F441}" : "\u{1F4CB}"}
+					icon={table.type === "view" ? <Eye size={14} /> : <Table size={14} />}
 					expanded={hasViews() ? tExpanded() : undefined}
 					hasChildren={hasViews()}
 					onClick={() => handleTableClick(conn.id, schema.name, table.name)}
@@ -349,7 +350,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 								label={view.name}
 								level={baseLevel + 1}
 								type="view"
-								icon={"\u{1F516}"}
+								icon={<Bookmark size={14} />}
 								onClick={() => handleViewClick(conn.id, schema.name, table.name, view)}
 								onContextMenu={(e) => showContextMenu(e, viewMenuItems(conn.id, view))}
 							/>
@@ -420,7 +421,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 														label={schema.name}
 														level={1}
 														type="schema"
-														icon={"\uD83D\uDCC2"}
+														icon={<FolderOpen size={14} />}
 														expanded={sExpanded()}
 														hasChildren={tables().length > 0}
 														onToggle={() => toggleSchema(sKey())}

@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
+import { Check, X } from "lucide-solid";
 import InlineEditor from "../edit/InlineEditor";
 import "./GridCell.css";
 
@@ -76,7 +77,7 @@ export default function GridCell(props: GridCellProps) {
 
 	const displayValue = () => {
 		if (isNull()) return "NULL";
-		if (isBool()) return props.value ? "\u2713" : "\u2717";
+		if (isBool()) return props.value ? <Check size={14} /> : <X size={14} />;
 		if (isTs()) return formatTimestamp(props.value);
 		if (isJson() && typeof props.value === "object")
 			return JSON.stringify(props.value);

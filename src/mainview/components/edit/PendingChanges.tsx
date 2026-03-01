@@ -1,7 +1,8 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
+import { Plus, Pencil, Minus, X } from "lucide-solid";
 import "./PendingChanges.css";
 
 interface PendingChangesProps {
@@ -95,11 +96,11 @@ export default function PendingChanges(props: PendingChangesProps) {
 		return items;
 	}
 
-	function typeIcon(type: "insert" | "update" | "delete"): string {
+	function typeIcon(type: "insert" | "update" | "delete"): JSX.Element {
 		switch (type) {
-			case "insert": return "+";
-			case "update": return "\u270E"; // ✎
-			case "delete": return "\u2212"; // −
+			case "insert": return <Plus size={12} />;
+			case "update": return <Pencil size={12} />;
+			case "delete": return <Minus size={12} />;
 		}
 	}
 
@@ -208,7 +209,7 @@ export default function PendingChanges(props: PendingChangesProps) {
 							onClick={() => setPreviewSql(null)}
 							title="Close preview"
 						>
-							&times;
+							<X size={14} />
 						</button>
 					</div>
 					<pre class="pending-changes__preview-sql">{previewSql()}</pre>
@@ -234,7 +235,7 @@ export default function PendingChanges(props: PendingChangesProps) {
 								disabled={applying()}
 								title="Revert this change"
 							>
-								&times;
+								<X size={14} />
 							</button>
 						</div>
 					)}

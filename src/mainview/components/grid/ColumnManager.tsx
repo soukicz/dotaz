@@ -1,6 +1,7 @@
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
+import { PanelLeftClose, PanelRightClose, Columns2, Settings, GripVertical } from "lucide-solid";
 import "./ColumnManager.css";
 
 interface ColumnManagerProps {
@@ -55,11 +56,11 @@ export default function ColumnManager(props: ColumnManagerProps) {
 		}
 	}
 
-	function pinLabel(col: string): string {
+	function pinLabel(col: string): JSX.Element {
 		const p = getPinned(col);
-		if (p === "left") return "\u25C0";
-		if (p === "right") return "\u25B6";
-		return "\u2016";
+		if (p === "left") return <PanelLeftClose size={12} />;
+		if (p === "right") return <PanelRightClose size={12} />;
+		return <Columns2 size={12} />;
 	}
 
 	function pinTitle(col: string): string {
@@ -134,7 +135,7 @@ export default function ColumnManager(props: ColumnManagerProps) {
 				onClick={() => setOpen(!open())}
 				title="Manage columns"
 			>
-				<span class="column-manager__gear">{"\u2699"}</span>
+				<span class="column-manager__gear"><Settings size={14} /></span>
 				<span class="column-manager__count">
 					{visibleCount()}/{props.columns.length}
 				</span>
@@ -169,7 +170,7 @@ export default function ColumnManager(props: ColumnManagerProps) {
 									onDrop={(e) => handleDrop(e, i())}
 									onDragEnd={handleDragEnd}
 								>
-									<span class="column-manager__drag-handle">{"\u283F"}</span>
+									<span class="column-manager__drag-handle"><GripVertical size={14} /></span>
 
 									<label class="column-manager__checkbox">
 										<input

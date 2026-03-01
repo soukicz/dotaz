@@ -1,3 +1,4 @@
+import type { JSX } from "solid-js";
 import { Show } from "solid-js";
 import Icon from "../common/Icon";
 import "./ConnectionTree.css";
@@ -8,7 +9,7 @@ interface ConnectionTreeItemProps {
 	label: string;
 	level: number;
 	type: TreeItemType;
-	icon?: string;
+	icon?: JSX.Element;
 	expanded?: boolean;
 	hasChildren?: boolean;
 	statusColor?: string;

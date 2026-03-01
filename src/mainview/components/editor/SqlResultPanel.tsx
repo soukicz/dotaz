@@ -3,6 +3,7 @@ import type { QueryResult, QueryResultColumn } from "../../../shared/types/query
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
 import { editorStore } from "../../stores/editor";
+import { ChevronUp, ChevronDown } from "lucide-solid";
 import GridHeader from "../grid/GridHeader";
 import VirtualScroller from "../grid/VirtualScroller";
 import Icon from "../common/Icon";
@@ -116,7 +117,7 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 							onClick={() => setMinimized((m) => !m)}
 							title={minimized() ? "Expand results" : "Collapse results"}
 						>
-							{minimized() ? "\u25B2" : "\u25BC"}
+							{minimized() ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
 						</button>
 					</div>
 				</div>
