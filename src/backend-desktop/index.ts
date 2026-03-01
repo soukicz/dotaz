@@ -2,9 +2,10 @@ import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import Electrobun from "electrobun/bun";
 import { ApplicationMenu, BrowserView, BrowserWindow, Updater, Utils } from "electrobun/bun";
+import type { DotazRPC } from "../backend-types";
 import { AppDatabase, setDefaultDbPath } from "../backend-shared/storage/app-db";
 import { ConnectionManager } from "../backend-shared/services/connection-manager";
-import { createRPC, setupStatusNotifications } from "../backend-shared/rpc/rpc-handlers";
+import { createHandlers } from "../backend-shared/rpc/rpc-handlers";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -40,7 +41,13 @@ const appDb = AppDatabase.getInstance();
 const connectionManager = new ConnectionManager(appDb);
 
 // Create RPC handlers
-const rpc = createRPC(connectionManager, appDb, BrowserView, Utils);
+const rpc = BrowserView.defineRPC<DotazRPC>({
+	maxRequestTime: 30000,
+	handlers: {
+		requests: createHandlers(connectionManager, undefined, appDb, Utils),
+		messages: {},
+	},
+});
 
 const url = await getMainViewUrl();
 
@@ -57,7 +64,13 @@ const mainWindow = new BrowserWindow({
 });
 
 // Wire up BE→FE notifications after window creation
-setupStatusNotifications(mainWindow, connectionManager);
+connectionManager.onStatusChanged((event) => {
+	(mainWindow as any).webview.rpc.send["connections.statusChanged"]({
+		connectionId: event.connectionId,
+		state: event.state,
+		error: event.error,
+	});
+});
 
 // ── Application Menu ─────────────────────────────────────
 ApplicationMenu.setApplicationMenu([
