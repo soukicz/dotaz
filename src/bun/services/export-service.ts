@@ -1,7 +1,7 @@
 import type { DatabaseDriver } from "../db/driver";
 import type { ColumnFilter, SortColumn } from "../../shared/types/grid";
 import type { ExportFormat, CsvDelimiter } from "../../shared/types/export";
-import { buildWhereClause, buildOrderByClause, qualifyTable } from "./query-executor";
+import { buildWhereClause, buildOrderByClause } from "./query-executor";
 
 const BATCH_SIZE = 1000;
 
@@ -135,7 +135,7 @@ function buildExportQuery(
 	offset: number,
 	driver: DatabaseDriver,
 ): { sql: string; params: unknown[] } {
-	const from = qualifyTable(schema, table, driver);
+	const from = driver.qualifyTable(schema, table);
 	const columnList = columns && columns.length > 0
 		? columns.map((c) => driver.quoteIdentifier(c)).join(", ")
 		: "*";
@@ -289,7 +289,7 @@ class SqlInsertFormatter implements Formatter {
 		driver: DatabaseDriver,
 		private batchSize: number,
 	) {
-		this.tableName = qualifyTable(schema, table, driver);
+		this.tableName = driver.qualifyTable(schema, table);
 	}
 
 	preamble(): string {

@@ -17,12 +17,15 @@
 		"build:web": "vite build --mode web",
 		"start:web": "bun src/bun/server.ts",
 		"seed:sqlite": "bun scripts/seed/seed-sqlite.ts",
-		"seed:postgres": "bun scripts/seed/seed-postgres.ts"
+		"seed:postgres": "bun scripts/seed/seed-postgres.ts",
+		"dev:demo": "vite --mode demo",
+		"build:demo": "bun run seed:sqlite && vite build --mode demo"
 	},
 	"dependencies": {
 		"@codemirror/lang-sql": "^6.8.0",
 		"@codemirror/state": "^6.5.2",
 		"@codemirror/view": "^6.36.5",
+		"@sqlite.org/sqlite-wasm": "^3.51.2-build6",
 		"@tanstack/solid-virtual": "^3.13.6",
 		"codemirror": "^6.0.1",
 		"electrobun": "1.14.4",

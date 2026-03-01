@@ -140,4 +140,6 @@ for (const [table, count] of counts) {
 console.log(`  ${"TOTAL".padEnd(16)} ${total}`);
 console.log(`\nDatabase saved to: ${dbPath}`);
 
+// Checkpoint WAL to consolidate into main database file
+db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 db.close();

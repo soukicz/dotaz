@@ -18,10 +18,16 @@ function mockDriver(
 	rows: Record<string, unknown>[],
 	type: "postgresql" | "sqlite" = "postgresql",
 ): DatabaseDriver {
+	const quoteIdentifier = (name: string) => `"${name.replace(/"/g, '""')}"`;
 	return {
 		execute: mock(async () => makeResult(rows)),
-		quoteIdentifier: (name: string) => `"${name.replace(/"/g, '""')}"`,
+		quoteIdentifier,
 		getDriverType: () => type,
+		qualifyTable: (schema: string, table: string) => {
+			if (type === "sqlite" && schema === "main") return quoteIdentifier(table);
+			return `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+		},
+		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
 	} as unknown as DatabaseDriver;
 }
 
@@ -34,14 +40,20 @@ function mockDriverBatched(
 	type: "postgresql" | "sqlite" = "postgresql",
 ): DatabaseDriver {
 	let callCount = 0;
+	const quoteIdentifier = (name: string) => `"${name.replace(/"/g, '""')}"`;
 	return {
 		execute: mock(async () => {
 			callCount++;
 			if (callCount === 1) return makeResult(allRows);
 			return makeResult([]);
 		}),
-		quoteIdentifier: (name: string) => `"${name.replace(/"/g, '""')}"`,
+		quoteIdentifier,
 		getDriverType: () => type,
+		qualifyTable: (schema: string, table: string) => {
+			if (type === "sqlite" && schema === "main") return quoteIdentifier(table);
+			return `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+		},
+		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
 	} as unknown as DatabaseDriver;
 }
 
