@@ -181,6 +181,16 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			const search = params.search.toLowerCase();
 			entries = entries.filter((e) => e.sql.toLowerCase().includes(search));
 		}
+		if (params.startDate) {
+			const start = params.startDate + "T00:00:00.000Z";
+			entries = entries.filter((e) => e.executedAt >= start);
+		}
+		if (params.endDate) {
+			const nextDay = new Date(params.endDate + "T00:00:00.000Z");
+			nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+			const end = nextDay.toISOString();
+			entries = entries.filter((e) => e.executedAt < end);
+		}
 
 		// Sort by executedAt descending
 		entries.sort((a, b) => b.executedAt.localeCompare(a.executedAt));

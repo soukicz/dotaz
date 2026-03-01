@@ -212,6 +212,20 @@ export class AppDatabase {
 			conditions.push("sql LIKE ?");
 			queryParams.push(`%${params.search}%`);
 		}
+		if (params.startDate) {
+			conditions.push("executed_at >= ?");
+			queryParams.push(params.startDate + " 00:00:00");
+		}
+		if (params.endDate) {
+			// Inclusive: include all entries on the end date by comparing < next day
+			const nextDay = new Date(params.endDate + "T00:00:00Z");
+			nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+			const y = nextDay.getUTCFullYear();
+			const m = String(nextDay.getUTCMonth() + 1).padStart(2, "0");
+			const d = String(nextDay.getUTCDate()).padStart(2, "0");
+			conditions.push("executed_at < ?");
+			queryParams.push(`${y}-${m}-${d} 00:00:00`);
+		}
 
 		const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 		const sql = `SELECT * FROM query_history ${where} ORDER BY executed_at DESC LIMIT ? OFFSET ?`;

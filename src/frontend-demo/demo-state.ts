@@ -199,6 +199,16 @@ export class DemoAppState {
 			const search = params.search.toLowerCase();
 			filtered = filtered.filter((h) => h.sql.toLowerCase().includes(search));
 		}
+		if (params.startDate) {
+			const start = params.startDate + "T00:00:00.000Z";
+			filtered = filtered.filter((h) => h.executedAt >= start);
+		}
+		if (params.endDate) {
+			const nextDay = new Date(params.endDate + "T00:00:00.000Z");
+			nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+			const end = nextDay.toISOString();
+			filtered = filtered.filter((h) => h.executedAt < end);
+		}
 
 		const offset = params.offset ?? 0;
 		const limit = params.limit ?? 100;

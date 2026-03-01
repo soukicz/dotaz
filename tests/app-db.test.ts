@@ -449,5 +449,87 @@ describe("AppDatabase", () => {
 			expect(filtered).toHaveLength(1);
 			expect(filtered[0].connectionId).toBe(connectionId);
 		});
+
+		test("list filters by startDate (inclusive)", () => {
+			// Insert entries with specific timestamps via raw SQL
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT old", "success", "2025-01-10 12:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT boundary", "success", "2025-01-15 00:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT new", "success", "2025-01-20 12:00:00");
+
+			const results = appDb.listHistory({ startDate: "2025-01-15" });
+			expect(results).toHaveLength(2);
+			const sqls = results.map((e) => e.sql);
+			expect(sqls).toContain("SELECT boundary");
+			expect(sqls).toContain("SELECT new");
+		});
+
+		test("list filters by endDate (inclusive)", () => {
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT early", "success", "2025-02-10 08:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT end-of-day", "success", "2025-02-15 23:59:59");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT later", "success", "2025-02-16 00:00:01");
+
+			const results = appDb.listHistory({ endDate: "2025-02-15" });
+			expect(results).toHaveLength(2);
+			const sqls = results.map((e) => e.sql);
+			expect(sqls).toContain("SELECT early");
+			expect(sqls).toContain("SELECT end-of-day");
+		});
+
+		test("list filters by startDate and endDate combined (date range)", () => {
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT before", "success", "2025-03-01 12:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT inside", "success", "2025-03-05 14:30:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT after", "success", "2025-03-15 09:00:00");
+
+			const results = appDb.listHistory({ startDate: "2025-03-03", endDate: "2025-03-10" });
+			expect(results).toHaveLength(1);
+			expect(results[0].sql).toBe("SELECT inside");
+		});
+
+		test("date range combines with search and connectionId", () => {
+			const conn2 = appDb.createConnection({
+				name: "Other",
+				config: { type: "sqlite", path: "/tmp/other.db" },
+			});
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT * FROM users", "success", "2025-04-05 12:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT * FROM orders", "success", "2025-04-05 13:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(conn2.id, "SELECT * FROM users", "success", "2025-04-05 14:00:00");
+			appDb.db.prepare(
+				"INSERT INTO query_history (connection_id, sql, status, executed_at) VALUES (?, ?, ?, ?)",
+			).run(connectionId, "SELECT * FROM users", "success", "2025-04-10 12:00:00");
+
+			const results = appDb.listHistory({
+				connectionId,
+				search: "users",
+				startDate: "2025-04-01",
+				endDate: "2025-04-07",
+			});
+			expect(results).toHaveLength(1);
+			expect(results[0].sql).toBe("SELECT * FROM users");
+			expect(results[0].connectionId).toBe(connectionId);
+		});
 	});
 });

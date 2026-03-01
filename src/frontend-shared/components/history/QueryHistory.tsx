@@ -25,6 +25,8 @@ export default function QueryHistory(props: QueryHistoryProps) {
 	const [entries, setEntries] = createSignal<QueryHistoryEntry[]>([]);
 	const [search, setSearch] = createSignal("");
 	const [connectionFilter, setConnectionFilter] = createSignal("");
+	const [startDate, setStartDate] = createSignal("");
+	const [endDate, setEndDate] = createSignal("");
 	const [expandedId, setExpandedId] = createSignal<number | null>(null);
 	const [loading, setLoading] = createSignal(false);
 	const [hasMore, setHasMore] = createSignal(true);
@@ -56,6 +58,8 @@ export default function QueryHistory(props: QueryHistoryProps) {
 			const result = await storage.listHistory({
 				search: search() || undefined,
 				connectionId: connectionFilter() || undefined,
+				startDate: startDate() || undefined,
+				endDate: endDate() || undefined,
 				limit: PAGE_SIZE,
 				offset,
 			});
@@ -85,6 +89,53 @@ export default function QueryHistory(props: QueryHistoryProps) {
 
 	function handleConnectionFilterChange(value: string) {
 		setConnectionFilter(value);
+		setEntries([]);
+		setHasMore(true);
+		loadEntries(true);
+	}
+
+	function handleStartDateChange(value: string) {
+		setStartDate(value);
+		setEntries([]);
+		setHasMore(true);
+		loadEntries(true);
+	}
+
+	function handleEndDateChange(value: string) {
+		setEndDate(value);
+		setEntries([]);
+		setHasMore(true);
+		loadEntries(true);
+	}
+
+	function toLocalDateString(date: Date): string {
+		const y = date.getFullYear();
+		const m = String(date.getMonth() + 1).padStart(2, "0");
+		const d = String(date.getDate()).padStart(2, "0");
+		return `${y}-${m}-${d}`;
+	}
+
+	function applyPreset(preset: "today" | "7days" | "30days") {
+		const today = new Date();
+		const end = toLocalDateString(today);
+		let start: string;
+		if (preset === "today") {
+			start = end;
+		} else {
+			const d = new Date(today);
+			d.setDate(d.getDate() - (preset === "7days" ? 6 : 29));
+			start = toLocalDateString(d);
+		}
+		setStartDate(start);
+		setEndDate(end);
+		setEntries([]);
+		setHasMore(true);
+		loadEntries(true);
+	}
+
+	function clearDateRange() {
+		setStartDate("");
+		setEndDate("");
 		setEntries([]);
 		setHasMore(true);
 		loadEntries(true);
@@ -236,6 +287,33 @@ export default function QueryHistory(props: QueryHistoryProps) {
 						<Trash2 size={12} /> Clear
 					</button>
 				</div>
+				<div class="query-history__date-filters">
+					<input
+						class="query-history__date-input"
+						type="date"
+						value={startDate()}
+						onChange={(e) => handleStartDateChange(e.currentTarget.value)}
+						title="From date"
+					/>
+					<span class="query-history__date-separator">–</span>
+					<input
+						class="query-history__date-input"
+						type="date"
+						value={endDate()}
+						onChange={(e) => handleEndDateChange(e.currentTarget.value)}
+						title="To date"
+					/>
+					<div class="query-history__presets">
+						<button class="query-history__preset-btn" onClick={() => applyPreset("today")}>Today</button>
+						<button class="query-history__preset-btn" onClick={() => applyPreset("7days")}>Last 7 days</button>
+						<button class="query-history__preset-btn" onClick={() => applyPreset("30days")}>Last 30 days</button>
+					</div>
+					<Show when={startDate() || endDate()}>
+						<button class="query-history__date-clear-btn" onClick={clearDateRange} title="Clear date filter">
+							&times;
+						</button>
+					</Show>
+				</div>
 
 				{/* Entry list */}
 				<div
@@ -247,12 +325,12 @@ export default function QueryHistory(props: QueryHistoryProps) {
 						<div class="empty-state">
 							<Icon name="history" size={28} class="empty-state__icon" />
 							<div class="empty-state__title">
-								{search() || connectionFilter()
+								{search() || connectionFilter() || startDate() || endDate()
 									? "No matching queries"
 									: "No history yet"}
 							</div>
 							<div class="empty-state__subtitle">
-								{search() || connectionFilter()
+								{search() || connectionFilter() || startDate() || endDate()
 									? "Try different search terms or filters."
 									: "Queries you run will appear here."}
 							</div>

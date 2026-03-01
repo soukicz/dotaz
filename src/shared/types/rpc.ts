@@ -15,6 +15,10 @@ export interface HistoryListParams {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	/** ISO date string (YYYY-MM-DD) — inclusive lower bound on executed_at */
+	startDate?: string;
+	/** ISO date string (YYYY-MM-DD) — inclusive upper bound on executed_at */
+	endDate?: string;
 }
 
 export interface SavedViewConfig {
