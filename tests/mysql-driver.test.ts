@@ -114,7 +114,7 @@ describe("MysqlDriver execute", () => {
 
 	test("SELECT with params", async () => {
 		const result = await driver.execute(
-			"SELECT * FROM users WHERE email = $1",
+			"SELECT * FROM users WHERE email = ?",
 			["alice@example.com"],
 		);
 		expect(result.rowCount).toBe(1);
@@ -125,7 +125,7 @@ describe("MysqlDriver execute", () => {
 		await driver.beginTransaction();
 		try {
 			const result = await driver.execute(
-				"INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
+				"INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
 				["Dave", "dave@example.com", 40],
 			);
 			expect(result.affectedRows).toBe(1);

@@ -5,6 +5,9 @@ import {
 	buildSelectQuery,
 	buildCountQuery,
 	buildQuickSearchClause,
+	generateInsert,
+	generateUpdate,
+	generateDelete,
 	splitStatements,
 	QueryExecutor,
 	offsetToLineColumn,
@@ -15,7 +18,7 @@ import type { ColumnFilter, SortColumn } from "../src/shared/types/grid";
 import type { QueryResult } from "../src/shared/types/query";
 import type { ConnectionManager } from "../src/backend-shared/services/connection-manager";
 
-// Minimal mock driver for quoteIdentifier, getDriverType, qualifyTable, emptyInsertSql
+// Minimal mock driver for quoteIdentifier, getDriverType, qualifyTable, emptyInsertSql, placeholder
 function mockDriver(type: "postgresql" | "sqlite" | "mysql" = "postgresql"): DatabaseDriver {
 	const quoteIdentifier = type === "mysql"
 		? (name: string) => `\`${name.replace(/`/g, "``")}\``
@@ -33,6 +36,9 @@ function mockDriver(type: "postgresql" | "sqlite" | "mysql" = "postgresql"): Dat
 		emptyInsertSql(qualifiedTable: string) {
 			if (type === "mysql") return `INSERT INTO ${qualifiedTable} () VALUES ()`;
 			return `INSERT INTO ${qualifiedTable} DEFAULT VALUES`;
+		},
+		placeholder(index: number) {
+			return type === "mysql" ? "?" : `$${index}`;
 		},
 	} as DatabaseDriver;
 }
@@ -406,6 +412,119 @@ describe("buildCountQuery with quickSearch", () => {
 	});
 });
 
+// ── MySQL placeholder generation ────────────────────────────
+
+describe("MySQL placeholder generation", () => {
+	const driver = mockDriver("mysql");
+
+	test("buildWhereClause uses ? placeholders", () => {
+		const filters: ColumnFilter[] = [{ column: "name", operator: "eq", value: "Alice" }];
+		const result = buildWhereClause(filters, driver);
+		expect(result.sql).toBe("WHERE `name` = ?");
+		expect(result.params).toEqual(["Alice"]);
+	});
+
+	test("buildWhereClause uses ? for multiple filters", () => {
+		const filters: ColumnFilter[] = [
+			{ column: "age", operator: "gte", value: 18 },
+			{ column: "name", operator: "like", value: "%A%" },
+		];
+		const result = buildWhereClause(filters, driver);
+		expect(result.sql).toBe("WHERE `age` >= ? AND `name` LIKE ?");
+		expect(result.params).toEqual([18, "%A%"]);
+	});
+
+	test("buildWhereClause uses ? for IN operator", () => {
+		const filters: ColumnFilter[] = [{ column: "id", operator: "in", value: [1, 2, 3] }];
+		const result = buildWhereClause(filters, driver);
+		expect(result.sql).toBe("WHERE `id` IN (?, ?, ?)");
+		expect(result.params).toEqual([1, 2, 3]);
+	});
+
+	test("buildSelectQuery uses ? placeholders for pagination", () => {
+		const result = buildSelectQuery("mydb", "products", 1, 50, undefined, undefined, driver);
+		expect(result.sql).toBe("SELECT * FROM `mydb`.`products` LIMIT ? OFFSET ?");
+		expect(result.params).toEqual([50, 0]);
+	});
+
+	test("buildSelectQuery combines filters and pagination with ? placeholders", () => {
+		const filters: ColumnFilter[] = [{ column: "price", operator: "gt", value: 100 }];
+		const result = buildSelectQuery("mydb", "products", 2, 25, undefined, filters, driver);
+		expect(result.sql).toBe("SELECT * FROM `mydb`.`products` WHERE `price` > ? LIMIT ? OFFSET ?");
+		expect(result.params).toEqual([100, 25, 25]);
+	});
+
+	test("buildCountQuery uses ? placeholders", () => {
+		const filters: ColumnFilter[] = [{ column: "active", operator: "eq", value: true }];
+		const result = buildCountQuery("mydb", "users", filters, driver);
+		expect(result.sql).toBe("SELECT COUNT(*) AS count FROM `mydb`.`users` WHERE `active` = ?");
+		expect(result.params).toEqual([true]);
+	});
+
+	test("generateInsert uses ? placeholders", () => {
+		const change = {
+			type: "insert" as const,
+			schema: "mydb",
+			table: "products",
+			values: { name: "Widget", price: 9.99 },
+		};
+		const result = generateInsert(change, driver);
+		expect(result.sql).toBe("INSERT INTO `mydb`.`products` (`name`, `price`) VALUES (?, ?)");
+		expect(result.params).toEqual(["Widget", 9.99]);
+	});
+
+	test("generateUpdate uses ? placeholders", () => {
+		const change = {
+			type: "update" as const,
+			schema: "mydb",
+			table: "products",
+			primaryKeys: { id: 1 },
+			values: { name: "Updated Widget" },
+		};
+		const result = generateUpdate(change, driver);
+		expect(result.sql).toBe("UPDATE `mydb`.`products` SET `name` = ? WHERE `id` = ?");
+		expect(result.params).toEqual(["Updated Widget", 1]);
+	});
+
+	test("generateDelete uses ? placeholders", () => {
+		const change = {
+			type: "delete" as const,
+			schema: "mydb",
+			table: "products",
+			primaryKeys: { id: 42 },
+		};
+		const result = generateDelete(change, driver);
+		expect(result.sql).toBe("DELETE FROM `mydb`.`products` WHERE `id` = ?");
+		expect(result.params).toEqual([42]);
+	});
+
+	test("buildQuickSearchClause uses ? placeholders", () => {
+		const columns = [
+			{ name: "name", dataType: "varchar" },
+			{ name: "description", dataType: "text" },
+		];
+		const result = buildQuickSearchClause(columns, "test", driver);
+		expect(result.sql).toBe(
+			"(CAST(`name` AS TEXT) LIKE ? OR CAST(`description` AS TEXT) LIKE ?)",
+		);
+		expect(result.params).toEqual(["%test%", "%test%"]);
+	});
+
+	test("values containing $ are not corrupted", () => {
+		const change = {
+			type: "insert" as const,
+			schema: "mydb",
+			table: "products",
+			values: { name: "costs $100", description: "$1 deal" },
+		};
+		const result = generateInsert(change, driver);
+		expect(result.sql).toBe("INSERT INTO `mydb`.`products` (`name`, `description`) VALUES (?, ?)");
+		expect(result.params).toEqual(["costs $100", "$1 deal"]);
+		// The SQL itself contains no $N tokens that could be misinterpreted
+		expect(result.sql).not.toMatch(/\$\d+/);
+	});
+});
+
 // ── splitStatements ────────────────────────────────────────
 
 describe("splitStatements", () => {
@@ -479,6 +598,7 @@ function makeMockDriver(overrides?: Partial<DatabaseDriver>): DatabaseDriver {
 		getDriverType: () => "sqlite" as const,
 		qualifyTable: (schema: string, table: string) => schema === "main" ? `"${table}"` : `"${schema}"."${table}"`,
 		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
+		placeholder: (index: number) => `$${index}`,
 		...overrides,
 	} as unknown as DatabaseDriver;
 }

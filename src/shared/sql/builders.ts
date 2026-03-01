@@ -51,7 +51,7 @@ export function buildQuickSearchClause(
 	for (const col of searchable) {
 		paramIndex++;
 		const quoted = dialect.quoteIdentifier(col.name);
-		conditions.push(`CAST(${quoted} AS TEXT) ${likeOp} $${paramIndex}`);
+		conditions.push(`CAST(${quoted} AS TEXT) ${likeOp} ${dialect.placeholder(paramIndex)}`);
 		params.push(pattern);
 	}
 
@@ -85,49 +85,49 @@ export function buildWhereClause(
 		switch (filter.operator) {
 			case "eq":
 				paramIndex++;
-				conditions.push(`${col} = $${paramIndex}`);
+				conditions.push(`${col} = ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "neq":
 				paramIndex++;
-				conditions.push(`${col} != $${paramIndex}`);
+				conditions.push(`${col} != ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "gt":
 				paramIndex++;
-				conditions.push(`${col} > $${paramIndex}`);
+				conditions.push(`${col} > ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "gte":
 				paramIndex++;
-				conditions.push(`${col} >= $${paramIndex}`);
+				conditions.push(`${col} >= ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "lt":
 				paramIndex++;
-				conditions.push(`${col} < $${paramIndex}`);
+				conditions.push(`${col} < ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "lte":
 				paramIndex++;
-				conditions.push(`${col} <= $${paramIndex}`);
+				conditions.push(`${col} <= ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "like":
 				paramIndex++;
-				conditions.push(`${col} LIKE $${paramIndex}`);
+				conditions.push(`${col} LIKE ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "notLike":
 				paramIndex++;
-				conditions.push(`${col} NOT LIKE $${paramIndex}`);
+				conditions.push(`${col} NOT LIKE ${dialect.placeholder(paramIndex)}`);
 				params.push(filter.value);
 				break;
 			case "in": {
 				const values = Array.isArray(filter.value) ? filter.value : [filter.value];
 				const placeholders = values.map(() => {
 					paramIndex++;
-					return `$${paramIndex}`;
+					return dialect.placeholder(paramIndex);
 				});
 				conditions.push(`${col} IN (${placeholders.join(", ")})`);
 				params.push(...values);
@@ -137,7 +137,7 @@ export function buildWhereClause(
 				const values = Array.isArray(filter.value) ? filter.value : [filter.value];
 				const placeholders = values.map(() => {
 					paramIndex++;
-					return `$${paramIndex}`;
+					return dialect.placeholder(paramIndex);
 				});
 				conditions.push(`${col} NOT IN (${placeholders.join(", ")})`);
 				params.push(...values);
@@ -234,9 +234,9 @@ export function buildSelectQuery(
 	let paramIndex = where.params.length;
 
 	paramIndex++;
-	const limitParam = `$${paramIndex}`;
+	const limitParam = dialect.placeholder(paramIndex);
 	paramIndex++;
-	const offsetParam = `$${paramIndex}`;
+	const offsetParam = dialect.placeholder(paramIndex);
 
 	const parts = [`SELECT * FROM ${from}`];
 	if (where.sql) parts.push(where.sql);
@@ -291,7 +291,7 @@ export function generateInsert(change: DataChange, dialect: SqlDialect): Generat
 
 	const columns = Object.keys(values);
 	const quotedCols = columns.map((c) => dialect.quoteIdentifier(c));
-	const placeholders = columns.map((_, i) => `$${i + 1}`);
+	const placeholders = columns.map((_, i) => dialect.placeholder(i + 1));
 	const params = columns.map((c) => values[c]);
 
 	return {
@@ -322,13 +322,13 @@ export function generateUpdate(change: DataChange, dialect: SqlDialect): Generat
 	const setClauses = setCols.map((col) => {
 		paramIndex++;
 		params.push(values[col]);
-		return `${dialect.quoteIdentifier(col)} = $${paramIndex}`;
+		return `${dialect.quoteIdentifier(col)} = ${dialect.placeholder(paramIndex)}`;
 	});
 
 	const whereClauses = pkCols.map((col) => {
 		paramIndex++;
 		params.push(primaryKeys[col]);
-		return `${dialect.quoteIdentifier(col)} = $${paramIndex}`;
+		return `${dialect.quoteIdentifier(col)} = ${dialect.placeholder(paramIndex)}`;
 	});
 
 	return {
@@ -352,7 +352,7 @@ export function generateDelete(change: DataChange, dialect: SqlDialect): Generat
 
 	const whereClauses = pkCols.map((col, i) => {
 		params.push(primaryKeys[col]);
-		return `${dialect.quoteIdentifier(col)} = $${i + 1}`;
+		return `${dialect.quoteIdentifier(col)} = ${dialect.placeholder(i + 1)}`;
 	});
 
 	return {

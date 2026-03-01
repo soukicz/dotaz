@@ -266,6 +266,10 @@ export class WasmSqliteDriver implements DatabaseDriver {
 		return `INSERT INTO ${qualifiedTable} DEFAULT VALUES`;
 	}
 
+	placeholder(index: number): string {
+		return `$${index}`;
+	}
+
 	private ensureConnected(): void {
 		if (!this.connected) {
 			throw new Error("Not connected. Call connect() first.");

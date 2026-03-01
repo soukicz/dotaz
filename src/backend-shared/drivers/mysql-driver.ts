@@ -65,14 +65,6 @@ interface MysqlTableRow {
 	table_type: string;
 }
 
-/**
- * Convert PostgreSQL-style $N placeholders to MySQL-style ? placeholders.
- * Respects quoted strings (single, double, backtick) and comments.
- */
-function convertPlaceholders(sql: string): string {
-	return sql.replace(/\$\d+/g, "?");
-}
-
 export class MysqlDriver implements DatabaseDriver {
 	private db: SQL | null = null;
 	private connected = false;
@@ -119,9 +111,7 @@ export class MysqlDriver implements DatabaseDriver {
 		this.ensureConnected();
 		const conn = this.reservedConn ?? this.db!;
 		const start = performance.now();
-		// Convert $N placeholders to ? for MySQL
-		const mysqlSql = convertPlaceholders(sql);
-		const query = conn.unsafe(mysqlSql, params ?? []);
+		const query = conn.unsafe(sql, params ?? []);
 		this.activeQuery = query;
 		try {
 			const result = await query;
@@ -402,6 +392,10 @@ export class MysqlDriver implements DatabaseDriver {
 
 	emptyInsertSql(qualifiedTable: string): string {
 		return `INSERT INTO ${qualifiedTable} () VALUES ()`;
+	}
+
+	placeholder(_index: number): string {
+		return "?";
 	}
 
 	private ensureConnected(): void {

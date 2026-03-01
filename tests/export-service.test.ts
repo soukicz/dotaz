@@ -28,6 +28,7 @@ function mockDriver(
 			return `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
 		},
 		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
+		placeholder: (index: number) => `$${index}`,
 	} as unknown as DatabaseDriver;
 }
 
@@ -54,6 +55,7 @@ function mockDriverBatched(
 			return `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
 		},
 		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
+		placeholder: (index: number) => `$${index}`,
 	} as unknown as DatabaseDriver;
 }
 

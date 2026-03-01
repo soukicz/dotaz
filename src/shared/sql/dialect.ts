@@ -9,4 +9,6 @@ export interface SqlDialect {
 	qualifyTable(schema: string, table: string): string;
 	emptyInsertSql(qualifiedTable: string): string;
 	getDriverType(): ConnectionType;
+	/** Return the SQL placeholder for a 1-based parameter index (e.g. "$1" or "?"). */
+	placeholder(index: number): string;
 }

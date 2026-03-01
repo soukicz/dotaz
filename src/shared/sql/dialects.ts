@@ -17,6 +17,10 @@ export class PostgresDialect implements SqlDialect {
 	getDriverType(): ConnectionType {
 		return "postgresql";
 	}
+
+	placeholder(index: number): string {
+		return `$${index}`;
+	}
 }
 
 export class SqliteDialect implements SqlDialect {
@@ -36,6 +40,10 @@ export class SqliteDialect implements SqlDialect {
 	getDriverType(): ConnectionType {
 		return "sqlite";
 	}
+
+	placeholder(index: number): string {
+		return `$${index}`;
+	}
 }
 
 export class MysqlDialect implements SqlDialect {
@@ -53,5 +61,9 @@ export class MysqlDialect implements SqlDialect {
 
 	getDriverType(): ConnectionType {
 		return "mysql";
+	}
+
+	placeholder(_index: number): string {
+		return "?";
 	}
 }

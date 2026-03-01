@@ -152,9 +152,9 @@ function buildExportQuery(
 
 	let paramIndex = where.params.length;
 	paramIndex++;
-	const limitParam = `$${paramIndex}`;
+	const limitParam = driver.placeholder(paramIndex);
 	paramIndex++;
-	const offsetParam = `$${paramIndex}`;
+	const offsetParam = driver.placeholder(paramIndex);
 
 	const parts = [`SELECT ${columnList} FROM ${from}`];
 	if (where.sql) parts.push(where.sql);

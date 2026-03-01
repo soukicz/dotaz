@@ -107,6 +107,7 @@ mock.module("../src/frontend-shared/stores/connections", () => ({
 			qualifyTable: (schema: string, table: string) => `"${schema}"."${table}"`,
 			emptyInsertSql: (qt: string) => `INSERT INTO ${qt} DEFAULT VALUES`,
 			getDriverType: () => "sqlite" as const,
+			placeholder: (index: number) => `$${index}`,
 		}),
 		getColumns: () => defaultColumns,
 		getSchemaData: () => undefined,
