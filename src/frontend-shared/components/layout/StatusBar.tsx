@@ -9,6 +9,7 @@ interface StatusBarProps {
 	schema?: string;
 	rowCount?: number;
 	inTransaction?: boolean;
+	readOnly?: boolean;
 }
 
 function statusColor(status: ConnectionStatus): string {
@@ -47,6 +48,10 @@ export default function StatusBar(props: StatusBarProps) {
 			</div>
 
 			<div class="status-bar__right">
+				<Show when={props.readOnly}>
+					<span class="status-bar__item status-bar__item--readonly">READ-ONLY</span>
+				</Show>
+
 				<Show when={props.inTransaction}>
 					<span class="status-bar__item status-bar__item--tx">IN TRANSACTION</span>
 				</Show>

@@ -76,6 +76,7 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 	const [sqliteFields, setSqliteFields] = createSignal(defaultSqliteFields());
 	const [connectionUrl, setConnectionUrl] = createSignal("");
 
+	const [readOnly, setReadOnly] = createSignal(false);
 	const [rememberPassword, setRememberPassword] = createSignal(true);
 	const [testResult, setTestResult] = createSignal<{
 		success: boolean;
@@ -96,6 +97,7 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 		const conn = props.connection;
 		if (conn) {
 			setDbType(conn.config.type);
+			setReadOnly(conn.readOnly === true);
 			connectionsStore.getRememberPassword(conn.id).then(setRememberPassword);
 			if (conn.config.type === "postgresql" || conn.config.type === "mysql") {
 				const rawSsl = conn.config.ssl;
@@ -120,6 +122,7 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 			}
 		} else {
 			setDbType("postgresql");
+			setReadOnly(false);
 			setRememberPassword(true);
 			setPgFields(defaultPgFields());
 			setSqliteFields(defaultSqliteFields());
@@ -215,9 +218,9 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 			const config = buildConfig();
 
 			if (props.connection) {
-				await connectionsStore.updateConnection(props.connection.id, name, config, rememberPassword());
+				await connectionsStore.updateConnection(props.connection.id, name, config, rememberPassword(), readOnly());
 			} else {
-				await connectionsStore.createConnection(name, config, rememberPassword());
+				await connectionsStore.createConnection(name, config, rememberPassword(), readOnly());
 			}
 			props.onClose();
 		} catch (err) {
@@ -472,6 +475,19 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 						</Show>
 					</div>
 				</Show>
+
+				{/* Read-only toggle */}
+				<div class="conn-dialog__field conn-dialog__field--inline">
+					<label class="conn-dialog__label conn-dialog__label--checkbox">
+						<input
+							type="checkbox"
+							checked={readOnly()}
+							onChange={(e) => setReadOnly(e.currentTarget.checked)}
+						/>
+						Read-only
+					</label>
+					<span class="conn-dialog__hint">Disable editing and warn on DML statements</span>
+				</div>
 
 				{/* Test result */}
 				<Show when={testResult()}>

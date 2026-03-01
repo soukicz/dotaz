@@ -72,6 +72,7 @@ export interface ConnectionInfo {
 	config: ConnectionConfig;
 	state: ConnectionState;
 	error?: string;
+	readOnly?: boolean;
 	createdAt: string;
 	updatedAt: string;
 }

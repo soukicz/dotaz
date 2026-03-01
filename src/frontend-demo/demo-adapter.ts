@@ -43,12 +43,16 @@ export class DemoAdapter implements RpcAdapter {
 		return this.state.listConnections();
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		return this.state.createConnection(params);
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		return this.state.updateConnection(params);
+	}
+
+	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
+		return this.state.setConnectionReadOnly(id, readOnly);
 	}
 
 	deleteConnection(id: string): void {

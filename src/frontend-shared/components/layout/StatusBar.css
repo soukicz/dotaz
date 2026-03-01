@@ -35,6 +35,14 @@
 	border-radius: 3px;
 }
 
+.status-bar__item--readonly {
+	font-weight: 700;
+	background: var(--ink-muted);
+	color: var(--ink-inverse);
+	padding: 1px 6px;
+	border-radius: 3px;
+}
+
 .status-bar__dot {
 	width: 8px;
 	height: 8px;

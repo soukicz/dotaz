@@ -130,6 +130,7 @@ export class AppDatabase {
 			name: row.name,
 			config: this.decryptConfig(config),
 			state: "disconnected",
+			readOnly: row.read_only === 1 ? true : undefined,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		};
@@ -147,26 +148,33 @@ export class AppDatabase {
 		return row ? this.toConnectionInfo(row) : null;
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		const id = crypto.randomUUID();
 		return this.createConnectionWithId(id, params);
 	}
 
-	createConnectionWithId(id: string, params: { name: string; config: ConnectionConfig }): ConnectionInfo {
+	createConnectionWithId(id: string, params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		const now = new Date().toISOString();
 		this.db.prepare(
-			"INSERT INTO connections (id, name, type, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		).run(id, params.name, params.config.type, this.encryptConfigJson(params.config), now, now);
+			"INSERT INTO connections (id, name, type, config, read_only, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		).run(id, params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, now, now);
 		return this.getConnectionById(id)!;
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		const now = new Date().toISOString();
 		this.db.prepare(
-			"UPDATE connections SET name = ?, type = ?, config = ?, updated_at = ? WHERE id = ?",
-		).run(params.name, params.config.type, this.encryptConfigJson(params.config), now, params.id);
+			"UPDATE connections SET name = ?, type = ?, config = ?, read_only = ?, updated_at = ? WHERE id = ?",
+		).run(params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, now, params.id);
 		const result = this.getConnectionById(params.id);
 		if (!result) throw new Error(`Connection not found: ${params.id}`);
+		return result;
+	}
+
+	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
+		this.db.prepare("UPDATE connections SET read_only = ? WHERE id = ?").run(readOnly ? 1 : 0, id);
+		const result = this.getConnectionById(id);
+		if (!result) throw new Error(`Connection not found: ${id}`);
 		return result;
 	}
 
@@ -343,6 +351,7 @@ interface ConnectionRow {
 	name: string;
 	type: string;
 	config: string;
+	read_only: number;
 	created_at: string;
 	updated_at: string;
 }

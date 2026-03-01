@@ -18,11 +18,11 @@ export const storage: AppStateStorage = {
 	listConnections() {
 		return getStorage().listConnections();
 	},
-	createConnection(name, config, rememberPassword?) {
-		return getStorage().createConnection(name, config, rememberPassword);
+	createConnection(name, config, rememberPassword?, readOnly?) {
+		return getStorage().createConnection(name, config, rememberPassword, readOnly);
 	},
-	updateConnection(id, name, config, rememberPassword?) {
-		return getStorage().updateConnection(id, name, config, rememberPassword);
+	updateConnection(id, name, config, rememberPassword?, readOnly?) {
+		return getStorage().updateConnection(id, name, config, rememberPassword, readOnly);
 	},
 	deleteConnection(id) {
 		return getStorage().deleteConnection(id);

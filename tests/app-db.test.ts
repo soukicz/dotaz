@@ -29,12 +29,12 @@ describe("AppDatabase", () => {
 
 	test("migrations run automatically on initialization", () => {
 		const version = getSchemaVersion(appDb.db);
-		expect(version).toBe(2);
+		expect(version).toBe(3);
 	});
 
 	test("schema_version table tracks current version", () => {
 		const rows = appDb.db.prepare("SELECT version FROM schema_version ORDER BY version").all() as { version: number }[];
-		expect(rows.map(r => r.version)).toEqual([1, 2]);
+		expect(rows.map(r => r.version)).toEqual([1, 2, 3]);
 	});
 
 	test("migration 002 converts boolean SSL to SSLMode string", () => {
@@ -155,6 +155,40 @@ describe("AppDatabase", () => {
 			const conn = appDb.createConnection({ name: "PG SSL", config: { ...pgConfig, ssl: "require" } });
 			const found = appDb.getConnectionById(conn.id)!;
 			expect(found.config).toEqual({ ...pgConfig, ssl: "require" });
+		});
+
+		test("create connection with readOnly flag", () => {
+			const conn = appDb.createConnection({ name: "ReadOnly PG", config: pgConfig, readOnly: true });
+			expect(conn.readOnly).toBe(true);
+			const found = appDb.getConnectionById(conn.id)!;
+			expect(found.readOnly).toBe(true);
+		});
+
+		test("create connection without readOnly defaults to undefined", () => {
+			const conn = appDb.createConnection({ name: "Normal PG", config: pgConfig });
+			expect(conn.readOnly).toBeUndefined();
+		});
+
+		test("update connection readOnly flag", () => {
+			const conn = appDb.createConnection({ name: "Toggle", config: pgConfig });
+			expect(conn.readOnly).toBeUndefined();
+			const updated = appDb.updateConnection({ id: conn.id, name: "Toggle", config: pgConfig, readOnly: true });
+			expect(updated.readOnly).toBe(true);
+		});
+
+		test("setConnectionReadOnly toggles readOnly", () => {
+			const conn = appDb.createConnection({ name: "SetRO", config: pgConfig });
+			expect(conn.readOnly).toBeUndefined();
+
+			const ro = appDb.setConnectionReadOnly(conn.id, true);
+			expect(ro.readOnly).toBe(true);
+
+			const rw = appDb.setConnectionReadOnly(conn.id, false);
+			expect(rw.readOnly).toBeUndefined();
+		});
+
+		test("setConnectionReadOnly throws for non-existent id", () => {
+			expect(() => appDb.setConnectionReadOnly("nonexistent", true)).toThrow("Connection not found");
 		});
 	});
 

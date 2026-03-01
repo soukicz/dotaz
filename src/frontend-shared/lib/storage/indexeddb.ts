@@ -22,6 +22,7 @@ interface StoredConnectionRecord {
 	config: ConnectionConfig;     // display config — password stripped
 	encryptedConfig: string;      // full config encrypted by server
 	rememberPassword: boolean;
+	readOnly?: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -90,12 +91,13 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			name: r.name,
 			config: r.config,
 			state: "disconnected" as const,
+			readOnly: r.readOnly || undefined,
 			createdAt: r.createdAt,
 			updatedAt: r.updatedAt,
 		}));
 	}
 
-	async createConnection(name: string, config: ConnectionConfig, rememberPassword = true): Promise<ConnectionInfo> {
+	async createConnection(name: string, config: ConnectionConfig, rememberPassword = true, readOnly?: boolean): Promise<ConnectionInfo> {
 		const id = crypto.randomUUID();
 		const now = new Date().toISOString();
 
@@ -110,6 +112,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			config: stripPassword(config),
 			encryptedConfig,
 			rememberPassword,
+			readOnly: readOnly || undefined,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -121,12 +124,13 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			name,
 			config: record.config,
 			state: "disconnected",
+			readOnly: readOnly || undefined,
 			createdAt: now,
 			updatedAt: now,
 		};
 	}
 
-	async updateConnection(id: string, name: string, config: ConnectionConfig, rememberPassword?: boolean): Promise<ConnectionInfo> {
+	async updateConnection(id: string, name: string, config: ConnectionConfig, rememberPassword?: boolean, readOnly?: boolean): Promise<ConnectionInfo> {
 		const existing = await txOp<StoredConnectionRecord | undefined>(STORES.connections, "readonly", (s) => s.get(id));
 		if (!existing) throw new Error(`Connection not found: ${id}`);
 
@@ -138,12 +142,14 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			: config;
 		const { encryptedConfig } = await rpc.storage.encrypt({ config: JSON.stringify(configToEncrypt) });
 
+		const resolvedReadOnly = readOnly ?? existing.readOnly;
 		const record: StoredConnectionRecord = {
 			id,
 			name,
 			config: stripPassword(config),
 			encryptedConfig,
 			rememberPassword: remember,
+			readOnly: resolvedReadOnly || undefined,
 			createdAt: existing.createdAt,
 			updatedAt: now,
 		};
@@ -155,6 +161,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			name,
 			config: record.config,
 			state: "disconnected",
+			readOnly: resolvedReadOnly || undefined,
 			createdAt: record.createdAt,
 			updatedAt: now,
 		};

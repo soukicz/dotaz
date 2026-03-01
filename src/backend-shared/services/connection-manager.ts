@@ -292,6 +292,7 @@ export class ConnectionManager {
 	createConnection(params: {
 		name: string;
 		config: ConnectionConfig;
+		readOnly?: boolean;
 	}, allowMissingPassword = false): ConnectionInfo {
 		validateConfig(params.config, allowMissingPassword);
 		return this.appDb.createConnection(params);
@@ -301,6 +302,7 @@ export class ConnectionManager {
 		id: string;
 		name: string;
 		config: ConnectionConfig;
+		readOnly?: boolean;
 	}): ConnectionInfo {
 		validateConfig(params.config);
 		const updated = this.appDb.updateConnection(params);
@@ -308,6 +310,15 @@ export class ConnectionManager {
 			...updated,
 			state: this.getConnectionState(params.id),
 			error: this.states.get(params.id)?.error,
+		};
+	}
+
+	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
+		const updated = this.appDb.setConnectionReadOnly(id, readOnly);
+		return {
+			...updated,
+			state: this.getConnectionState(id),
+			error: this.states.get(id)?.error,
 		};
 	}
 

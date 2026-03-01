@@ -53,7 +53,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-062 | Aggregate view for cell selection | done | SUM, COUNT, AVG, MIN, MAX over selected cells; panel shows when 2+ rows selected |
 | DOTAZ-063 | Quick value shortcuts during cell editing | done | SQL_DEFAULT sentinel, Ctrl+N/T/F/D shortcuts, single-key when empty for non-text columns |
 | DOTAZ-064 | Warning for DELETE/UPDATE without WHERE clause | done | detectDestructiveWithoutWhere() strips literals/comments, editor store intercepts execution, DestructiveQueryDialog with session suppress |
-| DOTAZ-065 | Read-only mode per connection | not started | Disable editing, warn on DML |
+| DOTAZ-065 | Read-only mode per connection | in progress | Disable editing, warn on DML |
 | DOTAZ-066 | Transpose view for data grid | not started | Rows↔columns for wide tables |
 
 ---

@@ -145,9 +145,9 @@ async function loadSchemaTreesForConnection(conn: ConnectionInfo) {
 	}
 }
 
-async function createConnection(name: string, config: ConnectionConfig, rememberPassword = true): Promise<ConnectionInfo> {
+async function createConnection(name: string, config: ConnectionConfig, rememberPassword = true, readOnly?: boolean): Promise<ConnectionInfo> {
 	try {
-		const conn = await storage.createConnection(name, config, rememberPassword);
+		const conn = await storage.createConnection(name, config, rememberPassword, readOnly);
 		setState("connections", (prev) => [...prev, conn]);
 		return conn;
 	} catch (err) {
@@ -156,14 +156,23 @@ async function createConnection(name: string, config: ConnectionConfig, remember
 	}
 }
 
-async function updateConnection(id: string, name: string, config: ConnectionConfig, rememberPassword?: boolean): Promise<ConnectionInfo> {
+async function updateConnection(id: string, name: string, config: ConnectionConfig, rememberPassword?: boolean, readOnly?: boolean): Promise<ConnectionInfo> {
 	try {
-		const conn = await storage.updateConnection(id, name, config, rememberPassword);
+		const conn = await storage.updateConnection(id, name, config, rememberPassword, readOnly);
 		setState("connections", (c) => c.id === id, conn);
 		return conn;
 	} catch (err) {
 		uiStore.addToast("warning", "Failed to update connection. Changes may not persist.");
 		throw err;
+	}
+}
+
+async function setReadOnly(id: string, readOnly: boolean): Promise<void> {
+	try {
+		const conn = await rpc.connections.setReadOnly({ id, readOnly });
+		setState("connections", (c) => c.id === id, "readOnly", conn.readOnly);
+	} catch {
+		uiStore.addToast("warning", "Failed to update read-only setting.");
 	}
 }
 
@@ -354,10 +363,15 @@ export const connectionsStore = {
 			default: return new PostgresDialect();
 		}
 	},
+	isReadOnly(connectionId: string): boolean {
+		const conn = state.connections.find((c) => c.id === connectionId);
+		return conn?.readOnly === true;
+	},
 	getRememberPassword,
 	loadConnections,
 	createConnection,
 	updateConnection,
+	setReadOnly,
 	deleteConnection,
 	connectTo,
 	disconnectFrom,

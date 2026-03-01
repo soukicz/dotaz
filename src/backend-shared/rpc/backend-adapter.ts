@@ -47,12 +47,16 @@ export class BackendAdapter implements RpcAdapter {
 		return this.cm.listConnections();
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		return this.cm.createConnection(params);
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		return this.cm.updateConnection(params);
+	}
+
+	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
+		return this.cm.setConnectionReadOnly(id, readOnly);
 	}
 
 	async deleteConnection(id: string): Promise<void> {

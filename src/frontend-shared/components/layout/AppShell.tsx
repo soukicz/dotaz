@@ -625,7 +625,12 @@ export default function AppShell() {
 				const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
 				return conn?.state as any;
 			})()}
-			inTransaction={(() => {
+			readOnly={(() => {
+				const tab = tabsStore.activeTab;
+				if (!tab) return false;
+				return connectionsStore.isReadOnly(tab.connectionId);
+			})()}
+		inTransaction={(() => {
 				const tab = tabsStore.activeTab;
 				if (!tab) return false;
 				// Check if any SQL console tab on this connection has an active transaction

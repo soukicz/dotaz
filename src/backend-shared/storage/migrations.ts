@@ -73,6 +73,13 @@ const migrations: Migration[] = [
 			}
 		},
 	},
+	{
+		version: 3,
+		description: "Add read_only column to connections table",
+		up: (db) => {
+			db.run("ALTER TABLE connections ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0");
+		},
+	},
 ];
 
 /**

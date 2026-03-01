@@ -45,7 +45,7 @@ export class DemoAppState {
 		return this.connections.get(id) ?? null;
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		const id = crypto.randomUUID();
 		const now = new Date().toISOString();
 		const conn: ConnectionInfo = {
@@ -53,6 +53,7 @@ export class DemoAppState {
 			name: params.name,
 			config: params.config,
 			state: "disconnected",
+			readOnly: params.readOnly || undefined,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -60,7 +61,7 @@ export class DemoAppState {
 		return conn;
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
 		const existing = this.connections.get(params.id);
 		if (!existing) throw new Error(`Connection not found: ${params.id}`);
 		const now = new Date().toISOString();
@@ -68,9 +69,21 @@ export class DemoAppState {
 			...existing,
 			name: params.name,
 			config: params.config,
+			readOnly: params.readOnly || undefined,
 			updatedAt: now,
 		};
 		this.connections.set(params.id, updated);
+		return updated;
+	}
+
+	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
+		const existing = this.connections.get(id);
+		if (!existing) throw new Error(`Connection not found: ${id}`);
+		const updated: ConnectionInfo = {
+			...existing,
+			readOnly: readOnly || undefined,
+		};
+		this.connections.set(id, updated);
 		return updated;
 	}
 

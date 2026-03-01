@@ -84,6 +84,7 @@ export default function DataGrid(props: DataGridProps) {
 
 	const tab = () => gridStore.getTab(props.tabId);
 	const tabInfo = () => tabsStore.openTabs.find((t) => t.id === props.tabId);
+	const isReadOnly = () => connectionsStore.isReadOnly(props.connectionId);
 
 	// Current schema/table from tab state (changes on FK navigation)
 	const currentSchema = () => tab()?.schema ?? props.schema;
@@ -258,6 +259,7 @@ export default function DataGrid(props: DataGridProps) {
 	// ── Editing handlers ──────────────────────────────────
 
 	function handleRowDblClick(index: number, e: MouseEvent) {
+		if (isReadOnly()) return;
 		const target = e.target as HTMLElement;
 		const cellEl = target.closest<HTMLElement>("[data-column]");
 		const columnName = cellEl?.dataset.column;
@@ -267,6 +269,7 @@ export default function DataGrid(props: DataGridProps) {
 	}
 
 	function startEditingFocused() {
+		if (isReadOnly()) return;
 		const t = tab();
 		if (!t?.focusedCell) return;
 		if (gridStore.isRowDeleted(props.tabId, t.focusedCell.row)) return;
@@ -306,6 +309,7 @@ export default function DataGrid(props: DataGridProps) {
 	}
 
 	function handleAddNewRow() {
+		if (isReadOnly()) return;
 		const newIndex = gridStore.addNewRow(props.tabId);
 		const cols = visibleColumns();
 		if (cols.length > 0) {
@@ -315,6 +319,7 @@ export default function DataGrid(props: DataGridProps) {
 	}
 
 	function handleDeleteSelected() {
+		if (isReadOnly()) return;
 		gridStore.deleteSelectedRows(props.tabId);
 	}
 
@@ -615,6 +620,7 @@ export default function DataGrid(props: DataGridProps) {
 		const value = row?.[column];
 		const isDeleted = gridStore.isRowDeleted(props.tabId, rowIndex);
 
+		const ro = isReadOnly();
 		const items: ContextMenuEntry[] = [
 			{
 				label: "Copy Value",
@@ -639,12 +645,12 @@ export default function DataGrid(props: DataGridProps) {
 			{
 				label: "Edit Cell",
 				action: () => gridStore.startEditing(props.tabId, rowIndex, column),
-				disabled: isDeleted,
+				disabled: isDeleted || ro,
 			},
 			{
 				label: "Set NULL",
 				action: () => gridStore.setCellValue(props.tabId, rowIndex, column, null),
-				disabled: isDeleted,
+				disabled: isDeleted || ro,
 			},
 			"separator",
 			{
@@ -689,11 +695,12 @@ export default function DataGrid(props: DataGridProps) {
 					gridStore.selectRow(props.tabId, rowIndex);
 					gridStore.deleteSelectedRows(props.tabId);
 				},
-				disabled: isDeleted,
+				disabled: isDeleted || ro,
 			},
 			{
 				label: "Duplicate Row",
 				action: () => handleDuplicateRow(rowIndex),
+				disabled: ro,
 			},
 		];
 

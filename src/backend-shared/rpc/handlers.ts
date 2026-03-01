@@ -14,11 +14,14 @@ export function createHandlers(adapter: RpcAdapter) {
 		"connections.list": () => {
 			return adapter.listConnections();
 		},
-		"connections.create": ({ name, config }: { name: string; config: ConnectionConfig }) => {
-			return adapter.createConnection({ name, config });
+		"connections.create": ({ name, config, readOnly }: { name: string; config: ConnectionConfig; readOnly?: boolean }) => {
+			return adapter.createConnection({ name, config, readOnly });
 		},
-		"connections.update": ({ id, name, config }: { id: string; name: string; config: ConnectionConfig }) => {
-			return adapter.updateConnection({ id, name, config });
+		"connections.update": ({ id, name, config, readOnly }: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }) => {
+			return adapter.updateConnection({ id, name, config, readOnly });
+		},
+		"connections.setReadOnly": ({ id, readOnly }: { id: string; readOnly: boolean }) => {
+			return adapter.setConnectionReadOnly(id, readOnly);
 		},
 		"connections.delete": async ({ id }: { id: string }) => {
 			await adapter.deleteConnection(id);

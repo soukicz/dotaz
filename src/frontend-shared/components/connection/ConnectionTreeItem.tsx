@@ -14,6 +14,7 @@ interface ConnectionTreeItemProps {
 	hasChildren?: boolean;
 	statusColor?: string;
 	loading?: boolean;
+	badge?: JSX.Element;
 	onClick?: () => void;
 	onToggle?: () => void;
 	onContextMenu?: (e: MouseEvent) => void;
@@ -58,6 +59,10 @@ export default function ConnectionTreeItem(props: ConnectionTreeItemProps) {
 			</Show>
 
 			<span class="tree-item__label">{props.label}</span>
+
+			<Show when={props.badge}>
+				{props.badge}
+			</Show>
 
 			<Show when={props.statusColor}>
 				<span

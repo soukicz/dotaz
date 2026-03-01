@@ -6,6 +6,7 @@ import { storage } from "../lib/storage";
 import { createTabHelpers } from "../lib/tab-store-helpers";
 import { getStatementAtCursor } from "../lib/sql-utils";
 import { splitStatements, detectDestructiveWithoutWhere } from "../../shared/sql/statements";
+import { connectionsStore } from "./connections";
 import { uiStore } from "./ui";
 
 // ── Types ─────────────────────────────────────────────────
@@ -79,6 +80,16 @@ let suppressDestructiveWarning = false;
 function findDestructiveStatements(sql: string): string[] {
 	const statements = splitStatements(sql);
 	return statements.filter(detectDestructiveWithoutWhere);
+}
+
+const DML_PATTERN = /^\s*(INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER|CREATE)\b/i;
+
+/**
+ * Check if any statement in the SQL is a DML/DDL statement.
+ */
+function containsDmlStatements(sql: string): boolean {
+	const statements = splitStatements(sql);
+	return statements.some((s) => DML_PATTERN.test(s));
 }
 
 // ── Internal helpers ──────────────────────────────────────
@@ -191,6 +202,11 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0) {
 }
 
 function checkAndRunQuery(tabId: string, sql: string, baseOffset = 0) {
+	const tab = getTab(tabId);
+	if (tab && connectionsStore.isReadOnly(tab.connectionId) && containsDmlStatements(sql)) {
+		uiStore.addToast("warning", "This connection is read-only. DML/DDL statements are not allowed.");
+		return;
+	}
 	if (!suppressDestructiveWarning) {
 		const dangerous = findDestructiveStatements(sql);
 		if (dangerous.length > 0) {

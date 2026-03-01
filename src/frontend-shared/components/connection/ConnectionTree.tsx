@@ -16,6 +16,7 @@ import Table from "lucide-solid/icons/table";
 import Bookmark from "lucide-solid/icons/bookmark";
 import FolderOpen from "lucide-solid/icons/folder-open";
 import Plus from "lucide-solid/icons/plus";
+import Lock from "lucide-solid/icons/lock";
 import Database from "lucide-solid/icons/database";
 import ContextMenu, { type ContextMenuEntry } from "../common/ContextMenu";
 import ConnectionTreeItem from "./ConnectionTreeItem";
@@ -271,6 +272,11 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		}
 
 		items.push(
+			"separator",
+			{
+				label: conn.readOnly ? "Disable Read-Only" : "Enable Read-Only",
+				action: () => connectionsStore.setReadOnly(conn.id, !conn.readOnly),
+			},
 			"separator",
 			{
 				label: "Edit",
@@ -545,6 +551,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 									hasChildren={true}
 									statusColor={STATUS_COLORS[conn.state]}
 									loading={loading()}
+									badge={conn.readOnly ? <Lock size={11} class="tree-item__lock" /> : undefined}
 									onClick={() => toggleConnection(conn)}
 									onToggle={() => toggleConnection(conn)}
 									onContextMenu={(e) => showContextMenu(e, connectionMenuItems(conn))}
