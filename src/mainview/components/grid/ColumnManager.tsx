@@ -1,7 +1,11 @@
 import { createEffect, createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
-import { PanelLeftClose, PanelRightClose, Columns2, Settings, GripVertical } from "lucide-solid";
+import PanelLeftClose from "lucide-solid/icons/panel-left-close";
+import PanelRightClose from "lucide-solid/icons/panel-right-close";
+import Columns2 from "lucide-solid/icons/columns-2";
+import Settings from "lucide-solid/icons/settings";
+import GripVertical from "lucide-solid/icons/grip-vertical";
 import "./ColumnManager.css";
 
 interface ColumnManagerProps {

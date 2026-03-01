@@ -4,7 +4,9 @@ import type {
 	FilterOperator,
 	GridColumnDef,
 } from "../../../shared/types/grid";
-import { X, FilterX, Plus } from "lucide-solid";
+import X from "lucide-solid/icons/x";
+import FilterX from "lucide-solid/icons/funnel-x";
+import Plus from "lucide-solid/icons/plus";
 import "./FilterBar.css";
 
 interface FilterBarProps {

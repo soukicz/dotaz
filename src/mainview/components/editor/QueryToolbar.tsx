@@ -1,7 +1,11 @@
 import { Show } from "solid-js";
 import { editorStore, type TxMode } from "../../stores/editor";
 import { connectionsStore } from "../../stores/connections";
-import { Play, AlignLeft, PlayCircle, Check, RotateCcw } from "lucide-solid";
+import Play from "lucide-solid/icons/play";
+import AlignLeft from "lucide-solid/icons/text-align-start";
+import PlayCircle from "lucide-solid/icons/circle-play";
+import Check from "lucide-solid/icons/check";
+import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Icon from "../common/Icon";
 import "./QueryToolbar.css";
 

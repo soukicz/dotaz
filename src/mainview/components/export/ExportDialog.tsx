@@ -7,7 +7,8 @@ import type {
 import type { ColumnFilter, SortColumn } from "../../../shared/types/grid";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
-import { Download, Eye } from "lucide-solid";
+import Download from "lucide-solid/icons/download";
+import Eye from "lucide-solid/icons/eye";
 import Dialog from "../common/Dialog";
 import "./ExportDialog.css";
 

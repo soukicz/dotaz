@@ -1,5 +1,8 @@
 import { For, Show } from "solid-js";
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-solid";
+import ChevronsLeft from "lucide-solid/icons/chevrons-left";
+import ChevronLeft from "lucide-solid/icons/chevron-left";
+import ChevronRight from "lucide-solid/icons/chevron-right";
+import ChevronsRight from "lucide-solid/icons/chevrons-right";
 import "./Pagination.css";
 
 interface PaginationProps {

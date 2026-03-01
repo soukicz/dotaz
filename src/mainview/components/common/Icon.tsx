@@ -1,43 +1,48 @@
 import type { JSX } from "solid-js";
-import {
-	Database,
-	Table,
-	Eye,
-	Layers,
-	Grid3x3,
-	SquareTerminal,
-	Play,
-	Square,
-	RefreshCw,
-	Plus,
-	X,
-	Settings,
-	Filter,
-	Columns3,
-	Download,
-	Search,
-	Copy,
-	Pencil,
-	Trash2,
-	ChevronLeft,
-	ChevronRight,
-	ChevronDown,
-	ArrowUp,
-	ArrowDown,
-	Key,
-	Link,
-	History,
-	Save,
-	PanelLeft,
-	Command,
-	Pin,
-	EyeOff,
-	Check,
-	TriangleAlert,
-	CircleAlert,
-	Info,
-} from "lucide-solid";
-import type { LucideProps } from "lucide-solid";
+import Database from "lucide-solid/icons/database";
+import Table from "lucide-solid/icons/table";
+import Eye from "lucide-solid/icons/eye";
+import Layers from "lucide-solid/icons/layers";
+import Grid3x3 from "lucide-solid/icons/grid-3x3";
+import SquareTerminal from "lucide-solid/icons/square-terminal";
+import Play from "lucide-solid/icons/play";
+import Square from "lucide-solid/icons/square";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
+import Plus from "lucide-solid/icons/plus";
+import X from "lucide-solid/icons/x";
+import Settings from "lucide-solid/icons/settings";
+import Filter from "lucide-solid/icons/funnel";
+import Columns3 from "lucide-solid/icons/columns-3";
+import Download from "lucide-solid/icons/download";
+import Search from "lucide-solid/icons/search";
+import Copy from "lucide-solid/icons/copy";
+import Pencil from "lucide-solid/icons/pencil";
+import Trash2 from "lucide-solid/icons/trash-2";
+import ChevronLeft from "lucide-solid/icons/chevron-left";
+import ChevronRight from "lucide-solid/icons/chevron-right";
+import ChevronDown from "lucide-solid/icons/chevron-down";
+import ArrowUp from "lucide-solid/icons/arrow-up";
+import ArrowDown from "lucide-solid/icons/arrow-down";
+import Key from "lucide-solid/icons/key";
+import Link from "lucide-solid/icons/link";
+import History from "lucide-solid/icons/history";
+import Save from "lucide-solid/icons/save";
+import PanelLeft from "lucide-solid/icons/panel-left";
+import Command from "lucide-solid/icons/command";
+import Pin from "lucide-solid/icons/pin";
+import EyeOff from "lucide-solid/icons/eye-off";
+import Check from "lucide-solid/icons/check";
+import TriangleAlert from "lucide-solid/icons/triangle-alert";
+import CircleAlert from "lucide-solid/icons/circle-alert";
+import Info from "lucide-solid/icons/info";
+import type { JSX as SolidJSX } from "solid-js/jsx-runtime";
+
+type LucideProps = Partial<SolidJSX.SvgSVGAttributes<SVGSVGElement>> & {
+	size?: string | number;
+	color?: string;
+	strokeWidth?: string | number;
+	class?: string;
+};
 
 export type IconName =
 	| "database"

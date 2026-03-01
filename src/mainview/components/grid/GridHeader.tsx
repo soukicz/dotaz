@@ -1,7 +1,8 @@
 import { For, Show } from "solid-js";
 import type { GridColumnDef, SortColumn } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
-import { ChevronUp, ChevronDown } from "lucide-solid";
+import ChevronUp from "lucide-solid/icons/chevron-up";
+import ChevronDown from "lucide-solid/icons/chevron-down";
 import "./GridHeader.css";
 
 interface GridHeaderProps {

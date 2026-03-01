@@ -3,7 +3,8 @@ import type { QueryResult, QueryResultColumn } from "../../../shared/types/query
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
 import { editorStore } from "../../stores/editor";
-import { ChevronUp, ChevronDown } from "lucide-solid";
+import ChevronUp from "lucide-solid/icons/chevron-up";
+import ChevronDown from "lucide-solid/icons/chevron-down";
 import GridHeader from "../grid/GridHeader";
 import VirtualScroller from "../grid/VirtualScroller";
 import Icon from "../common/Icon";

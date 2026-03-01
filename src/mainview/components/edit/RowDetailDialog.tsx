@@ -1,7 +1,8 @@
 import { createSignal, For, Show } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ForeignKeyInfo } from "../../../shared/types/database";
-import { ChevronUp, ChevronDown } from "lucide-solid";
+import ChevronUp from "lucide-solid/icons/chevron-up";
+import ChevronDown from "lucide-solid/icons/chevron-down";
 import Dialog from "../common/Dialog";
 import "./RowDetailDialog.css";
 

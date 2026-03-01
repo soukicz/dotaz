@@ -2,7 +2,13 @@ import { createSignal, For, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import { gridStore } from "../../stores/grid";
 import { rpc } from "../../lib/rpc";
-import { Plus, Pencil, Minus, X, Code, RotateCcw, Check } from "lucide-solid";
+import Plus from "lucide-solid/icons/plus";
+import Pencil from "lucide-solid/icons/pencil";
+import Minus from "lucide-solid/icons/minus";
+import X from "lucide-solid/icons/x";
+import Code from "lucide-solid/icons/code";
+import RotateCcw from "lucide-solid/icons/rotate-ccw";
+import Check from "lucide-solid/icons/check";
 import "./PendingChanges.css";
 
 interface PendingChangesProps {

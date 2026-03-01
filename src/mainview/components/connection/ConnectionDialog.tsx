@@ -9,7 +9,8 @@ import { connectionsStore } from "../../stores/connections";
 import { isStateless } from "../../lib/mode";
 import { rpc } from "../../lib/rpc";
 import { siPostgresql, siSqlite, siMysql } from "simple-icons";
-import { FolderOpen, Plug } from "lucide-solid";
+import FolderOpen from "lucide-solid/icons/folder-open";
+import Plug from "lucide-solid/icons/plug";
 import Dialog from "../common/Dialog";
 import "./ConnectionDialog.css";
 

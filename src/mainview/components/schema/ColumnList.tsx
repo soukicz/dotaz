@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
-import { KeyRound, ArrowRight } from "lucide-solid";
+import KeyRound from "lucide-solid/icons/key-round";
+import ArrowRight from "lucide-solid/icons/arrow-right";
 import type { ColumnInfo, ForeignKeyInfo } from "../../../shared/types/database";
 
 interface ColumnListProps {
