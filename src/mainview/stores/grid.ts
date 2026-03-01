@@ -994,6 +994,43 @@ async function navigateToFkTarget(
 	await fetchData(tabId);
 }
 
+async function navigateToTableWithFilters(
+	tabId: string,
+	targetSchema: string,
+	targetTable: string,
+	filters: ColumnFilter[],
+) {
+	const tab = ensureTab(tabId);
+
+	const entry: FkNavigationEntry = {
+		schema: tab.schema,
+		table: tab.table,
+		database: tab.database,
+		filters: [...tab.filters],
+		sort: [...tab.sort],
+		columnConfig: { ...tab.columnConfig },
+		columnOrder: [...tab.columnOrder],
+	};
+	setState("tabs", tabId, "fkNavigationHistory", [...tab.fkNavigationHistory, entry]);
+
+	setState("tabs", tabId, "schema", targetSchema);
+	setState("tabs", tabId, "table", targetTable);
+	setState("tabs", tabId, "filters", filters);
+	setState("tabs", tabId, "sort", []);
+	setState("tabs", tabId, "quickSearch", "");
+	setState("tabs", tabId, "columnConfig", {});
+	setState("tabs", tabId, "columnOrder", []);
+	setState("tabs", tabId, "currentPage", 1);
+	setState("tabs", tabId, "selectedRows", new Set());
+	setState("tabs", tabId, "focusedCell", null);
+	setState("tabs", tabId, "editingCell", null);
+	setState("tabs", tabId, "pendingChanges", createDefaultPendingChanges());
+	setState("tabs", tabId, "activeViewId", null);
+	setState("tabs", tabId, "activeViewName", null);
+
+	await fetchData(tabId);
+}
+
 async function navigateBack(tabId: string) {
 	const tab = ensureTab(tabId);
 	if (tab.fkNavigationHistory.length === 0) return;
@@ -1061,6 +1098,7 @@ export const gridStore = {
 
 	// FK navigation
 	navigateToFkTarget,
+	navigateToTableWithFilters,
 	navigateBack,
 
 	// Saved views

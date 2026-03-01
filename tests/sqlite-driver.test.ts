@@ -302,6 +302,52 @@ describe("SqliteDriver schema introspection", () => {
 		expect(fks[0].referencedColumns).toEqual(["a", "b"]);
 	});
 
+	test("getReferencingForeignKeys returns child tables", async () => {
+		const refs = await driver.getReferencingForeignKeys("main", "users");
+		expect(refs).toHaveLength(1);
+		expect(refs[0].referencingTable).toBe("posts");
+		expect(refs[0].referencingColumns).toEqual(["user_id"]);
+		expect(refs[0].referencedColumns).toEqual(["id"]);
+		expect(refs[0].referencingSchema).toBe("main");
+	});
+
+	test("getReferencingForeignKeys returns empty for unreferenced table", async () => {
+		const refs = await driver.getReferencingForeignKeys("main", "posts");
+		expect(refs).toEqual([]);
+	});
+
+	test("getReferencingForeignKeys handles composite FKs", async () => {
+		await driver.execute(`
+			CREATE TABLE ref_target2 (a INTEGER, b INTEGER, PRIMARY KEY (a, b))
+		`);
+		await driver.execute(`
+			CREATE TABLE ref_source2 (
+				x INTEGER,
+				y INTEGER,
+				FOREIGN KEY (x, y) REFERENCES ref_target2(a, b)
+			)
+		`);
+		const refs = await driver.getReferencingForeignKeys("main", "ref_target2");
+		expect(refs).toHaveLength(1);
+		expect(refs[0].referencingTable).toBe("ref_source2");
+		expect(refs[0].referencingColumns).toEqual(["x", "y"]);
+		expect(refs[0].referencedColumns).toEqual(["a", "b"]);
+	});
+
+	test("getReferencingForeignKeys handles multiple child tables", async () => {
+		await driver.execute(`
+			CREATE TABLE comments (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL REFERENCES users(id),
+				body TEXT NOT NULL
+			)
+		`);
+		const refs = await driver.getReferencingForeignKeys("main", "users");
+		expect(refs.length).toBe(2);
+		const tableNames = refs.map((r) => r.referencingTable).sort();
+		expect(tableNames).toEqual(["comments", "posts"]);
+	});
+
 	test("getPrimaryKey returns PK columns in order", async () => {
 		const pk = await driver.getPrimaryKey("main", "users");
 		expect(pk).toEqual(["id"]);

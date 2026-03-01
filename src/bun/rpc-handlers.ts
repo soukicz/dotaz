@@ -81,6 +81,10 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 			const driver = cm.getDriver(connectionId, database);
 			return driver.getForeignKeys(schema, table);
 		},
+		"schema.getReferencingForeignKeys": async ({ connectionId, schema, table, database }: { connectionId: string; schema: string; table: string; database?: string }) => {
+			const driver = cm.getDriver(connectionId, database);
+			return driver.getReferencingForeignKeys(schema, table);
+		},
 
 		// ── Data Grid ────────────────────────────────────
 		"data.getTableData": async (req: GridDataRequest) => {

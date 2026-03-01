@@ -313,6 +313,60 @@ describe("PostgresDriver schema introspection", () => {
 		await driver.execute("DROP TABLE test_schema.ref_target");
 	});
 
+	test("getReferencingForeignKeys returns child tables", async () => {
+		const refs = await driver.getReferencingForeignKeys("test_schema", "users");
+		expect(refs).toHaveLength(1);
+		expect(refs[0].referencingTable).toBe("posts");
+		expect(refs[0].referencingColumns).toEqual(["user_id"]);
+		expect(refs[0].referencedColumns).toEqual(["id"]);
+		expect(refs[0].referencingSchema).toBe("test_schema");
+	});
+
+	test("getReferencingForeignKeys returns empty for unreferenced table", async () => {
+		const refs = await driver.getReferencingForeignKeys("test_schema", "posts");
+		expect(refs).toEqual([]);
+	});
+
+	test("getReferencingForeignKeys handles composite FKs", async () => {
+		await driver.execute(`
+			CREATE TABLE test_schema.ref_target_rev (
+				a INTEGER, b INTEGER, PRIMARY KEY (a, b)
+			)
+		`);
+		await driver.execute(`
+			CREATE TABLE test_schema.ref_source_rev (
+				x INTEGER, y INTEGER,
+				FOREIGN KEY (x, y) REFERENCES test_schema.ref_target_rev(a, b)
+			)
+		`);
+
+		const refs = await driver.getReferencingForeignKeys("test_schema", "ref_target_rev");
+		expect(refs).toHaveLength(1);
+		expect(refs[0].referencingTable).toBe("ref_source_rev");
+		expect(refs[0].referencingColumns).toEqual(["x", "y"]);
+		expect(refs[0].referencedColumns).toEqual(["a", "b"]);
+
+		await driver.execute("DROP TABLE test_schema.ref_source_rev");
+		await driver.execute("DROP TABLE test_schema.ref_target_rev");
+	});
+
+	test("getReferencingForeignKeys handles multiple child tables", async () => {
+		await driver.execute(`
+			CREATE TABLE test_schema.comments_rev (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES test_schema.users(id),
+				body TEXT NOT NULL
+			)
+		`);
+
+		const refs = await driver.getReferencingForeignKeys("test_schema", "users");
+		expect(refs.length).toBe(2);
+		const tableNames = refs.map((r) => r.referencingTable).sort();
+		expect(tableNames).toEqual(["comments_rev", "posts"]);
+
+		await driver.execute("DROP TABLE test_schema.comments_rev");
+	});
+
 	test("getPrimaryKey returns PK columns", async () => {
 		const pk = await driver.getPrimaryKey("test_schema", "users");
 		expect(pk).toEqual(["id"]);

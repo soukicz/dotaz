@@ -9,6 +9,7 @@ import type {
 	ColumnInfo,
 	IndexInfo,
 	ForeignKeyInfo,
+	ReferencingForeignKeyInfo,
 } from "../../shared/types/database";
 
 /**
@@ -211,6 +212,41 @@ export class MysqlDriver implements DatabaseDriver {
 				: [row.referenced_columns],
 			onUpdate: row.on_update,
 			onDelete: row.on_delete,
+		}));
+	}
+
+	async getReferencingForeignKeys(
+		schema: string,
+		table: string,
+	): Promise<ReferencingForeignKeyInfo[]> {
+		this.ensureConnected();
+		const conn = this.reservedConn ?? this.db!;
+		const rows = await conn.unsafe(
+			`SELECT
+				kcu.CONSTRAINT_NAME AS constraint_name,
+				kcu.TABLE_SCHEMA AS referencing_schema,
+				kcu.TABLE_NAME AS referencing_table,
+				GROUP_CONCAT(kcu.COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS referencing_columns,
+				GROUP_CONCAT(kcu.REFERENCED_COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS referenced_columns
+			FROM information_schema.KEY_COLUMN_USAGE kcu
+			WHERE kcu.REFERENCED_TABLE_SCHEMA = ?
+				AND kcu.REFERENCED_TABLE_NAME = ?
+				AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			GROUP BY kcu.CONSTRAINT_NAME, kcu.TABLE_SCHEMA, kcu.TABLE_NAME
+			ORDER BY kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.CONSTRAINT_NAME`,
+			[schema, table],
+		);
+
+		return [...rows].map((row: any) => ({
+			constraintName: row.constraint_name,
+			referencingSchema: row.referencing_schema,
+			referencingTable: row.referencing_table,
+			referencingColumns: typeof row.referencing_columns === "string"
+				? row.referencing_columns.split(",")
+				: [row.referencing_columns],
+			referencedColumns: typeof row.referenced_columns === "string"
+				? row.referenced_columns.split(",")
+				: [row.referenced_columns],
 		}));
 	}
 

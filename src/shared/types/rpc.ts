@@ -8,6 +8,7 @@ import type {
 	DatabaseInfo,
 	ForeignKeyInfo,
 	IndexInfo,
+	ReferencingForeignKeyInfo,
 	SchemaInfo,
 	TableInfo,
 } from "./database";
@@ -263,6 +264,10 @@ export type DotazRPC = {
 			"schema.getForeignKeys": {
 				params: TableParams;
 				response: ForeignKeyInfo[];
+			};
+			"schema.getReferencingForeignKeys": {
+				params: TableParams;
+				response: ReferencingForeignKeyInfo[];
 			};
 
 			// Data Grid

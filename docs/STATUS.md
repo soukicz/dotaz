@@ -25,7 +25,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-055 | Quick full-text search in data grid | done | Server-side CAST(col AS TEXT) ILIKE/LIKE across all columns, debounced 300ms input, AND with column filters |
 | DOTAZ-056 | Run current SQL statement at cursor position | done | getStatementAtCursor returns range, CodeMirror flash highlight, Ctrl+Shift+Enter shortcut, toolbar button |
 | DOTAZ-057 | SQL error position highlighting | done | ErrorPosition type, PG position + SQLite offset parsing, result panel display, CodeMirror underline decoration |
-| DOTAZ-058 | Reverse FK — display referencing records in row detail | not started | FR-FK-03: only forward FK navigation exists |
+| DOTAZ-058 | Reverse FK — display referencing records in row detail | in progress | FR-FK-03: only forward FK navigation exists |
 | DOTAZ-059 | CSV export encoding configuration | not started | FR-EXP-01: delimiter configurable, encoding not |
 | DOTAZ-060 | Query history time range filtering | not started | FR-HIST-02: text + connection filter only |
 | DOTAZ-061 | Encrypt connection passwords in local storage | not started | NFR-04: plaintext in local SQLite |

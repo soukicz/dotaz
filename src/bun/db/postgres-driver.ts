@@ -9,6 +9,7 @@ import type {
 	ColumnInfo,
 	IndexInfo,
 	ForeignKeyInfo,
+	ReferencingForeignKeyInfo,
 } from "../../shared/types/database";
 
 export class PostgresDriver implements DatabaseDriver {
@@ -250,6 +251,50 @@ export class PostgresDriver implements DatabaseDriver {
 				: row.referenced_columns,
 			onUpdate: row.on_update,
 			onDelete: row.on_delete,
+		}));
+	}
+
+	async getReferencingForeignKeys(
+		schema: string,
+		table: string,
+	): Promise<ReferencingForeignKeyInfo[]> {
+		this.ensureConnected();
+		const conn = this.reservedConn ?? this.db!;
+		const rows = await conn.unsafe(
+			`SELECT
+				con.conname AS constraint_name,
+				nsp_src.nspname AS referencing_schema,
+				cl_src.relname AS referencing_table,
+				array_agg(att_src.attname ORDER BY u.pos) AS referencing_columns,
+				array_agg(att_ref.attname ORDER BY u.pos) AS referenced_columns
+			FROM pg_catalog.pg_constraint con
+			JOIN pg_catalog.pg_class cl_src ON cl_src.oid = con.conrelid
+			JOIN pg_catalog.pg_namespace nsp_src ON nsp_src.oid = cl_src.relnamespace
+			JOIN pg_catalog.pg_class cl_ref ON cl_ref.oid = con.confrelid
+			JOIN pg_catalog.pg_namespace nsp_ref ON nsp_ref.oid = cl_ref.relnamespace
+			CROSS JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS u(src_attnum, ref_attnum, pos)
+			JOIN pg_catalog.pg_attribute att_src
+				ON att_src.attrelid = con.conrelid AND att_src.attnum = u.src_attnum
+			JOIN pg_catalog.pg_attribute att_ref
+				ON att_ref.attrelid = con.confrelid AND att_ref.attnum = u.ref_attnum
+			WHERE con.contype = 'f'
+				AND nsp_ref.nspname = $1
+				AND cl_ref.relname = $2
+			GROUP BY con.conname, nsp_src.nspname, cl_src.relname
+			ORDER BY nsp_src.nspname, cl_src.relname, con.conname`,
+			[schema, table],
+		);
+
+		return [...rows].map((row: any) => ({
+			constraintName: row.constraint_name,
+			referencingSchema: row.referencing_schema,
+			referencingTable: row.referencing_table,
+			referencingColumns: typeof row.referencing_columns === "string"
+				? row.referencing_columns.replace(/^\{|\}$/g, "").split(",")
+				: row.referencing_columns,
+			referencedColumns: typeof row.referenced_columns === "string"
+				? row.referenced_columns.replace(/^\{|\}$/g, "").split(",")
+				: row.referenced_columns,
 		}));
 	}
 

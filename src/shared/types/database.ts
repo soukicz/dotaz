@@ -43,3 +43,15 @@ export interface ForeignKeyInfo {
 	onUpdate: string;
 	onDelete: string;
 }
+
+export interface ReferencingForeignKeyInfo {
+	constraintName: string;
+	/** Schema of the table that has the FK pointing to this table */
+	referencingSchema: string;
+	/** Table that has the FK pointing to this table */
+	referencingTable: string;
+	/** FK column(s) in the referencing table */
+	referencingColumns: string[];
+	/** Column(s) in this table being referenced */
+	referencedColumns: string[];
+}

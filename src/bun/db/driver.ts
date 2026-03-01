@@ -6,6 +6,7 @@ import type {
 	ColumnInfo,
 	IndexInfo,
 	ForeignKeyInfo,
+	ReferencingForeignKeyInfo,
 } from "../../shared/types/database";
 
 export interface DatabaseDriver {
@@ -24,6 +25,7 @@ export interface DatabaseDriver {
 	getColumns(schema: string, table: string): Promise<ColumnInfo[]>;
 	getIndexes(schema: string, table: string): Promise<IndexInfo[]>;
 	getForeignKeys(schema: string, table: string): Promise<ForeignKeyInfo[]>;
+	getReferencingForeignKeys(schema: string, table: string): Promise<ReferencingForeignKeyInfo[]>;
 	getPrimaryKey(schema: string, table: string): Promise<string[]>;
 
 	// Transactions

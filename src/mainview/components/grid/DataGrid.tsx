@@ -1078,6 +1078,10 @@ export default function DataGrid(props: DataGridProps) {
 						<RowDetailDialog
 							open={true}
 							tabId={props.tabId}
+							connectionId={props.connectionId}
+							schema={currentSchema()}
+							table={currentTable()}
+							database={props.database}
 							columns={t.columns}
 							rows={t.rows}
 							rowIndex={rowDetailIndex()!}
@@ -1086,6 +1090,13 @@ export default function DataGrid(props: DataGridProps) {
 							onSave={handleRowDetailSave}
 							onClose={handleRowDetailClose}
 							onNavigate={handleRowDetailNavigate}
+							onNavigateToTable={(schema, table, filters) => {
+								setRowDetailIndex(null);
+								gridStore.navigateToTableWithFilters(
+									props.tabId, schema, table, filters,
+								);
+								tabsStore.renameTab(props.tabId, table);
+							}}
 						/>
 					);
 				}}

@@ -12,6 +12,7 @@ import type {
 	DatabaseInfo,
 	ForeignKeyInfo,
 	IndexInfo,
+	ReferencingForeignKeyInfo,
 	SchemaInfo,
 	TableInfo,
 } from "../../shared/types/database";
@@ -93,6 +94,8 @@ export const rpc = {
 			call<IndexInfo[]>("schema.getIndexes", { connectionId, schema, table, database }),
 		getForeignKeys: (connectionId: string, schema: string, table: string, database?: string) =>
 			call<ForeignKeyInfo[]>("schema.getForeignKeys", { connectionId, schema, table, database }),
+		getReferencingForeignKeys: (connectionId: string, schema: string, table: string, database?: string) =>
+			call<ReferencingForeignKeyInfo[]>("schema.getReferencingForeignKeys", { connectionId, schema, table, database }),
 	},
 
 	data: {

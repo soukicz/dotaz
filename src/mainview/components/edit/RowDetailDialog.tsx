@@ -1,14 +1,19 @@
-import { createSignal, For, Show } from "solid-js";
-import type { GridColumnDef } from "../../../shared/types/grid";
-import type { ForeignKeyInfo } from "../../../shared/types/database";
+import { createSignal, createEffect, For, Show, on } from "solid-js";
+import type { GridColumnDef, ColumnFilter } from "../../../shared/types/grid";
+import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../../shared/types/database";
 import ChevronUp from "lucide-solid/icons/chevron-up";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import { rpc } from "../../lib/rpc";
 import Dialog from "../common/Dialog";
 import "./RowDetailDialog.css";
 
 interface RowDetailDialogProps {
 	open: boolean;
 	tabId: string;
+	connectionId: string;
+	schema: string;
+	table: string;
+	database?: string;
 	/** All columns in the table. */
 	columns: GridColumnDef[];
 	/** All rows in the current page. */
@@ -22,6 +27,8 @@ interface RowDetailDialogProps {
 	onSave: (rowIndex: number, changes: Record<string, unknown>) => void;
 	onClose: () => void;
 	onNavigate: (rowIndex: number) => void;
+	/** Navigate to a referencing table with filters applied. */
+	onNavigateToTable?: (schema: string, table: string, filters: ColumnFilter[]) => void;
 }
 
 // ── Type helpers (shared with InlineEditor) ──────────────
@@ -104,6 +111,73 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 	const pkColumns = () => new Set(props.columns.filter((c) => c.isPrimaryKey).map((c) => c.name));
 
 	const currentRow = () => props.rows[currentIndex()];
+
+	// ── Reverse FK (Referenced By) ───────────────────────────
+	const [referencingFks, setReferencingFks] = createSignal<ReferencingForeignKeyInfo[]>([]);
+	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number>>({});
+
+	createEffect(() => {
+		rpc.schema.getReferencingForeignKeys(
+			props.connectionId, props.schema, props.table, props.database,
+		).then(setReferencingFks).catch(() => setReferencingFks([]));
+	});
+
+	// Fetch counts for each referencing FK when row changes
+	createEffect(on([referencingFks, currentIndex], () => {
+		const fks = referencingFks();
+		const row = currentRow();
+		if (!fks.length || !row) {
+			setReferencingCounts({});
+			return;
+		}
+
+		const counts: Record<string, number> = {};
+		const promises = fks.map(async (fk) => {
+			const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
+				column: fk.referencingColumns[i],
+				operator: "eq" as const,
+				value: row[refCol],
+			}));
+
+			if (filters.some((f) => f.value === null || f.value === undefined)) {
+				counts[fk.constraintName] = 0;
+				return;
+			}
+
+			try {
+				const result = await rpc.data.getTableData({
+					connectionId: props.connectionId,
+					schema: fk.referencingSchema,
+					table: fk.referencingTable,
+					page: 1,
+					pageSize: 1,
+					filters,
+					database: props.database,
+				});
+				counts[fk.constraintName] = result.totalRows;
+			} catch {
+				counts[fk.constraintName] = -1;
+			}
+		});
+
+		Promise.all(promises).then(() => setReferencingCounts({ ...counts }));
+	}));
+
+	function handleReferencingClick(fk: ReferencingForeignKeyInfo) {
+		if (!props.onNavigateToTable) return;
+		const row = currentRow();
+		if (!row) return;
+
+		const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
+			column: fk.referencingColumns[i],
+			operator: "eq" as const,
+			value: String(row[refCol]),
+		}));
+
+		saveCurrentEdits();
+		props.onNavigateToTable(fk.referencingSchema, fk.referencingTable, filters);
+		props.onClose();
+	}
 
 	// Get the effective value for a column: local edit > current row data
 	function getValue(column: string): unknown {
@@ -397,6 +471,42 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 						}}
 					</For>
 				</div>
+
+				{/* Referenced By */}
+				<Show when={referencingFks().length > 0}>
+					<div class="row-detail__referenced-by">
+						<div class="row-detail__referenced-by-header">Referenced By</div>
+						<div class="row-detail__referenced-by-list">
+							<For each={referencingFks()}>
+								{(fk) => {
+									const count = () => referencingCounts()[fk.constraintName];
+									return (
+										<button
+											class="row-detail__referenced-by-item"
+											onClick={() => handleReferencingClick(fk)}
+											disabled={!props.onNavigateToTable}
+											title={`Show referencing rows in ${fk.referencingTable}`}
+										>
+											<span class="row-detail__referenced-by-table">
+												{fk.referencingSchema !== props.schema
+													? `${fk.referencingSchema}.${fk.referencingTable}`
+													: fk.referencingTable}
+											</span>
+											<span class="row-detail__referenced-by-cols">
+												({fk.referencingColumns.join(", ")})
+											</span>
+											<Show when={count() !== undefined}>
+												<span class="row-detail__referenced-by-count">
+													{count() === -1 ? "?" : count()}
+												</span>
+											</Show>
+										</button>
+									);
+								}}
+							</For>
+						</div>
+					</div>
+				</Show>
 
 				{/* Actions */}
 				<div class="row-detail__actions">

@@ -7,6 +7,7 @@ import type {
 	ColumnInfo,
 	IndexInfo,
 	ForeignKeyInfo,
+	ReferencingForeignKeyInfo,
 } from "../shared/types/database";
 
 /**
@@ -175,6 +176,58 @@ export class WasmSqliteDriver implements DatabaseDriver {
 			}
 		}
 		return Array.from(fkMap.values());
+	}
+
+	async getReferencingForeignKeys(
+		_schema: string,
+		table: string,
+	): Promise<ReferencingForeignKeyInfo[]> {
+		this.ensureConnected();
+
+		const tables: any[] = [];
+		this.db.exec({
+			sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+			rowMode: "object",
+			resultRows: tables,
+		});
+
+		const result: ReferencingForeignKeyInfo[] = [];
+
+		for (const t of tables) {
+			const fks: any[] = [];
+			this.db.exec({
+				sql: `PRAGMA foreign_key_list(${this.quoteIdentifier(t.name)})`,
+				rowMode: "object",
+				resultRows: fks,
+			});
+
+			const fkMap = new Map<number, { from: string[]; to: string[] }>();
+			for (const row of fks) {
+				if (row.table !== table) continue;
+				const existing = fkMap.get(row.id);
+				if (existing) {
+					existing.from.push(row.from);
+					existing.to.push(row.to);
+				} else {
+					fkMap.set(row.id, {
+						from: [row.from],
+						to: [row.to],
+					});
+				}
+			}
+
+			for (const [id, fk] of fkMap) {
+				result.push({
+					constraintName: `fk_${t.name}_${id}`,
+					referencingSchema: "main",
+					referencingTable: t.name,
+					referencingColumns: fk.from,
+					referencedColumns: fk.to,
+				});
+			}
+		}
+
+		return result;
 	}
 
 	async getPrimaryKey(_schema: string, table: string): Promise<string[]> {
