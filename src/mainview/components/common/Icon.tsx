@@ -1,4 +1,5 @@
-import type { JSX } from "solid-js";
+import { Show, type JSX } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import Database from "lucide-solid/icons/database";
 import Table from "lucide-solid/icons/table";
 import Eye from "lucide-solid/icons/eye";
@@ -141,29 +142,29 @@ const ICON_MAP: Record<Exclude<IconName, "spinner">, LucideComponent> = {
 export default function Icon(props: IconProps) {
 	const size = () => props.size ?? 16;
 
-	if (props.name === "spinner") {
-		return (
-			<span
-				class={`spinner${props.class ? ` ${props.class}` : ""}`}
-				style={{
-					width: `${size()}px`,
-					height: `${size()}px`,
-					...(props.style ?? {}),
-				}}
-				title={props.title}
-			/>
-		);
-	}
-
-	const Component = ICON_MAP[props.name];
-
 	return (
-		<Component
-			size={size()}
-			class={props.class}
-			style={props.style}
-			aria-hidden={!props.title}
-			role={props.title ? "img" : undefined}
-		/>
+		<Show
+			when={props.name !== "spinner"}
+			fallback={
+				<span
+					class={`spinner${props.class ? ` ${props.class}` : ""}`}
+					style={{
+						width: `${size()}px`,
+						height: `${size()}px`,
+						...(props.style ?? {}),
+					}}
+					title={props.title}
+				/>
+			}
+		>
+			<Dynamic
+				component={ICON_MAP[props.name as Exclude<IconName, "spinner">]}
+				size={size()}
+				class={props.class}
+				style={props.style}
+				aria-hidden={!props.title}
+				role={props.title ? "img" : undefined}
+			/>
+		</Show>
 	);
 }
