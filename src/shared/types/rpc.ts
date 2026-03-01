@@ -5,16 +5,6 @@ import type { RpcMethod, HandlerParams, HandlerReturn } from "../rpc/types";
 
 // ---- Domain types used by handlers and adapters ----
 
-export interface ExecuteQueryParams {
-	connectionId: string;
-	sql: string;
-	queryId: string;
-	params?: unknown[];
-	database?: string;
-	/** When provided, execute each statement with its own params sequentially (auto-wrapped in transaction). */
-	statements?: { sql: string; params?: unknown[] }[];
-}
-
 export interface DataChange {
 	type: "insert" | "update" | "delete";
 	schema: string;
@@ -48,20 +38,6 @@ export interface SavedView {
 	config: SavedViewConfig;
 	createdAt: string;
 	updatedAt: string;
-}
-
-export interface SaveViewParams {
-	connectionId: string;
-	schemaName: string;
-	tableName: string;
-	name: string;
-	config: SavedViewConfig;
-}
-
-export interface UpdateViewParams {
-	id: string;
-	name: string;
-	config: SavedViewConfig;
 }
 
 export interface OpenDialogParams {

@@ -2,10 +2,8 @@ import type { RpcAdapter } from "./adapter";
 import type { SchemaData } from "../types/database";
 import type { ExportOptions, ExportPreviewRequest } from "../types/export";
 import type {
-	ExecuteQueryParams,
 	HistoryListParams,
-	SaveViewParams,
-	UpdateViewParams,
+	SavedViewConfig,
 	RestoreParams,
 	OpenDialogParams,
 	SaveDialogParams,
@@ -81,7 +79,11 @@ export function createHandlers(adapter: RpcAdapter) {
 		},
 
 		// ── Query Execution ──────────────────────────────
-		"query.execute": async ({ connectionId, sql, queryId, params, database, statements }: ExecuteQueryParams) => {
+		"query.execute": async ({ connectionId, sql, queryId, params, database, statements }: {
+			connectionId: string; sql: string; queryId: string;
+			params?: unknown[]; database?: string;
+			statements?: { sql: string; params?: unknown[] }[];
+		}) => {
 			if (statements && statements.length > 0) {
 				return adapter.executeStatements(connectionId, statements, database);
 			}
@@ -123,7 +125,10 @@ export function createHandlers(adapter: RpcAdapter) {
 		},
 
 		// ── Saved Views ──────────────────────────────────
-		"views.save": ({ connectionId, schemaName, tableName, name, config }: SaveViewParams) => {
+		"views.save": ({ connectionId, schemaName, tableName, name, config }: {
+			connectionId: string; schemaName: string; tableName: string;
+			name: string; config: SavedViewConfig;
+		}) => {
 			if (!name || !name.trim()) {
 				throw new Error("View name is required");
 			}
@@ -146,7 +151,9 @@ export function createHandlers(adapter: RpcAdapter) {
 				config,
 			});
 		},
-		"views.update": ({ id, name, config }: UpdateViewParams) => {
+		"views.update": ({ id, name, config }: {
+			id: string; name: string; config: SavedViewConfig;
+		}) => {
 			if (!id) {
 				throw new Error("View id is required");
 			}
