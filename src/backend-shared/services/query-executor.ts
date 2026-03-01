@@ -20,7 +20,7 @@ export {
 	generateChangePreview,
 	generateChangesPreview,
 } from "../../shared/sql/builders";
-export { splitStatements, offsetToLineColumn, parseErrorPosition } from "../../shared/sql/statements";
+export { splitStatements, offsetToLineColumn, parseErrorPosition, detectDestructiveWithoutWhere } from "../../shared/sql/statements";
 
 // ── QueryExecutor ──────────────────────────────────────────
 

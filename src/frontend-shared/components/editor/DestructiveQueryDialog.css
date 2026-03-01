@@ -1,0 +1,58 @@
+.destructive-dialog {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+}
+
+.destructive-dialog__warning {
+	margin: 0;
+	color: var(--warning);
+	line-height: 1.5;
+}
+
+.destructive-dialog__statements {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-xs);
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.destructive-dialog__sql {
+	margin: 0;
+	padding: var(--spacing-sm) var(--spacing-md);
+	background: var(--surface-raised);
+	border: 1px solid var(--edge);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	color: var(--ink);
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.destructive-dialog__suppress {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	font-size: var(--font-size-sm);
+	color: var(--ink-secondary);
+	cursor: pointer;
+}
+
+.destructive-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--spacing-sm);
+	padding-top: var(--spacing-sm);
+}
+
+.btn--danger {
+	background: var(--error);
+	color: #fff;
+	border: none;
+}
+
+.btn--danger:hover:not(:disabled) {
+	background: #dc2626;
+}

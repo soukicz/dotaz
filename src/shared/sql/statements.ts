@@ -147,6 +147,116 @@ export function offsetToLineColumn(sql: string, offset: number): { line: number;
 }
 
 /**
+ * Strip string literals (single-quoted, double-quoted, dollar-quoted)
+ * and comments (line and block) from SQL, replacing them with spaces.
+ * Used for safe keyword detection without matching inside literals.
+ */
+function stripLiteralsAndComments(sql: string): string {
+	let result = "";
+	let i = 0;
+
+	while (i < sql.length) {
+		const ch = sql[i];
+		const next = i + 1 < sql.length ? sql[i + 1] : "";
+
+		// Line comment
+		if (ch === "-" && next === "-") {
+			const lineEnd = sql.indexOf("\n", i);
+			result += " ";
+			i = lineEnd === -1 ? sql.length : lineEnd + 1;
+			continue;
+		}
+
+		// Block comment
+		if (ch === "/" && next === "*") {
+			const endIdx = sql.indexOf("*/", i + 2);
+			result += " ";
+			i = endIdx === -1 ? sql.length : endIdx + 2;
+			continue;
+		}
+
+		// Dollar-quoted string
+		if (ch === "$") {
+			const tagMatch = sql.slice(i).match(/^(\$[a-zA-Z0-9_]*\$)/);
+			if (tagMatch) {
+				const tag = tagMatch[1];
+				const endIdx = sql.indexOf(tag, i + tag.length);
+				result += " ";
+				i = endIdx === -1 ? sql.length : endIdx + tag.length;
+				continue;
+			}
+		}
+
+		// Single-quoted string
+		if (ch === "'") {
+			result += " ";
+			i++;
+			while (i < sql.length) {
+				if (sql[i] === "'") {
+					i++;
+					if (i < sql.length && sql[i] === "'") {
+						i++;
+					} else {
+						break;
+					}
+				} else {
+					i++;
+				}
+			}
+			continue;
+		}
+
+		// Double-quoted identifier
+		if (ch === '"') {
+			result += " ";
+			i++;
+			while (i < sql.length) {
+				if (sql[i] === '"') {
+					i++;
+					if (i < sql.length && sql[i] === '"') {
+						i++;
+					} else {
+						break;
+					}
+				} else {
+					i++;
+				}
+			}
+			continue;
+		}
+
+		result += ch;
+		i++;
+	}
+
+	return result;
+}
+
+/**
+ * Detect if a SQL statement is a DELETE or UPDATE without a WHERE clause.
+ * Returns true if the statement would affect all rows in the table.
+ * Uses simple parsing — not 100% accurate for complex subqueries,
+ * but covers 95%+ of common cases.
+ */
+export function detectDestructiveWithoutWhere(sql: string): boolean {
+	const stripped = stripLiteralsAndComments(sql);
+	// Normalize whitespace and uppercase for keyword matching
+	const normalized = stripped.replace(/\s+/g, " ").trim().toUpperCase();
+
+	// Check for DELETE FROM without WHERE
+	if (/^DELETE\s/.test(normalized)) {
+		return !(/\bWHERE\b/.test(normalized));
+	}
+
+	// Check for UPDATE ... SET without WHERE
+	if (/^UPDATE\s/.test(normalized) && /\bSET\b/.test(normalized)) {
+		return !(/\bWHERE\b/.test(normalized));
+	}
+
+	return false;
+}
+
+/**
  * Extract error position from database error objects.
  * PostgreSQL errors include a `position` field (1-based character offset).
  * SQLite errors may include offset info in the message.

@@ -15,6 +15,7 @@ import DataGrid from "../grid/DataGrid";
 import SqlEditor from "../editor/SqlEditor";
 import QueryToolbar from "../editor/QueryToolbar";
 import SqlResultPanel from "../editor/SqlResultPanel";
+import DestructiveQueryDialog from "../editor/DestructiveQueryDialog";
 import SchemaViewer from "../schema/SchemaViewer";
 import type { ConnectionInfo } from "../../../shared/types/connection";
 import { tabsStore } from "../../stores/tabs";
@@ -660,6 +661,13 @@ export default function AppShell() {
 			<CommandPalette
 				open={paletteOpen()}
 				onClose={() => setPaletteOpen(false)}
+			/>
+
+			<DestructiveQueryDialog
+				open={editorStore.pendingDestructiveQuery !== null}
+				statements={editorStore.pendingDestructiveQuery?.statements ?? []}
+				onConfirm={(suppress) => editorStore.confirmDestructiveQuery(suppress)}
+				onCancel={() => editorStore.cancelDestructiveQuery()}
 			/>
 
 			<ToastContainer />

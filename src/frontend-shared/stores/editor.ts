@@ -1,9 +1,11 @@
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { QueryResult } from "../../shared/types/query";
 import { rpc, friendlyErrorMessage } from "../lib/rpc";
 import { storage } from "../lib/storage";
 import { createTabHelpers } from "../lib/tab-store-helpers";
 import { getStatementAtCursor } from "../lib/sql-utils";
+import { splitStatements, detectDestructiveWithoutWhere } from "../../shared/sql/statements";
 import { uiStore } from "./ui";
 
 // ── Types ─────────────────────────────────────────────────
@@ -57,6 +59,27 @@ interface EditorStoreState {
 const [state, setState] = createStore<EditorStoreState>({
 	tabs: {},
 });
+
+// ── Destructive query confirmation ────────────────────────
+
+export interface PendingDestructiveQuery {
+	tabId: string;
+	sql: string;
+	baseOffset: number;
+	statements: string[];
+}
+
+const [pendingDestructiveQuery, setPendingDestructiveQuery] = createSignal<PendingDestructiveQuery | null>(null);
+let suppressDestructiveWarning = false;
+
+/**
+ * Check if any statements in the SQL are destructive (DELETE/UPDATE) without WHERE.
+ * Returns the list of dangerous statements, or empty array if safe.
+ */
+function findDestructiveStatements(sql: string): string[] {
+	const statements = splitStatements(sql);
+	return statements.filter(detectDestructiveWithoutWhere);
+}
 
 // ── Internal helpers ──────────────────────────────────────
 
@@ -167,6 +190,17 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0) {
 	}
 }
 
+function checkAndRunQuery(tabId: string, sql: string, baseOffset = 0) {
+	if (!suppressDestructiveWarning) {
+		const dangerous = findDestructiveStatements(sql);
+		if (dangerous.length > 0) {
+			setPendingDestructiveQuery({ tabId, sql, baseOffset, statements: dangerous });
+			return;
+		}
+	}
+	runQuery(tabId, sql, baseOffset);
+}
+
 async function executeQuery(tabId: string) {
 	const tab = ensureTab(tabId);
 	const sql = tab.content.trim();
@@ -174,7 +208,7 @@ async function executeQuery(tabId: string) {
 
 	// Base offset accounts for leading whitespace stripped by trim()
 	const baseOffset = tab.content.length - tab.content.trimStart().length;
-	await runQuery(tabId, sql, baseOffset);
+	checkAndRunQuery(tabId, sql, baseOffset);
 }
 
 async function executeSelected(tabId: string, selectedText: string) {
@@ -182,21 +216,35 @@ async function executeSelected(tabId: string, selectedText: string) {
 	const sql = selectedText.trim();
 	if (!sql) return;
 
-	await runQuery(tabId, sql);
+	checkAndRunQuery(tabId, sql);
 }
 
 async function executeStatement(tabId: string) {
 	const tab = ensureTab(tabId);
 	// If text is selected, run that; otherwise detect statement at cursor
 	if (tab.selectedText.trim()) {
-		await runQuery(tabId, tab.selectedText.trim());
+		checkAndRunQuery(tabId, tab.selectedText.trim());
 		return;
 	}
 	const result = getStatementAtCursor(tab.content, tab.cursorPosition);
 	if (result) {
 		setState("tabs", tabId, "executedRange", { from: result.from, to: result.to });
-		await runQuery(tabId, result.text, result.from);
+		checkAndRunQuery(tabId, result.text, result.from);
 	}
+}
+
+function confirmDestructiveQuery(suppressForSession = false) {
+	const pending = pendingDestructiveQuery();
+	if (!pending) return;
+	if (suppressForSession) {
+		suppressDestructiveWarning = true;
+	}
+	setPendingDestructiveQuery(null);
+	runQuery(pending.tabId, pending.sql, pending.baseOffset);
+}
+
+function cancelDestructiveQuery() {
+	setPendingDestructiveQuery(null);
 }
 
 async function cancelQuery(tabId: string) {
@@ -283,4 +331,9 @@ export const editorStore = {
 	commitTransaction,
 	rollbackTransaction,
 	removeTab,
+	get pendingDestructiveQuery() {
+		return pendingDestructiveQuery();
+	},
+	confirmDestructiveQuery,
+	cancelDestructiveQuery,
 };
