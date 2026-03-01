@@ -111,6 +111,7 @@ export default function AppShell() {
 	}
 
 	onMount(() => {
+		connectionsStore.loadConnections();
 		registerCommands();
 		registerShortcuts();
 		keyboardManager.setContextProvider((): ShortcutContext => {

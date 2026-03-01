@@ -53,6 +53,13 @@ async function loadSchemaTree(connectionId: string) {
 async function loadConnections() {
 	const list = await rpc.connections.list();
 	setState("connections", list);
+	// Load schema trees for connections the backend reports as already connected
+	// (e.g. after a frontend-only reload while the backend stayed alive)
+	for (const conn of list) {
+		if (conn.state === "connected") {
+			loadSchemaTree(conn.id);
+		}
+	}
 }
 
 async function createConnection(name: string, config: ConnectionConfig): Promise<ConnectionInfo> {
