@@ -7,6 +7,7 @@ import { AppDatabase } from "../backend-shared/storage/app-db";
 import { ConnectionManager } from "../backend-shared/services/connection-manager";
 import { EncryptionService } from "../backend-shared/services/encryption";
 import { createHandlers } from "../backend-shared/rpc/rpc-handlers";
+import { DatabaseError } from "../shared/types/errors";
 
 const PORT = Number(process.env.DOTAZ_PORT) || 4200;
 const DIST_DIR = resolve(import.meta.dir, "../../dist");
@@ -38,6 +39,7 @@ function createSession(ws: { send(data: string): void }): Session {
 				connectionId: event.connectionId,
 				state: event.state,
 				error: event.error,
+				errorCode: event.errorCode,
 			},
 		}));
 	});
@@ -132,6 +134,7 @@ const server = Bun.serve<Session>({
 						id: msg.id,
 						success: false,
 						error: err?.message ?? String(err),
+						errorCode: err instanceof DatabaseError ? err.code : undefined,
 					}));
 				}
 			}

@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store";
 import type { QueryResult } from "../../shared/types/query";
-import { rpc } from "../lib/rpc";
+import { rpc, friendlyErrorMessage } from "../lib/rpc";
 import { storage } from "../lib/storage";
 import { createTabHelpers } from "../lib/tab-store-helpers";
 import { getStatementAtCursor } from "../lib/sql-utils";
@@ -143,7 +143,7 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0) {
 		if (state.tabs[tabId]?.queryId !== queryId) return;
 
 		const duration = Math.round(performance.now() - startTime);
-		const errorMessage = err instanceof Error ? err.message : String(err);
+		const errorMessage = friendlyErrorMessage(err);
 
 		setState("tabs", tabId, {
 			error: errorMessage,
@@ -201,8 +201,8 @@ async function cancelQuery(tabId: string) {
 
 	try {
 		await rpc.query.cancel({ queryId: tab.queryId });
-	} catch {
-		// Cancellation is best-effort
+	} catch (err) {
+		console.debug("Query cancellation failed:", err instanceof Error ? err.message : err);
 	}
 }
 
@@ -213,8 +213,8 @@ async function formatSql(tabId: string) {
 	try {
 		const result = await rpc.query.format({ sql: tab.content });
 		setState("tabs", tabId, "content", result.sql);
-	} catch {
-		// Format failure is non-critical
+	} catch (err) {
+		console.debug("SQL format failed:", err instanceof Error ? err.message : err);
 	}
 }
 
@@ -229,8 +229,7 @@ async function beginTransaction(tabId: string) {
 		await rpc.tx.begin({ connectionId: tab.connectionId, database: tab.database });
 		setState("tabs", tabId, "inTransaction", true);
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		setState("tabs", tabId, "error", errorMessage);
+		setState("tabs", tabId, "error", friendlyErrorMessage(err));
 	}
 }
 
@@ -242,8 +241,7 @@ async function commitTransaction(tabId: string) {
 		await rpc.tx.commit({ connectionId: tab.connectionId, database: tab.database });
 		setState("tabs", tabId, "inTransaction", false);
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		setState("tabs", tabId, "error", errorMessage);
+		setState("tabs", tabId, "error", friendlyErrorMessage(err));
 	}
 }
 
@@ -255,8 +253,7 @@ async function rollbackTransaction(tabId: string) {
 		await rpc.tx.rollback({ connectionId: tab.connectionId, database: tab.database });
 		setState("tabs", tabId, "inTransaction", false);
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		setState("tabs", tabId, "error", errorMessage);
+		setState("tabs", tabId, "error", friendlyErrorMessage(err));
 	}
 }
 

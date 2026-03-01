@@ -24,6 +24,7 @@ export interface QueryResult {
 	affectedRows?: number;
 	durationMs: number;
 	error?: string;
+	errorCode?: import("./errors").DatabaseErrorCode;
 	errorPosition?: ErrorPosition;
 }
 

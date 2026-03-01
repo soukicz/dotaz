@@ -9,6 +9,8 @@ import type {
 	TableInfo,
 } from "../../shared/types/database";
 import { getAffectedRowCount } from "../db/result-utils";
+import { mapMysqlError } from "../db/error-mapping";
+import { DatabaseError } from "../../shared/types/errors";
 
 /** Row shape from information_schema.columns */
 interface MysqlColumnRow {
@@ -87,7 +89,12 @@ export class MysqlDriver implements DatabaseDriver {
 		const url = `mysql://${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@${config.host}:${config.port}/${encodeURIComponent(config.database)}`;
 		this.db = new SQL({ url });
 		// Verify the connection works
-		await this.db`SELECT 1`;
+		try {
+			await this.db`SELECT 1`;
+		} catch (err) {
+			this.db = null;
+			throw err instanceof DatabaseError ? err : mapMysqlError(err);
+		}
 		this.connected = true;
 	}
 
@@ -136,6 +143,8 @@ export class MysqlDriver implements DatabaseDriver {
 				affectedRows: getAffectedRowCount(result),
 				durationMs,
 			};
+		} catch (err) {
+			throw err instanceof DatabaseError ? err : mapMysqlError(err);
 		} finally {
 			this.activeQuery = null;
 		}

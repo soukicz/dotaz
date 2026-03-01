@@ -9,6 +9,8 @@ import type {
 	TableInfo,
 } from "../../shared/types/database";
 import { getAffectedRowCount } from "../db/result-utils";
+import { mapPostgresError } from "../db/error-mapping";
+import { DatabaseError } from "../../shared/types/errors";
 
 /** Row shape from information_schema.columns joined with PK info */
 interface PgColumnRow {
@@ -80,7 +82,12 @@ export class PostgresDriver implements DatabaseDriver {
 		const url = `postgres://${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@${config.host}:${config.port}/${encodeURIComponent(config.database)}${sslParam}`;
 		this.db = new SQL({ url });
 		// Verify the connection works
-		await this.db`SELECT 1`;
+		try {
+			await this.db`SELECT 1`;
+		} catch (err) {
+			this.db = null;
+			throw err instanceof DatabaseError ? err : mapPostgresError(err);
+		}
 		this.connected = true;
 	}
 
@@ -127,6 +134,8 @@ export class PostgresDriver implements DatabaseDriver {
 				affectedRows: getAffectedRowCount(result),
 				durationMs,
 			};
+		} catch (err) {
+			throw err instanceof DatabaseError ? err : mapPostgresError(err);
 		} finally {
 			this.activeQuery = null;
 		}

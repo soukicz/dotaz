@@ -90,8 +90,8 @@ async function loadAvailableDatabases(connectionId: string) {
 	try {
 		const databases = await rpc.databases.list({ connectionId });
 		setState("availableDatabases", connectionId, databases);
-	} catch {
-		// Not a PostgreSQL connection or not connected
+	} catch (err) {
+		console.debug("Failed to load available databases:", err instanceof Error ? err.message : err);
 	}
 }
 
@@ -193,7 +193,7 @@ async function connectTo(id: string, password?: string) {
 		}
 		// Status will be updated via the statusChanged event
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
+		const message = friendlyErrorMessage(err);
 		updateConnectionState(id, "error", message);
 	}
 }
@@ -261,7 +261,11 @@ export function initConnectionsListener(): () => void {
 		if (event.state === "error" && event.error) {
 			const conn = state.connections.find((c) => c.id === event.connectionId);
 			const name = conn?.name ?? "Connection";
-			uiStore.addToast("error", `${name}: ${friendlyErrorMessage(event.error)}`);
+			// Create an error-like object with code for friendlyErrorMessage
+			const errObj = event.errorCode
+				? Object.assign(new Error(event.error), { code: event.errorCode })
+				: event.error;
+			uiStore.addToast("error", `${name}: ${friendlyErrorMessage(errObj)}`);
 		}
 	});
 }

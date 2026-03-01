@@ -15,11 +15,14 @@ import {
 	CONNECTION_TYPE_META,
 } from "../../shared/types/connection";
 import type { DatabaseInfo } from "../../shared/types/database";
+import type { DatabaseErrorCode } from "../../shared/types/errors";
+import { DatabaseError } from "../../shared/types/errors";
 
 export interface StatusChangeEvent {
 	connectionId: string;
 	state: ConnectionState;
 	error?: string;
+	errorCode?: DatabaseErrorCode;
 }
 
 export type StatusChangeListener = (event: StatusChangeEvent) => void;
@@ -118,7 +121,8 @@ export class ConnectionManager {
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Unknown connection error";
-			this.setConnectionState(connectionId, "error", message);
+			const errorCode = err instanceof DatabaseError ? err.code : undefined;
+			this.setConnectionState(connectionId, "error", message, errorCode);
 			throw err;
 		}
 	}
@@ -556,10 +560,11 @@ export class ConnectionManager {
 		connectionId: string,
 		state: ConnectionState,
 		error?: string,
+		errorCode?: DatabaseErrorCode,
 	): void {
 		this.states.set(connectionId, { state, error });
 		for (const listener of this.listeners) {
-			listener({ connectionId, state, error });
+			listener({ connectionId, state, error, errorCode });
 		}
 	}
 }

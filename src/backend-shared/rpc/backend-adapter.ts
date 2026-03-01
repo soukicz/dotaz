@@ -127,7 +127,7 @@ export class BackendAdapter implements RpcAdapter {
 			return results;
 		} catch (err) {
 			if (!inExistingTx) {
-				try { await driver.rollback(); } catch { /* don't mask original error */ }
+				try { await driver.rollback(); } catch (rbErr) { console.debug("Rollback after error failed:", rbErr instanceof Error ? rbErr.message : rbErr); }
 			}
 			throw err;
 		}

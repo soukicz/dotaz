@@ -12,6 +12,8 @@ import type {
 	ReferencingForeignKeyInfo,
 } from "../../shared/types/database";
 import { getAffectedRowCount } from "../db/result-utils";
+import { mapSqliteError } from "../db/error-mapping";
+import { DatabaseError } from "../../shared/types/errors";
 
 /** Row shape from sqlite_master */
 interface SqliteMasterRow {
@@ -59,9 +61,14 @@ export class SqliteDriver implements DatabaseDriver {
 		if (config.type !== "sqlite") {
 			throw new Error("SqliteDriver requires a sqlite connection config");
 		}
-		this.db = new SQL(`sqlite:${config.path}`);
-		await this.db.unsafe("PRAGMA journal_mode = WAL");
-		await this.db.unsafe("PRAGMA foreign_keys = ON");
+		try {
+			this.db = new SQL(`sqlite:${config.path}`);
+			await this.db.unsafe("PRAGMA journal_mode = WAL");
+			await this.db.unsafe("PRAGMA foreign_keys = ON");
+		} catch (err) {
+			this.db = null;
+			throw err instanceof DatabaseError ? err : mapSqliteError(err);
+		}
 		this.connected = true;
 	}
 
@@ -81,22 +88,26 @@ export class SqliteDriver implements DatabaseDriver {
 	async execute(sql: string, params?: unknown[]): Promise<QueryResult> {
 		this.ensureConnected();
 		const start = performance.now();
-		const result = await this.db!.unsafe(sql, params ?? []);
-		const durationMs = Math.round(performance.now() - start);
-		const rows = [...result] as Record<string, unknown>[];
+		try {
+			const result = await this.db!.unsafe(sql, params ?? []);
+			const durationMs = Math.round(performance.now() - start);
+			const rows = [...result] as Record<string, unknown>[];
 
-		const columns: QueryResultColumn[] =
-			rows.length > 0
-				? Object.keys(rows[0]).map((name) => ({ name, dataType: "unknown" }))
-				: [];
+			const columns: QueryResultColumn[] =
+				rows.length > 0
+					? Object.keys(rows[0]).map((name) => ({ name, dataType: "unknown" }))
+					: [];
 
-		return {
-			columns,
-			rows,
-			rowCount: rows.length,
-			affectedRows: getAffectedRowCount(result),
-			durationMs,
-		};
+			return {
+				columns,
+				rows,
+				rowCount: rows.length,
+				affectedRows: getAffectedRowCount(result),
+				durationMs,
+			};
+		} catch (err) {
+			throw err instanceof DatabaseError ? err : mapSqliteError(err);
+		}
 	}
 
 	async cancel(): Promise<void> {

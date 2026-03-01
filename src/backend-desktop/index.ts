@@ -74,6 +74,7 @@ connectionManager.onStatusChanged((event) => {
 		connectionId: event.connectionId,
 		state: event.state,
 		error: event.error,
+		errorCode: event.errorCode,
 	});
 });
 

@@ -4,6 +4,7 @@
 import { transport } from "./transport";
 import type { NamespacedRpcClient } from "../../backend-types";
 import type { ConnectionState } from "../../shared/types/connection";
+import type { DatabaseErrorCode } from "../../shared/types/errors";
 
 export { RpcError, friendlyErrorMessage } from "./rpc-errors";
 import { RpcError } from "./rpc-errors";
@@ -31,7 +32,7 @@ export const rpc: NamespacedRpcClient = new Proxy({} as NamespacedRpcClient, {
 /** Subscribe to backend → frontend notifications */
 export const messages = {
 	onConnectionStatusChanged: (
-		handler: (event: { connectionId: string; state: ConnectionState; error?: string }) => void,
+		handler: (event: { connectionId: string; state: ConnectionState; error?: string; errorCode?: DatabaseErrorCode }) => void,
 	) => {
 		return transport.addMessageListener("connections.statusChanged", handler);
 	},

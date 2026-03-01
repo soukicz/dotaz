@@ -59,7 +59,8 @@ export function createWebSocketTransport(): RpcTransport {
 				let msg: any;
 				try {
 					msg = JSON.parse(event.data);
-				} catch {
+				} catch (err) {
+					console.debug("Failed to parse WebSocket message:", err instanceof Error ? err.message : err);
 					return;
 				}
 
@@ -70,7 +71,9 @@ export function createWebSocketTransport(): RpcTransport {
 						if (msg.success) {
 							req.resolve(msg.payload);
 						} else {
-							req.reject(new Error(msg.error ?? "RPC error"));
+							const err = new Error(msg.error ?? "RPC error");
+							if (msg.errorCode) (err as any).code = msg.errorCode;
+							req.reject(err);
 						}
 					}
 				} else if (msg.type === "message") {

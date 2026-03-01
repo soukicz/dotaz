@@ -3,6 +3,7 @@ import type { QueryResult } from "../../shared/types/query";
 import type { ConnectionManager } from "./connection-manager";
 import type { AppDatabase } from "../storage/app-db";
 import { splitStatements, parseErrorPosition } from "../../shared/sql/statements";
+import { DatabaseError } from "../../shared/types/errors";
 
 // Re-export shared SQL utilities for backward compatibility
 export type { WhereClauseResult, GeneratedStatement } from "../../shared/sql/builders";
@@ -111,8 +112,8 @@ export class QueryExecutor {
 		try {
 			const driver = this.connectionManager.getDriver(entry.connectionId);
 			await driver.cancel();
-		} catch {
-			// Driver may already have completed; ignore cancel errors
+		} catch (err) {
+			console.debug("Cancel query failed (driver may have completed):", err instanceof Error ? err.message : err);
 		}
 
 		return true;
@@ -157,6 +158,7 @@ export class QueryExecutor {
 			}
 
 			const errorPosition = parseErrorPosition(err, sql);
+			const errorCode = err instanceof DatabaseError ? err.code : undefined;
 
 			return {
 				columns: [],
@@ -164,6 +166,7 @@ export class QueryExecutor {
 				rowCount: 0,
 				durationMs,
 				error: err instanceof Error ? err.message : String(err),
+				errorCode,
 				errorPosition,
 			};
 		} finally {
@@ -196,8 +199,8 @@ export class QueryExecutor {
 				rowCount: totalRows,
 				errorMessage,
 			});
-		} catch {
-			// Don't let history logging failures break query execution
+		} catch (err) {
+			console.debug("History logging failed:", err instanceof Error ? err.message : err);
 		}
 	}
 }
