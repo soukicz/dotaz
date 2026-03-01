@@ -1,4 +1,4 @@
-import type { DatabaseDriver } from "../bun/db/driver";
+import type { DatabaseDriver } from "../backend-shared/db/driver";
 import type { ConnectionConfig } from "../shared/types/connection";
 import type { QueryResult, QueryResultColumn } from "../shared/types/query";
 import type {

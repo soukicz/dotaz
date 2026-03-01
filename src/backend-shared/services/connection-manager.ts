@@ -1,7 +1,7 @@
 import type { DatabaseDriver } from "../db/driver";
-import { PostgresDriver } from "../db/postgres-driver";
-import { SqliteDriver } from "../db/sqlite-driver";
-import { MysqlDriver } from "../db/mysql-driver";
+import { PostgresDriver } from "../drivers/postgres-driver";
+import { SqliteDriver } from "../drivers/sqlite-driver";
+import { MysqlDriver } from "../drivers/mysql-driver";
 import type { AppDatabase } from "../storage/app-db";
 import type {
 	ConnectionConfig,

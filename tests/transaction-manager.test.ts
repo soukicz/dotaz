@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { AppDatabase } from "../src/bun/storage/app-db";
-import { ConnectionManager } from "../src/bun/services/connection-manager";
-import { TransactionManager } from "../src/bun/services/transaction-manager";
+import { AppDatabase } from "../src/backend-shared/storage/app-db";
+import { ConnectionManager } from "../src/backend-shared/services/connection-manager";
+import { TransactionManager } from "../src/backend-shared/services/transaction-manager";
 import type { SqliteConnectionConfig } from "../src/shared/types/connection";
 
 const sqliteConfig: SqliteConnectionConfig = {

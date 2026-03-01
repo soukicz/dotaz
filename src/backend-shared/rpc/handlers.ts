@@ -1,11 +1,11 @@
 import type { RpcAdapter } from "./adapter";
-import type { ExportOptions, ExportPreviewRequest } from "../types/export";
+import type { ExportOptions, ExportPreviewRequest } from "../../shared/types/export";
 import type {
 	HistoryListParams,
 	SavedViewConfig,
 	OpenDialogParams,
 	SaveDialogParams,
-} from "../types/rpc";
+} from "../../shared/types/rpc";
 
 export function createHandlers(adapter: RpcAdapter) {
 	return {

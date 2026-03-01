@@ -1,7 +1,7 @@
-import type { RpcAdapter } from "../shared/rpc/adapter";
+import type { RpcAdapter } from "../backend-shared/rpc/adapter";
 import type { WasmSqliteDriver } from "./wasm-sqlite-driver";
 import type { DemoAppState } from "./demo-state";
-import type { DatabaseDriver } from "../bun/db/driver";
+import type { DatabaseDriver } from "../backend-shared/db/driver";
 import type { ConnectionConfig, ConnectionInfo } from "../shared/types/connection";
 import type { DatabaseInfo } from "../shared/types/database";
 import type { QueryResult, QueryHistoryEntry, QueryHistoryStatus } from "../shared/types/query";
@@ -12,8 +12,8 @@ import type {
 	HistoryListParams,
 } from "../shared/types/rpc";
 import { splitStatements } from "../shared/sql/statements";
-import { exportPreview as generateExportPreview } from "../bun/services/export-service";
-import { formatSql } from "../bun/services/sql-formatter";
+import { exportPreview as generateExportPreview } from "../backend-shared/services/export-service";
+import { formatSql } from "../backend-shared/services/sql-formatter";
 
 type EmitMessage = (channel: string, payload: any) => void;
 

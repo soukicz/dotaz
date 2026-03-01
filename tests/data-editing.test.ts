@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { AppDatabase } from "../src/bun/storage/app-db";
-import { ConnectionManager } from "../src/bun/services/connection-manager";
+import { AppDatabase } from "../src/backend-shared/storage/app-db";
+import { ConnectionManager } from "../src/backend-shared/services/connection-manager";
 import { createHandlers } from "../src/bun/rpc-handlers";
 import {
 	generateInsert,
@@ -9,9 +9,9 @@ import {
 	generateChangeSql,
 	generateChangePreview,
 	generateChangesPreview,
-} from "../src/bun/services/query-executor";
+} from "../src/backend-shared/services/query-executor";
 import type { DataChange } from "../src/shared/types/rpc";
-import type { DatabaseDriver } from "../src/bun/db/driver";
+import type { DatabaseDriver } from "../src/backend-shared/db/driver";
 import type { SqliteConnectionConfig } from "../src/shared/types/connection";
 
 // ── Helpers ──────────────────────────────────────────────────

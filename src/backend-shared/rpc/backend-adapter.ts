@@ -1,4 +1,4 @@
-import type { RpcAdapter } from "../../shared/rpc/adapter";
+import type { RpcAdapter } from "./adapter";
 import type { ConnectionManager } from "../services/connection-manager";
 import type { QueryExecutor } from "../services/query-executor";
 import type { AppDatabase } from "../storage/app-db";

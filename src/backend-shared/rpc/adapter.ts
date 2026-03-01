@@ -1,15 +1,15 @@
-import type { DatabaseDriver } from "../../bun/db/driver";
-import type { ConnectionConfig, ConnectionInfo } from "../types/connection";
-import type { DatabaseInfo } from "../types/database";
-import type { QueryResult, QueryHistoryEntry } from "../types/query";
-import type { ExportOptions, ExportPreviewRequest, ExportResult } from "../types/export";
+import type { DatabaseDriver } from "../db/driver";
+import type { ConnectionConfig, ConnectionInfo } from "../../shared/types/connection";
+import type { DatabaseInfo } from "../../shared/types/database";
+import type { QueryResult, QueryHistoryEntry } from "../../shared/types/query";
+import type { ExportOptions, ExportPreviewRequest, ExportResult } from "../../shared/types/export";
 import type {
 	SavedView,
 	SavedViewConfig,
 	HistoryListParams,
 	OpenDialogParams,
 	SaveDialogParams,
-} from "../types/rpc";
+} from "../../shared/types/rpc";
 
 export interface RpcAdapter {
 	// ── Connections ────────────────────────────────────────

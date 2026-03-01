@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import { AppDatabase } from "../src/bun/storage/app-db";
-import { ConnectionManager } from "../src/bun/services/connection-manager";
-import type { StatusChangeEvent } from "../src/bun/services/connection-manager";
+import { AppDatabase } from "../src/backend-shared/storage/app-db";
+import { ConnectionManager } from "../src/backend-shared/services/connection-manager";
+import type { StatusChangeEvent } from "../src/backend-shared/services/connection-manager";
 import type {
 	ConnectionConfig,
 	PostgresConnectionConfig,

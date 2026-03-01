@@ -5,7 +5,7 @@
  * Run: bun test tests/sqlite-driver.test.ts
  */
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { SqliteDriver } from "../src/bun/db/sqlite-driver";
+import { SqliteDriver } from "../src/backend-shared/drivers/sqlite-driver";
 
 let driver: SqliteDriver;
 

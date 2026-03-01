@@ -8,7 +8,7 @@
  * Run: bun test tests/mysql-driver.test.ts
  */
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { MysqlDriver } from "../src/bun/db/mysql-driver";
+import { MysqlDriver } from "../src/backend-shared/drivers/mysql-driver";
 import type { MysqlConnectionConfig } from "../src/shared/types/connection";
 import { seedMysql } from "./helpers";
 

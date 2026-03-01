@@ -1,5 +1,5 @@
 import { SQL } from "bun";
-import type { DatabaseDriver } from "./driver";
+import type { DatabaseDriver } from "../db/driver";
 import type { ConnectionConfig } from "../../shared/types/connection";
 import type { QueryResult, QueryResultColumn } from "../../shared/types/query";
 import type {

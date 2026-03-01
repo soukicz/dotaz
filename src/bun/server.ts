@@ -3,9 +3,9 @@
 // Each WebSocket connection gets its own isolated session (AppDatabase, ConnectionManager, handlers)
 
 import { resolve } from "path";
-import { AppDatabase } from "./storage/app-db";
-import { ConnectionManager } from "./services/connection-manager";
-import { EncryptionService } from "./services/encryption";
+import { AppDatabase } from "../backend-shared/storage/app-db";
+import { ConnectionManager } from "../backend-shared/services/connection-manager";
+import { EncryptionService } from "../backend-shared/services/encryption";
 import { createHandlers } from "./rpc-handlers";
 
 const PORT = Number(process.env.DOTAZ_PORT) || 4200;

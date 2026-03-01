@@ -1,7 +1,7 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
-import { exportToFile, exportPreview } from "../src/bun/services/export-service";
-import type { ExportParams } from "../src/bun/services/export-service";
-import type { DatabaseDriver } from "../src/bun/db/driver";
+import { exportToFile, exportPreview } from "../src/backend-shared/services/export-service";
+import type { ExportParams } from "../src/backend-shared/services/export-service";
+import type { DatabaseDriver } from "../src/backend-shared/db/driver";
 import type { QueryResult } from "../src/shared/types/query";
 import { existsSync, unlinkSync, mkdtempSync, rmdirSync } from "fs";
 import { tmpdir } from "os";

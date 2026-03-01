@@ -9,11 +9,11 @@ import {
 	QueryExecutor,
 	offsetToLineColumn,
 	parseErrorPosition,
-} from "../src/bun/services/query-executor";
-import type { DatabaseDriver } from "../src/bun/db/driver";
+} from "../src/backend-shared/services/query-executor";
+import type { DatabaseDriver } from "../src/backend-shared/db/driver";
 import type { ColumnFilter, SortColumn } from "../src/shared/types/grid";
 import type { QueryResult } from "../src/shared/types/query";
-import type { ConnectionManager } from "../src/bun/services/connection-manager";
+import type { ConnectionManager } from "../src/backend-shared/services/connection-manager";
 
 // Minimal mock driver for quoteIdentifier, getDriverType, qualifyTable, emptyInsertSql
 function mockDriver(type: "postgresql" | "sqlite" | "mysql" = "postgresql"): DatabaseDriver {

@@ -8,7 +8,7 @@
  * Run: bun test tests/pg-driver.test.ts
  */
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { PostgresDriver } from "../src/bun/db/postgres-driver";
+import { PostgresDriver } from "../src/backend-shared/drivers/postgres-driver";
 import type { PostgresConnectionConfig } from "../src/shared/types/connection";
 import { seedPostgres } from "./helpers";
 

@@ -2,8 +2,8 @@ import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import Electrobun from "electrobun/bun";
 import { ApplicationMenu, BrowserView, BrowserWindow, Updater, Utils } from "electrobun/bun";
-import { AppDatabase, setDefaultDbPath } from "./storage/app-db";
-import { ConnectionManager } from "./services/connection-manager";
+import { AppDatabase, setDefaultDbPath } from "../backend-shared/storage/app-db";
+import { ConnectionManager } from "../backend-shared/services/connection-manager";
 import { createRPC, setupStatusNotifications } from "./rpc-handlers";
 
 const DEV_SERVER_PORT = 5173;

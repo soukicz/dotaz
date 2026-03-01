@@ -1,4 +1,4 @@
-import type { createHandlers } from "./handlers";
+import type { createHandlers } from "../../backend-shared/rpc/handlers";
 
 /** The full handler map returned by createHandlers(). */
 export type HandlerMap = ReturnType<typeof createHandlers>;

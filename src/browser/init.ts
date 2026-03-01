@@ -1,7 +1,7 @@
 import { WasmSqliteDriver } from "./wasm-sqlite-driver";
 import { DemoAppState } from "./demo-state";
 import { DemoAdapter } from "./demo-adapter";
-import { createHandlers } from "../shared/rpc/handlers";
+import { createHandlers } from "../backend-shared/rpc/handlers";
 import bookstoreDbUrl from "../../scripts/seed/bookstore.db?url";
 
 type EmitMessage = (channel: string, payload: any) => void;

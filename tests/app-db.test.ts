@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { AppDatabase } from "../src/bun/storage/app-db";
-import { getSchemaVersion } from "../src/bun/storage/migrations";
+import { AppDatabase } from "../src/backend-shared/storage/app-db";
+import { getSchemaVersion } from "../src/backend-shared/storage/migrations";
 import type { PostgresConnectionConfig, SqliteConnectionConfig } from "../src/shared/types/connection";
 
 describe("AppDatabase", () => {
