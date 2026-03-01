@@ -17,11 +17,71 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-## Next Issues
+## Phase 8 — PRD Gaps
 
-<!-- New issues start from DOTAZ-054. Place issue files in docs/issues/DOTAZ-{NNN}.md -->
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-054 | SSL mode for PostgreSQL connections | not started | FR-CONN-01: currently boolean, not functional |
+| DOTAZ-055 | Quick full-text search in data grid | not started | FR-GRID-03: missing quick search across all columns |
+| DOTAZ-056 | Run current SQL statement at cursor position | not started | FR-SQL-03: only Run All and Run Selected exist |
+| DOTAZ-057 | SQL error position highlighting | not started | FR-SQL-04: errors lack line/column info |
+| DOTAZ-058 | Reverse FK — display referencing records in row detail | not started | FR-FK-03: only forward FK navigation exists |
+| DOTAZ-059 | CSV export encoding configuration | not started | FR-EXP-01: delimiter configurable, encoding not |
+| DOTAZ-060 | Query history time range filtering | not started | FR-HIST-02: text + connection filter only |
+| DOTAZ-061 | Encrypt connection passwords in local storage | not started | NFR-04: plaintext in local SQLite |
 
-*No active issues.*
+---
+
+## Phase 8.5 — Tech Debt
+
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-080 | Fix type safety at RPC boundary | not started | Remove `any` casts in RPC handlers, drivers, transport |
+| DOTAZ-081 | Extract duplicated frontend utilities | not started | Column type helpers, tab store helpers, requireAppDb |
+| DOTAZ-082 | Standardize error handling with domain error types | not started | Error hierarchy with codes, consistent handling across layers |
+| DOTAZ-083 | Driver-aware query placeholder generation | not started | Fix fragile MySQL `$N` → `?` regex conversion |
+| DOTAZ-084 | Improve shared domain model type safety | not started | DataChange discriminated union, DatabaseDataType enum |
+| DOTAZ-085 | AppDatabase transaction wrapping and storage improvements | not started | Atomic restores, history pruning, typed settings, pool limits |
+| DOTAZ-086 | Frontend architecture cleanup | not started | Centralize layout constants, fix command registry leak, IndexedDB error handling |
+
+---
+
+## Phase 9 — Backlog Tier 1 (Quick Wins)
+
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-062 | Aggregate view for cell selection | not started | SUM, COUNT, AVG, MIN, MAX over selected cells |
+| DOTAZ-063 | Quick value shortcuts during cell editing | not started | n→NULL, t→true, f→false, d→DEFAULT |
+| DOTAZ-064 | Warning for DELETE/UPDATE without WHERE clause | not started | Confirmation dialog for destructive SQL |
+| DOTAZ-065 | Read-only mode per connection | not started | Disable editing, warn on DML |
+| DOTAZ-066 | Transpose view for data grid | not started | Rows↔columns for wide tables |
+
+---
+
+## Phase 10 — Backlog Tier 2 (Medium Effort)
+
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-067 | EXPLAIN plan visualization | not started | Tree view of execution plan |
+| DOTAZ-068 | Data import (CSV/JSON into table) | not started | Counterpart to export |
+| DOTAZ-069 | Value editor side panel | not started | JSON/text/binary editor panel |
+| DOTAZ-070 | Additional export formats (Markdown, SQL UPDATE, HTML) | not started | Extend existing export |
+| DOTAZ-071 | Data comparison (side-by-side diff) | not started | Compare tables/query results |
+
+---
+
+## Phase 11 — Backlog Tier 3 (Nice-to-have)
+
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-072 | JOIN autocompletion with FK awareness | not started | Auto-complete JOIN ON from FK |
+| DOTAZ-073 | Pin result tabs in SQL console | not started | Preserve results across queries |
+| DOTAZ-074 | SQL query bookmarks | not started | Save favorite queries |
+| DOTAZ-075 | Full-text search across database tables | not started | Search text in all tables |
+| DOTAZ-076 | Grid heatmaps for numeric columns | not started | Color scales for data visualization |
+| DOTAZ-077 | Multiple cursors in SQL editor | not started | Multi-cursor via CodeMirror |
+| DOTAZ-078 | Connection color coding | not started | Color connections by environment |
+| DOTAZ-079 | Editable query results | not started | Edit cells in SELECT results |
 
 ---
 
