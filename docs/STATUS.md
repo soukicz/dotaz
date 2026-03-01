@@ -62,7 +62,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-067 | EXPLAIN plan visualization | in progress | Tree view of execution plan |
+| DOTAZ-067 | EXPLAIN plan visualization | done | ExplainNode tree type, PG JSON + SQLite EXPLAIN QUERY PLAN parsing, query.explain RPC, ExplainPanel with tree/raw toggle, Ctrl+E/Ctrl+Shift+E shortcuts, cost-colored nodes |
 | DOTAZ-068 | Data import (CSV/JSON into table) | not started | Counterpart to export |
 | DOTAZ-069 | Value editor side panel | not started | JSON/text/binary editor panel |
 | DOTAZ-070 | Additional export formats (Markdown, SQL UPDATE, HTML) | not started | Extend existing export |
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-01 — DOTAZ-066 done*
+*Last updated: 2026-03-01 — DOTAZ-067 done*
 
