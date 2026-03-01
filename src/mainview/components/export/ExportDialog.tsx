@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import type {
 	ExportFormat,
 	CsvDelimiter,
+	CsvEncoding,
 	ExportPreviewRequest,
 } from "../../../shared/types/export";
 import type { ColumnFilter, SortColumn } from "../../../shared/types/grid";
@@ -30,6 +31,12 @@ const FORMAT_LABELS: Record<ExportFormat, string> = {
 	sql: "SQL INSERT",
 };
 
+const ENCODING_LABELS: Record<CsvEncoding, string> = {
+	"utf-8": "UTF-8",
+	"iso-8859-1": "ISO-8859-1 (Latin-1)",
+	"windows-1252": "Windows-1252",
+};
+
 const DELIMITER_LABELS: Record<CsvDelimiter, string> = {
 	",": "Comma (,)",
 	";": "Semicolon (;)",
@@ -46,6 +53,8 @@ export default function ExportDialog(props: ExportDialogProps) {
 	const [format, setFormat] = createSignal<ExportFormat>("csv");
 	const [scope, setScope] = createSignal<ExportScope>("all");
 	const [delimiter, setDelimiter] = createSignal<CsvDelimiter>(",");
+	const [encoding, setEncoding] = createSignal<CsvEncoding>("utf-8");
+	const [utf8Bom, setUtf8Bom] = createSignal(false);
 	const [includeHeaders, setIncludeHeaders] = createSignal(true);
 	const [batchSize, setBatchSize] = createSignal(100);
 	const [preview, setPreview] = createSignal("");
@@ -90,6 +99,8 @@ export default function ExportDialog(props: ExportDialogProps) {
 			setFormat("csv");
 			setScope("all");
 			setDelimiter(",");
+			setEncoding("utf-8");
+			setUtf8Bom(false);
 			setIncludeHeaders(true);
 			setBatchSize(100);
 			setPreview("");
@@ -194,6 +205,8 @@ export default function ExportDialog(props: ExportDialogProps) {
 				format: format(),
 				filePath: saveResult.path,
 				delimiter: format() === "csv" ? delimiter() : undefined,
+				encoding: format() === "csv" ? encoding() : undefined,
+				utf8Bom: format() === "csv" && encoding() === "utf-8" ? utf8Bom() : undefined,
 				includeHeaders: format() === "csv" ? includeHeaders() : undefined,
 				batchSize: format() === "sql" ? batchSize() : undefined,
 				filters: getExportFilters(),
@@ -300,6 +313,20 @@ export default function ExportDialog(props: ExportDialogProps) {
 									</For>
 								</select>
 							</div>
+							<div class="export-dialog__field">
+								<label class="export-dialog__field-label">Encoding</label>
+								<select
+									class="export-dialog__select"
+									value={encoding()}
+									onChange={(e) => setEncoding(e.currentTarget.value as CsvEncoding)}
+								>
+									<For each={Object.entries(ENCODING_LABELS)}>
+										{([value, label]) => (
+											<option value={value}>{label}</option>
+										)}
+									</For>
+								</select>
+							</div>
 							<label class="export-dialog__checkbox-label">
 								<input
 									type="checkbox"
@@ -308,6 +335,16 @@ export default function ExportDialog(props: ExportDialogProps) {
 								/>
 								Include column headers
 							</label>
+							<Show when={encoding() === "utf-8"}>
+								<label class="export-dialog__checkbox-label">
+									<input
+										type="checkbox"
+										checked={utf8Bom()}
+										onChange={(e) => setUtf8Bom(e.currentTarget.checked)}
+									/>
+									Include BOM (byte order mark)
+								</label>
+							</Show>
 						</div>
 					</div>
 				</Show>

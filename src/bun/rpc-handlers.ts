@@ -209,6 +209,8 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 				columns: opts.columns,
 				includeHeaders: opts.includeHeaders,
 				delimiter: opts.delimiter,
+				encoding: opts.encoding,
+				utf8Bom: opts.utf8Bom,
 				batchSize: opts.batchSize,
 				filters: opts.filters,
 				sort: opts.sort,

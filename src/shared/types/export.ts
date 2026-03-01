@@ -6,6 +6,8 @@ export type ExportFormat = "csv" | "json" | "sql";
 
 export type CsvDelimiter = "," | ";" | "\t";
 
+export type CsvEncoding = "utf-8" | "iso-8859-1" | "windows-1252";
+
 export interface ExportOptions {
 	connectionId: string;
 	schema: string;
@@ -20,6 +22,10 @@ export interface ExportOptions {
 	includeHeaders?: boolean;
 	/** CSV delimiter (default: comma) */
 	delimiter?: CsvDelimiter;
+	/** CSV character encoding (default: utf-8) */
+	encoding?: CsvEncoding;
+	/** Include UTF-8 BOM (CSV only, default false) */
+	utf8Bom?: boolean;
 	/** Batch size for SQL INSERT (default: 100) */
 	batchSize?: number;
 	/** Active filters to apply */

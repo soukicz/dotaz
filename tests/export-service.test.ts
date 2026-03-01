@@ -190,6 +190,114 @@ describe("CSV export", () => {
 	});
 });
 
+// ── CSV Encoding ──────────────────────────────────────────
+
+describe("CSV encoding", () => {
+	test("default encoding is UTF-8", async () => {
+		const rows = [{ id: 1, name: "Ñoño" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		// UTF-8 encoding of Ñ is 0xC3 0x91
+		const content = new TextDecoder("utf-8").decode(bytes);
+		expect(content).toContain("Ñoño");
+	});
+
+	test("UTF-8 with BOM", async () => {
+		const rows = [{ id: 1, name: "Alice" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "utf-8", utf8Bom: true,
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		// BOM bytes: 0xEF 0xBB 0xBF
+		expect(bytes[0]).toBe(0xEF);
+		expect(bytes[1]).toBe(0xBB);
+		expect(bytes[2]).toBe(0xBF);
+	});
+
+	test("UTF-8 without BOM by default", async () => {
+		const rows = [{ id: 1, name: "Alice" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "utf-8",
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		// No BOM — first byte should be 'i' (from "id" header)
+		expect(bytes[0]).toBe(0x69); // 'i'
+	});
+
+	test("ISO-8859-1 encoding for Latin characters", async () => {
+		const rows = [{ id: 1, name: "café" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "iso-8859-1",
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		const content = new TextDecoder("iso-8859-1").decode(bytes);
+		expect(content).toContain("café");
+		// Verify é is encoded as single byte 0xE9 in ISO-8859-1
+		const dataLine = content.split("\n")[1];
+		expect(dataLine).toBe("1,café");
+	});
+
+	test("Windows-1252 encoding with special characters", async () => {
+		// € is U+20AC, which maps to 0x80 in Windows-1252
+		const rows = [{ id: 1, price: "€100" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "windows-1252",
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		const content = new TextDecoder("windows-1252").decode(bytes);
+		expect(content).toContain("€100");
+	});
+
+	test("ISO-8859-1 replaces unmappable characters with ?", async () => {
+		// € (U+20AC) cannot be represented in ISO-8859-1
+		const rows = [{ id: 1, price: "€50" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "iso-8859-1",
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		const content = new TextDecoder("iso-8859-1").decode(bytes);
+		expect(content).toContain("?50");
+	});
+
+	test("BOM is not included for non-UTF-8 encodings", async () => {
+		const rows = [{ id: 1, name: "test" }];
+		const driver = mockDriverBatched(rows);
+		const filePath = join(tmpDir, "test.csv");
+
+		await exportToFile(driver, {
+			...baseParams, format: "csv", encoding: "iso-8859-1", utf8Bom: true,
+		}, filePath);
+
+		const bytes = new Uint8Array(await Bun.file(filePath).arrayBuffer());
+		// Should NOT start with BOM
+		expect(bytes[0]).not.toBe(0xEF);
+	});
+});
+
 // ── JSON Export ────────────────────────────────────────────
 
 describe("JSON export", () => {

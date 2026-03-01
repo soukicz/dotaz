@@ -26,7 +26,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-056 | Run current SQL statement at cursor position | done | getStatementAtCursor returns range, CodeMirror flash highlight, Ctrl+Shift+Enter shortcut, toolbar button |
 | DOTAZ-057 | SQL error position highlighting | done | ErrorPosition type, PG position + SQLite offset parsing, result panel display, CodeMirror underline decoration |
 | DOTAZ-058 | Reverse FK — display referencing records in row detail | done | ReferencingForeignKeyInfo type, driver implementations (PG/SQLite/MySQL/WASM), RPC endpoint, Referenced By section in RowDetailDialog with counts and navigation |
-| DOTAZ-059 | CSV export encoding configuration | not started | FR-EXP-01: delimiter configurable, encoding not |
+| DOTAZ-059 | CSV export encoding configuration | done | CsvEncoding type, encoding dropdown + BOM toggle in ExportDialog, backend encoder for UTF-8/ISO-8859-1/Windows-1252 |
 | DOTAZ-060 | Query history time range filtering | not started | FR-HIST-02: text + connection filter only |
 | DOTAZ-061 | Encrypt connection passwords in local storage | not started | NFR-04: plaintext in local SQLite |
 
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-01 — DOTAZ-058 done*
+*Last updated: 2026-03-01 — DOTAZ-059 done*
 
