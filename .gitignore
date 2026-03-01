@@ -7,3 +7,5 @@ artifacts/
 
 # Seed demo databases
 scripts/seed/*.db
+scripts/seed/*.db-shm
+scripts/seed/*.db-wal
