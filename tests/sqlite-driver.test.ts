@@ -6,11 +6,10 @@
  */
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { SqliteDriver } from "../src/bun/db/sqlite-driver";
-import type { DatabaseDriver } from "../src/bun/db/driver";
 
 let driver: SqliteDriver;
 
-async function seedTestData(d: DatabaseDriver) {
+async function seedTestData(d: SqliteDriver) {
 	await d.execute(`
 		CREATE TABLE users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,39 +184,40 @@ describe("SqliteDriver execute", () => {
 	});
 });
 
-describe("SqliteDriver schema introspection", () => {
-	test("getSchemas returns main", async () => {
-		const schemas = await driver.getSchemas();
-		expect(schemas).toEqual([{ name: "main" }]);
+describe("SqliteDriver loadSchema", () => {
+	test("returns schemas with main", async () => {
+		const data = await driver.loadSchema();
+		expect(data.schemas).toEqual([{ name: "main" }]);
 	});
 
-	test("getTables returns all tables", async () => {
-		const tables = await driver.getTables("main");
-		const names = tables.map((t) => t.name);
+	test("returns all tables", async () => {
+		const data = await driver.loadSchema();
+		const names = data.tables["main"].map((t) => t.name);
 		expect(names).toContain("users");
 		expect(names).toContain("posts");
-		expect(tables.every((t) => t.schema === "main")).toBe(true);
-		expect(tables.every((t) => t.type === "table")).toBe(true);
+		expect(data.tables["main"].every((t) => t.schema === "main")).toBe(true);
+		expect(data.tables["main"].every((t) => t.type === "table")).toBe(true);
 	});
 
-	test("getTables excludes sqlite internal tables", async () => {
-		const tables = await driver.getTables("main");
-		const names = tables.map((t) => t.name);
+	test("excludes sqlite internal tables", async () => {
+		const data = await driver.loadSchema();
+		const names = data.tables["main"].map((t) => t.name);
 		expect(names.some((n) => n.startsWith("sqlite_"))).toBe(false);
 	});
 
-	test("getTables includes views", async () => {
+	test("includes views", async () => {
 		await driver.execute(
 			"CREATE VIEW active_users AS SELECT * FROM users WHERE age IS NOT NULL",
 		);
-		const tables = await driver.getTables("main");
-		const view = tables.find((t) => t.name === "active_users");
+		const data = await driver.loadSchema();
+		const view = data.tables["main"].find((t) => t.name === "active_users");
 		expect(view).toBeDefined();
 		expect(view!.type).toBe("view");
 	});
 
-	test("getColumns returns correct column info", async () => {
-		const columns = await driver.getColumns("main", "users");
+	test("returns correct column info", async () => {
+		const data = await driver.loadSchema();
+		const columns = data.columns["main.users"];
 		expect(columns).toHaveLength(5);
 
 		const idCol = columns.find((c) => c.name === "id")!;
@@ -240,7 +240,7 @@ describe("SqliteDriver schema introspection", () => {
 		expect(createdCol.defaultValue).toBe("datetime('now')");
 	});
 
-	test("getColumns detects composite PK as non-autoincrement", async () => {
+	test("detects composite PK as non-autoincrement", async () => {
 		await driver.execute(`
 			CREATE TABLE composite_pk (
 				a INTEGER NOT NULL,
@@ -249,7 +249,8 @@ describe("SqliteDriver schema introspection", () => {
 				PRIMARY KEY (a, b)
 			)
 		`);
-		const columns = await driver.getColumns("main", "composite_pk");
+		const data = await driver.loadSchema();
+		const columns = data.columns["main.composite_pk"];
 		const colA = columns.find((c) => c.name === "a")!;
 		expect(colA.isPrimaryKey).toBe(true);
 		expect(colA.isAutoIncrement).toBe(false);
@@ -258,8 +259,9 @@ describe("SqliteDriver schema introspection", () => {
 		expect(colB.isAutoIncrement).toBe(false);
 	});
 
-	test("getIndexes returns indexes", async () => {
-		const indexes = await driver.getIndexes("main", "posts");
+	test("returns indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["main.posts"];
 		const byName = indexes.find((i) => i.name === "idx_posts_user_id");
 		expect(byName).toBeDefined();
 		expect(byName!.columns).toEqual(["user_id"]);
@@ -267,15 +269,17 @@ describe("SqliteDriver schema introspection", () => {
 		expect(byName!.isPrimary).toBe(false);
 	});
 
-	test("getIndexes detects unique indexes", async () => {
-		const indexes = await driver.getIndexes("main", "users");
+	test("detects unique indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["main.users"];
 		const uniqueIdx = indexes.find((i) => i.isUnique);
 		expect(uniqueIdx).toBeDefined();
 		expect(uniqueIdx!.columns).toContain("email");
 	});
 
-	test("getForeignKeys returns FK info", async () => {
-		const fks = await driver.getForeignKeys("main", "posts");
+	test("returns FK info", async () => {
+		const data = await driver.loadSchema();
+		const fks = data.foreignKeys["main.posts"];
 		expect(fks).toHaveLength(1);
 		expect(fks[0].columns).toEqual(["user_id"]);
 		expect(fks[0].referencedTable).toBe("users");
@@ -285,7 +289,7 @@ describe("SqliteDriver schema introspection", () => {
 		expect(fks[0].onDelete).toBe("NO ACTION");
 	});
 
-	test("getForeignKeys groups multi-column FKs", async () => {
+	test("groups multi-column FKs", async () => {
 		await driver.execute(`
 			CREATE TABLE ref_target (a INTEGER, b INTEGER, PRIMARY KEY (a, b))
 		`);
@@ -296,14 +300,16 @@ describe("SqliteDriver schema introspection", () => {
 				FOREIGN KEY (x, y) REFERENCES ref_target(a, b)
 			)
 		`);
-		const fks = await driver.getForeignKeys("main", "ref_source");
+		const data = await driver.loadSchema();
+		const fks = data.foreignKeys["main.ref_source"];
 		expect(fks).toHaveLength(1);
 		expect(fks[0].columns).toEqual(["x", "y"]);
 		expect(fks[0].referencedColumns).toEqual(["a", "b"]);
 	});
 
-	test("getReferencingForeignKeys returns child tables", async () => {
-		const refs = await driver.getReferencingForeignKeys("main", "users");
+	test("returns referencing foreign keys", async () => {
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["main.users"];
 		expect(refs).toHaveLength(1);
 		expect(refs[0].referencingTable).toBe("posts");
 		expect(refs[0].referencingColumns).toEqual(["user_id"]);
@@ -311,12 +317,12 @@ describe("SqliteDriver schema introspection", () => {
 		expect(refs[0].referencingSchema).toBe("main");
 	});
 
-	test("getReferencingForeignKeys returns empty for unreferenced table", async () => {
-		const refs = await driver.getReferencingForeignKeys("main", "posts");
-		expect(refs).toEqual([]);
+	test("returns empty referencing FKs for unreferenced table", async () => {
+		const data = await driver.loadSchema();
+		expect(data.referencingForeignKeys["main.posts"]).toEqual([]);
 	});
 
-	test("getReferencingForeignKeys handles composite FKs", async () => {
+	test("handles composite referencing FKs", async () => {
 		await driver.execute(`
 			CREATE TABLE ref_target2 (a INTEGER, b INTEGER, PRIMARY KEY (a, b))
 		`);
@@ -327,14 +333,15 @@ describe("SqliteDriver schema introspection", () => {
 				FOREIGN KEY (x, y) REFERENCES ref_target2(a, b)
 			)
 		`);
-		const refs = await driver.getReferencingForeignKeys("main", "ref_target2");
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["main.ref_target2"];
 		expect(refs).toHaveLength(1);
 		expect(refs[0].referencingTable).toBe("ref_source2");
 		expect(refs[0].referencingColumns).toEqual(["x", "y"]);
 		expect(refs[0].referencedColumns).toEqual(["a", "b"]);
 	});
 
-	test("getReferencingForeignKeys handles multiple child tables", async () => {
+	test("handles multiple child tables", async () => {
 		await driver.execute(`
 			CREATE TABLE comments (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -342,33 +349,11 @@ describe("SqliteDriver schema introspection", () => {
 				body TEXT NOT NULL
 			)
 		`);
-		const refs = await driver.getReferencingForeignKeys("main", "users");
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["main.users"];
 		expect(refs.length).toBe(2);
 		const tableNames = refs.map((r) => r.referencingTable).sort();
 		expect(tableNames).toEqual(["comments", "posts"]);
-	});
-
-	test("getPrimaryKey returns PK columns in order", async () => {
-		const pk = await driver.getPrimaryKey("main", "users");
-		expect(pk).toEqual(["id"]);
-	});
-
-	test("getPrimaryKey handles composite PKs", async () => {
-		await driver.execute(`
-			CREATE TABLE composite_pk2 (
-				first_id INTEGER,
-				second_id INTEGER,
-				PRIMARY KEY (first_id, second_id)
-			)
-		`);
-		const pk = await driver.getPrimaryKey("main", "composite_pk2");
-		expect(pk).toEqual(["first_id", "second_id"]);
-	});
-
-	test("getPrimaryKey returns empty for table without PK", async () => {
-		await driver.execute("CREATE TABLE no_pk (a TEXT, b TEXT)");
-		const pk = await driver.getPrimaryKey("main", "no_pk");
-		expect(pk).toEqual([]);
 	});
 });
 

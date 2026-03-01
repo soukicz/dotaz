@@ -204,15 +204,16 @@ describe("MysqlDriver query cancellation", () => {
 	});
 });
 
-describe("MysqlDriver schema introspection", () => {
-	test("getSchemas returns current database", async () => {
-		const schemas = await driver.getSchemas();
-		expect(schemas).toHaveLength(1);
-		expect(schemas[0].name).toBe("dotaz_test");
+describe("MysqlDriver loadSchema", () => {
+	test("returns current database as schema", async () => {
+		const data = await driver.loadSchema();
+		expect(data.schemas).toHaveLength(1);
+		expect(data.schemas[0].name).toBe("dotaz_test");
 	});
 
-	test("getTables returns tables in database", async () => {
-		const tables = await driver.getTables("dotaz_test");
+	test("returns tables in database", async () => {
+		const data = await driver.loadSchema();
+		const tables = data.tables["dotaz_test"];
 		const names = tables.map((t) => t.name);
 		expect(names).toContain("users");
 		expect(names).toContain("posts");
@@ -220,19 +221,20 @@ describe("MysqlDriver schema introspection", () => {
 		expect(tables.every((t) => t.type === "table")).toBe(true);
 	});
 
-	test("getTables includes views", async () => {
+	test("includes views", async () => {
 		await driver.execute(
 			"CREATE OR REPLACE VIEW active_users AS SELECT * FROM users WHERE age IS NOT NULL",
 		);
-		const tables = await driver.getTables("dotaz_test");
-		const view = tables.find((t) => t.name === "active_users");
+		const data = await driver.loadSchema();
+		const view = data.tables["dotaz_test"].find((t) => t.name === "active_users");
 		expect(view).toBeDefined();
 		expect(view!.type).toBe("view");
 		await driver.execute("DROP VIEW active_users");
 	});
 
-	test("getColumns returns correct column info", async () => {
-		const columns = await driver.getColumns("dotaz_test", "users");
+	test("returns correct column info", async () => {
+		const data = await driver.loadSchema();
+		const columns = data.columns["dotaz_test.users"];
 		expect(columns.length).toBeGreaterThanOrEqual(5);
 
 		const idCol = columns.find((c) => c.name === "id")!;
@@ -249,8 +251,9 @@ describe("MysqlDriver schema introspection", () => {
 		expect(ageCol.nullable).toBe(true);
 	});
 
-	test("getIndexes returns indexes", async () => {
-		const indexes = await driver.getIndexes("dotaz_test", "posts");
+	test("returns indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["dotaz_test.posts"];
 		const byName = indexes.find((i) => i.name === "idx_posts_user_id");
 		expect(byName).toBeDefined();
 		expect(byName!.columns).toEqual(["user_id"]);
@@ -258,8 +261,9 @@ describe("MysqlDriver schema introspection", () => {
 		expect(byName!.isPrimary).toBe(false);
 	});
 
-	test("getIndexes detects unique indexes", async () => {
-		const indexes = await driver.getIndexes("dotaz_test", "users");
+	test("detects unique indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["dotaz_test.users"];
 		const uniqueIdx = indexes.find(
 			(i) => i.isUnique && !i.isPrimary,
 		);
@@ -267,49 +271,23 @@ describe("MysqlDriver schema introspection", () => {
 		expect(uniqueIdx!.columns).toContain("email");
 	});
 
-	test("getIndexes detects primary key index", async () => {
-		const indexes = await driver.getIndexes("dotaz_test", "users");
+	test("detects primary key index", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["dotaz_test.users"];
 		const pkIdx = indexes.find((i) => i.isPrimary);
 		expect(pkIdx).toBeDefined();
 		expect(pkIdx!.columns).toContain("id");
 		expect(pkIdx!.isUnique).toBe(true);
 	});
 
-	test("getForeignKeys returns FK info", async () => {
-		const fks = await driver.getForeignKeys("dotaz_test", "posts");
+	test("returns FK info", async () => {
+		const data = await driver.loadSchema();
+		const fks = data.foreignKeys["dotaz_test.posts"];
 		expect(fks).toHaveLength(1);
 		expect(fks[0].columns).toEqual(["user_id"]);
 		expect(fks[0].referencedTable).toBe("users");
 		expect(fks[0].referencedColumns).toEqual(["id"]);
 		expect(fks[0].referencedSchema).toBe("dotaz_test");
-	});
-
-	test("getPrimaryKey returns PK columns", async () => {
-		const pk = await driver.getPrimaryKey("dotaz_test", "users");
-		expect(pk).toEqual(["id"]);
-	});
-
-	test("getPrimaryKey handles composite PKs", async () => {
-		await driver.execute("DROP TABLE IF EXISTS composite_pk");
-		await driver.execute(`
-			CREATE TABLE composite_pk (
-				first_id INT, second_id INT,
-				PRIMARY KEY (first_id, second_id)
-			)
-		`);
-		const pk = await driver.getPrimaryKey("dotaz_test", "composite_pk");
-		expect(pk).toEqual(["first_id", "second_id"]);
-		await driver.execute("DROP TABLE composite_pk");
-	});
-
-	test("getPrimaryKey returns empty for table without PK", async () => {
-		await driver.execute("DROP TABLE IF EXISTS no_pk");
-		await driver.execute(
-			"CREATE TABLE no_pk (a TEXT, b TEXT)",
-		);
-		const pk = await driver.getPrimaryKey("dotaz_test", "no_pk");
-		expect(pk).toEqual([]);
-		await driver.execute("DROP TABLE no_pk");
 	});
 });
 

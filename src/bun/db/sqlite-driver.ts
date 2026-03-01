@@ -115,11 +115,11 @@ export class SqliteDriver implements DatabaseDriver {
 		return { schemas, tables, columns, indexes, foreignKeys, referencingForeignKeys };
 	}
 
-	async getSchemas(): Promise<SchemaInfo[]> {
+	private async getSchemas(): Promise<SchemaInfo[]> {
 		return [{ name: "main" }];
 	}
 
-	async getTables(schema: string): Promise<TableInfo[]> {
+	private async getTables(schema: string): Promise<TableInfo[]> {
 		this.ensureConnected();
 		const rows = await this.db!.unsafe(
 			"SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name",
@@ -131,7 +131,7 @@ export class SqliteDriver implements DatabaseDriver {
 		}));
 	}
 
-	async getColumns(_schema: string, table: string): Promise<ColumnInfo[]> {
+	private async getColumns(_schema: string, table: string): Promise<ColumnInfo[]> {
 		this.ensureConnected();
 		const rows = [
 			...(await this.db!.unsafe(
@@ -154,7 +154,7 @@ export class SqliteDriver implements DatabaseDriver {
 		}));
 	}
 
-	async getIndexes(_schema: string, table: string): Promise<IndexInfo[]> {
+	private async getIndexes(_schema: string, table: string): Promise<IndexInfo[]> {
 		this.ensureConnected();
 		const indexList = [
 			...(await this.db!.unsafe(
@@ -179,7 +179,7 @@ export class SqliteDriver implements DatabaseDriver {
 		return indexes;
 	}
 
-	async getForeignKeys(
+	private async getForeignKeys(
 		_schema: string,
 		table: string,
 	): Promise<ForeignKeyInfo[]> {
@@ -210,69 +210,6 @@ export class SqliteDriver implements DatabaseDriver {
 			}
 		}
 		return Array.from(fkMap.values());
-	}
-
-	async getReferencingForeignKeys(
-		_schema: string,
-		table: string,
-	): Promise<ReferencingForeignKeyInfo[]> {
-		this.ensureConnected();
-
-		// Get all tables in the database
-		const tables = await this.db!.unsafe(
-			"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-		);
-
-		const result: ReferencingForeignKeyInfo[] = [];
-
-		for (const t of [...tables] as any[]) {
-			const fks = [
-				...(await this.db!.unsafe(
-					`PRAGMA foreign_key_list(${this.quoteIdentifier(t.name)})`,
-				)),
-			] as any[];
-
-			// Group by FK id and filter for ones referencing our table
-			const fkMap = new Map<number, { from: string[]; to: string[] }>();
-			for (const row of fks) {
-				if (row.table !== table) continue;
-				const existing = fkMap.get(row.id);
-				if (existing) {
-					existing.from.push(row.from);
-					existing.to.push(row.to);
-				} else {
-					fkMap.set(row.id, {
-						from: [row.from],
-						to: [row.to],
-					});
-				}
-			}
-
-			for (const [id, fk] of fkMap) {
-				result.push({
-					constraintName: `fk_${t.name}_${id}`,
-					referencingSchema: "main",
-					referencingTable: t.name,
-					referencingColumns: fk.from,
-					referencedColumns: fk.to,
-				});
-			}
-		}
-
-		return result;
-	}
-
-	async getPrimaryKey(_schema: string, table: string): Promise<string[]> {
-		this.ensureConnected();
-		const rows = [
-			...(await this.db!.unsafe(
-				`PRAGMA table_info(${this.quoteIdentifier(table)})`,
-			)),
-		] as any[];
-		return rows
-			.filter((row) => row.pk > 0)
-			.sort((a, b) => a.pk - b.pk)
-			.map((row) => row.name);
 	}
 
 	async beginTransaction(): Promise<void> {

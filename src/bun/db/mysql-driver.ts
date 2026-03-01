@@ -7,10 +7,6 @@ import type {
 	SchemaInfo,
 	SchemaData,
 	TableInfo,
-	ColumnInfo,
-	IndexInfo,
-	ForeignKeyInfo,
-	ReferencingForeignKeyInfo,
 } from "../../shared/types/database";
 
 /**
@@ -266,14 +262,14 @@ export class MysqlDriver implements DatabaseDriver {
 		return { schemas, tables, columns, indexes, foreignKeys, referencingForeignKeys };
 	}
 
-	async getSchemas(): Promise<SchemaInfo[]> {
+	private async getSchemas(): Promise<SchemaInfo[]> {
 		this.ensureConnected();
 		const conn = this.reservedConn ?? this.db!;
 		const rows = await conn.unsafe("SELECT DATABASE() AS name");
 		return [...rows] as SchemaInfo[];
 	}
 
-	async getTables(schema: string): Promise<TableInfo[]> {
+	private async getTables(schema: string): Promise<TableInfo[]> {
 		this.ensureConnected();
 		const conn = this.reservedConn ?? this.db!;
 		const rows = await conn.unsafe(
@@ -288,150 +284,6 @@ export class MysqlDriver implements DatabaseDriver {
 			name: row.name,
 			type: row.table_type === "VIEW" ? "view" : "table",
 		}));
-	}
-
-	async getColumns(schema: string, table: string): Promise<ColumnInfo[]> {
-		this.ensureConnected();
-		const conn = this.reservedConn ?? this.db!;
-		const rows = await conn.unsafe(
-			`SELECT
-				c.COLUMN_NAME AS column_name,
-				c.DATA_TYPE AS data_type,
-				c.COLUMN_TYPE AS column_type,
-				c.IS_NULLABLE AS is_nullable,
-				c.COLUMN_DEFAULT AS column_default,
-				c.CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,
-				c.COLUMN_KEY AS column_key,
-				c.EXTRA AS extra
-			FROM information_schema.columns c
-			WHERE c.TABLE_SCHEMA = ? AND c.TABLE_NAME = ?
-			ORDER BY c.ORDINAL_POSITION`,
-			[schema, table],
-		);
-
-		return [...rows].map((row: any) => ({
-			name: row.column_name,
-			dataType: row.column_type || row.data_type,
-			nullable: row.is_nullable === "YES",
-			defaultValue: row.column_default,
-			isPrimaryKey: row.column_key === "PRI",
-			isAutoIncrement: (row.extra ?? "").includes("auto_increment"),
-			maxLength: row.character_maximum_length ?? undefined,
-		}));
-	}
-
-	async getIndexes(schema: string, table: string): Promise<IndexInfo[]> {
-		this.ensureConnected();
-		const conn = this.reservedConn ?? this.db!;
-		const rows = await conn.unsafe(
-			`SELECT
-				INDEX_NAME AS index_name,
-				NON_UNIQUE AS non_unique,
-				GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS \`columns\`
-			FROM information_schema.STATISTICS
-			WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-			GROUP BY INDEX_NAME, NON_UNIQUE
-			ORDER BY INDEX_NAME`,
-			[schema, table],
-		);
-
-		return [...rows].map((row: any) => ({
-			name: row.index_name,
-			columns: typeof row.columns === "string" ? row.columns.split(",") : [row.columns],
-			isUnique: row.non_unique === 0 || row.non_unique === "0",
-			isPrimary: row.index_name === "PRIMARY",
-		}));
-	}
-
-	async getForeignKeys(
-		schema: string,
-		table: string,
-	): Promise<ForeignKeyInfo[]> {
-		this.ensureConnected();
-		const conn = this.reservedConn ?? this.db!;
-		const rows = await conn.unsafe(
-			`SELECT
-				kcu.CONSTRAINT_NAME AS constraint_name,
-				GROUP_CONCAT(kcu.COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS \`columns\`,
-				kcu.REFERENCED_TABLE_SCHEMA AS referenced_schema,
-				kcu.REFERENCED_TABLE_NAME AS referenced_table,
-				GROUP_CONCAT(kcu.REFERENCED_COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS referenced_columns,
-				rc.UPDATE_RULE AS on_update,
-				rc.DELETE_RULE AS on_delete
-			FROM information_schema.KEY_COLUMN_USAGE kcu
-			JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
-				ON rc.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
-				AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-			WHERE kcu.TABLE_SCHEMA = ?
-				AND kcu.TABLE_NAME = ?
-				AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
-			GROUP BY kcu.CONSTRAINT_NAME, kcu.REFERENCED_TABLE_SCHEMA,
-				kcu.REFERENCED_TABLE_NAME, rc.UPDATE_RULE, rc.DELETE_RULE
-			ORDER BY kcu.CONSTRAINT_NAME`,
-			[schema, table],
-		);
-
-		return [...rows].map((row: any) => ({
-			name: row.constraint_name,
-			columns: typeof row.columns === "string" ? row.columns.split(",") : [row.columns],
-			referencedSchema: row.referenced_schema,
-			referencedTable: row.referenced_table,
-			referencedColumns: typeof row.referenced_columns === "string"
-				? row.referenced_columns.split(",")
-				: [row.referenced_columns],
-			onUpdate: row.on_update,
-			onDelete: row.on_delete,
-		}));
-	}
-
-	async getReferencingForeignKeys(
-		schema: string,
-		table: string,
-	): Promise<ReferencingForeignKeyInfo[]> {
-		this.ensureConnected();
-		const conn = this.reservedConn ?? this.db!;
-		const rows = await conn.unsafe(
-			`SELECT
-				kcu.CONSTRAINT_NAME AS constraint_name,
-				kcu.TABLE_SCHEMA AS referencing_schema,
-				kcu.TABLE_NAME AS referencing_table,
-				GROUP_CONCAT(kcu.COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS referencing_columns,
-				GROUP_CONCAT(kcu.REFERENCED_COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS referenced_columns
-			FROM information_schema.KEY_COLUMN_USAGE kcu
-			WHERE kcu.REFERENCED_TABLE_SCHEMA = ?
-				AND kcu.REFERENCED_TABLE_NAME = ?
-				AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
-			GROUP BY kcu.CONSTRAINT_NAME, kcu.TABLE_SCHEMA, kcu.TABLE_NAME
-			ORDER BY kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.CONSTRAINT_NAME`,
-			[schema, table],
-		);
-
-		return [...rows].map((row: any) => ({
-			constraintName: row.constraint_name,
-			referencingSchema: row.referencing_schema,
-			referencingTable: row.referencing_table,
-			referencingColumns: typeof row.referencing_columns === "string"
-				? row.referencing_columns.split(",")
-				: [row.referencing_columns],
-			referencedColumns: typeof row.referenced_columns === "string"
-				? row.referenced_columns.split(",")
-				: [row.referenced_columns],
-		}));
-	}
-
-	async getPrimaryKey(schema: string, table: string): Promise<string[]> {
-		this.ensureConnected();
-		const conn = this.reservedConn ?? this.db!;
-		const rows = await conn.unsafe(
-			`SELECT COLUMN_NAME AS column_name
-			FROM information_schema.KEY_COLUMN_USAGE
-			WHERE TABLE_SCHEMA = ?
-				AND TABLE_NAME = ?
-				AND CONSTRAINT_NAME = 'PRIMARY'
-			ORDER BY ORDINAL_POSITION`,
-			[schema, table],
-		);
-		return [...rows].map((row: any) => row.column_name);
 	}
 
 	async beginTransaction(): Promise<void> {

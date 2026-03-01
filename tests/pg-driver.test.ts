@@ -193,10 +193,10 @@ describe("PostgresDriver query cancellation", () => {
 	});
 });
 
-describe("PostgresDriver schema introspection", () => {
-	test("getSchemas returns schemas excluding system schemas", async () => {
-		const schemas = await driver.getSchemas();
-		const names = schemas.map((s) => s.name);
+describe("PostgresDriver loadSchema", () => {
+	test("returns schemas excluding system schemas", async () => {
+		const data = await driver.loadSchema();
+		const names = data.schemas.map((s) => s.name);
 		expect(names).toContain("public");
 		expect(names).toContain("test_schema");
 		expect(names).not.toContain("pg_catalog");
@@ -204,8 +204,9 @@ describe("PostgresDriver schema introspection", () => {
 		expect(names).not.toContain("pg_toast");
 	});
 
-	test("getTables returns tables in schema", async () => {
-		const tables = await driver.getTables("test_schema");
+	test("returns tables in schema", async () => {
+		const data = await driver.loadSchema();
+		const tables = data.tables["test_schema"];
 		const names = tables.map((t) => t.name);
 		expect(names).toContain("users");
 		expect(names).toContain("posts");
@@ -213,19 +214,20 @@ describe("PostgresDriver schema introspection", () => {
 		expect(tables.every((t) => t.type === "table")).toBe(true);
 	});
 
-	test("getTables includes views", async () => {
+	test("includes views", async () => {
 		await driver.execute(
 			"CREATE OR REPLACE VIEW test_schema.active_users AS SELECT * FROM test_schema.users WHERE age IS NOT NULL",
 		);
-		const tables = await driver.getTables("test_schema");
-		const view = tables.find((t) => t.name === "active_users");
+		const data = await driver.loadSchema();
+		const view = data.tables["test_schema"].find((t) => t.name === "active_users");
 		expect(view).toBeDefined();
 		expect(view!.type).toBe("view");
 		await driver.execute("DROP VIEW test_schema.active_users");
 	});
 
-	test("getColumns returns correct column info", async () => {
-		const columns = await driver.getColumns("test_schema", "users");
+	test("returns correct column info", async () => {
+		const data = await driver.loadSchema();
+		const columns = data.columns["test_schema.users"];
 		expect(columns.length).toBeGreaterThanOrEqual(5);
 
 		const idCol = columns.find((c) => c.name === "id")!;
@@ -247,20 +249,23 @@ describe("PostgresDriver schema introspection", () => {
 		expect(metadataCol.dataType).toBe("jsonb");
 	});
 
-	test("getColumns returns timestamptz type", async () => {
-		const columns = await driver.getColumns("test_schema", "users");
+	test("returns timestamptz type", async () => {
+		const data = await driver.loadSchema();
+		const columns = data.columns["test_schema.users"];
 		const createdCol = columns.find((c) => c.name === "created_at")!;
 		expect(createdCol.dataType).toBe("timestamp with time zone");
 	});
 
-	test("getColumns detects serial as autoincrement", async () => {
-		const columns = await driver.getColumns("test_schema", "users");
+	test("detects serial as autoincrement", async () => {
+		const data = await driver.loadSchema();
+		const columns = data.columns["test_schema.users"];
 		const idCol = columns.find((c) => c.name === "id")!;
 		expect(idCol.isAutoIncrement).toBe(true);
 	});
 
-	test("getIndexes returns indexes", async () => {
-		const indexes = await driver.getIndexes("test_schema", "posts");
+	test("returns indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["test_schema.posts"];
 		const byName = indexes.find((i) => i.name === "idx_posts_user_id");
 		expect(byName).toBeDefined();
 		expect(byName!.columns).toEqual(["user_id"]);
@@ -268,8 +273,9 @@ describe("PostgresDriver schema introspection", () => {
 		expect(byName!.isPrimary).toBe(false);
 	});
 
-	test("getIndexes detects unique indexes", async () => {
-		const indexes = await driver.getIndexes("test_schema", "users");
+	test("detects unique indexes", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["test_schema.users"];
 		const uniqueIdx = indexes.find(
 			(i) => i.isUnique && !i.isPrimary,
 		);
@@ -277,16 +283,18 @@ describe("PostgresDriver schema introspection", () => {
 		expect(uniqueIdx!.columns).toContain("email");
 	});
 
-	test("getIndexes detects primary key index", async () => {
-		const indexes = await driver.getIndexes("test_schema", "users");
+	test("detects primary key index", async () => {
+		const data = await driver.loadSchema();
+		const indexes = data.indexes["test_schema.users"];
 		const pkIdx = indexes.find((i) => i.isPrimary);
 		expect(pkIdx).toBeDefined();
 		expect(pkIdx!.columns).toContain("id");
 		expect(pkIdx!.isUnique).toBe(true);
 	});
 
-	test("getForeignKeys returns FK info", async () => {
-		const fks = await driver.getForeignKeys("test_schema", "posts");
+	test("returns FK info", async () => {
+		const data = await driver.loadSchema();
+		const fks = data.foreignKeys["test_schema.posts"];
 		expect(fks).toHaveLength(1);
 		expect(fks[0].columns).toEqual(["user_id"]);
 		expect(fks[0].referencedTable).toBe("users");
@@ -296,7 +304,7 @@ describe("PostgresDriver schema introspection", () => {
 		expect(fks[0].onDelete).toBe("NO ACTION");
 	});
 
-	test("getForeignKeys handles composite FKs", async () => {
+	test("handles composite FKs", async () => {
 		await driver.execute(`
 			CREATE TABLE test_schema.ref_target (
 				a INTEGER, b INTEGER, PRIMARY KEY (a, b)
@@ -309,7 +317,8 @@ describe("PostgresDriver schema introspection", () => {
 			)
 		`);
 
-		const fks = await driver.getForeignKeys("test_schema", "ref_source");
+		const data = await driver.loadSchema();
+		const fks = data.foreignKeys["test_schema.ref_source"];
 		expect(fks).toHaveLength(1);
 		expect(fks[0].columns).toEqual(["x", "y"]);
 		expect(fks[0].referencedColumns).toEqual(["a", "b"]);
@@ -318,8 +327,9 @@ describe("PostgresDriver schema introspection", () => {
 		await driver.execute("DROP TABLE test_schema.ref_target");
 	});
 
-	test("getReferencingForeignKeys returns child tables", async () => {
-		const refs = await driver.getReferencingForeignKeys("test_schema", "users");
+	test("returns referencing foreign keys", async () => {
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["test_schema.users"];
 		expect(refs).toHaveLength(1);
 		expect(refs[0].referencingTable).toBe("posts");
 		expect(refs[0].referencingColumns).toEqual(["user_id"]);
@@ -327,12 +337,12 @@ describe("PostgresDriver schema introspection", () => {
 		expect(refs[0].referencingSchema).toBe("test_schema");
 	});
 
-	test("getReferencingForeignKeys returns empty for unreferenced table", async () => {
-		const refs = await driver.getReferencingForeignKeys("test_schema", "posts");
-		expect(refs).toEqual([]);
+	test("returns empty referencing FKs for unreferenced table", async () => {
+		const data = await driver.loadSchema();
+		expect(data.referencingForeignKeys["test_schema.posts"]).toEqual([]);
 	});
 
-	test("getReferencingForeignKeys handles composite FKs", async () => {
+	test("handles composite referencing FKs", async () => {
 		await driver.execute(`
 			CREATE TABLE test_schema.ref_target_rev (
 				a INTEGER, b INTEGER, PRIMARY KEY (a, b)
@@ -345,7 +355,8 @@ describe("PostgresDriver schema introspection", () => {
 			)
 		`);
 
-		const refs = await driver.getReferencingForeignKeys("test_schema", "ref_target_rev");
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["test_schema.ref_target_rev"];
 		expect(refs).toHaveLength(1);
 		expect(refs[0].referencingTable).toBe("ref_source_rev");
 		expect(refs[0].referencingColumns).toEqual(["x", "y"]);
@@ -355,7 +366,7 @@ describe("PostgresDriver schema introspection", () => {
 		await driver.execute("DROP TABLE test_schema.ref_target_rev");
 	});
 
-	test("getReferencingForeignKeys handles multiple child tables", async () => {
+	test("handles multiple child tables", async () => {
 		await driver.execute(`
 			CREATE TABLE test_schema.comments_rev (
 				id SERIAL PRIMARY KEY,
@@ -364,38 +375,13 @@ describe("PostgresDriver schema introspection", () => {
 			)
 		`);
 
-		const refs = await driver.getReferencingForeignKeys("test_schema", "users");
+		const data = await driver.loadSchema();
+		const refs = data.referencingForeignKeys["test_schema.users"];
 		expect(refs.length).toBe(2);
 		const tableNames = refs.map((r) => r.referencingTable).sort();
 		expect(tableNames).toEqual(["comments_rev", "posts"]);
 
 		await driver.execute("DROP TABLE test_schema.comments_rev");
-	});
-
-	test("getPrimaryKey returns PK columns", async () => {
-		const pk = await driver.getPrimaryKey("test_schema", "users");
-		expect(pk).toEqual(["id"]);
-	});
-
-	test("getPrimaryKey handles composite PKs", async () => {
-		await driver.execute(`
-			CREATE TABLE test_schema.composite_pk (
-				first_id INTEGER, second_id INTEGER,
-				PRIMARY KEY (first_id, second_id)
-			)
-		`);
-		const pk = await driver.getPrimaryKey("test_schema", "composite_pk");
-		expect(pk).toEqual(["first_id", "second_id"]);
-		await driver.execute("DROP TABLE test_schema.composite_pk");
-	});
-
-	test("getPrimaryKey returns empty for table without PK", async () => {
-		await driver.execute(
-			"CREATE TABLE test_schema.no_pk (a TEXT, b TEXT)",
-		);
-		const pk = await driver.getPrimaryKey("test_schema", "no_pk");
-		expect(pk).toEqual([]);
-		await driver.execute("DROP TABLE test_schema.no_pk");
 	});
 });
 
