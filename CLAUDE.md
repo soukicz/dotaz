@@ -2,15 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-See also: `src/bun/CLAUDE.md` (backend), `src/mainview/CLAUDE.md` (frontend), `src/shared/CLAUDE.md` (shared types).
+See also: `src/frontend-shared/CLAUDE.md` (frontend), `src/shared/CLAUDE.md` (shared types).
 
 ## Project
 
 Dotaz is a desktop database client built on **Electrobun** (Bun backend + system webview) with a **Solid.js** frontend. It supports PostgreSQL and SQLite, focused on DML operations (viewing, editing, querying data) — no DDL/schema management.
 
-Runs in two modes:
+Runs in three modes:
 - **Desktop** (Electrobun) — native window with RPC transport, app state in backend SQLite
 - **Web** — standalone Bun HTTP/WebSocket server (`bun run dev:web`), app state in browser IndexedDB
+- **Demo** — browser-only with WASM SQLite, no server needed (`bun run dev:demo`)
 
 ## Commands
 
@@ -23,6 +24,9 @@ bun run dev
 
 # Development — web mode (HTTP + WebSocket)
 bun run dev:web
+
+# Development — demo mode (browser-only WASM SQLite)
+bun run dev:demo
 
 # Production build (desktop)
 bun run build:canary
@@ -50,17 +54,45 @@ Frontend (Solid.js in webview)          Backend (Bun process)
   Components → Stores → RPC client  ⟷  RPC handlers → Services → DB drivers
 ```
 
-- **Backend** (`src/bun/`): Database connections, query execution, app storage
-- **Frontend** (`src/mainview/`): Solid.js UI with reactive stores
-- **Shared** (`src/shared/types/`): Type definitions for RPC schema and domain types
+### Directory structure
 
-Communication: Electrobun RPC (desktop) or WebSocket (web mode). Both share the same RPC handler layer.
+```
+src/
+  shared/              ← Pure types + browser-safe utilities (no backend concepts)
+  backend-shared/      ← Backend logic: drivers, services, storage, RPC adapter/handlers
+  backend-types/       ← Type-only re-exports for frontend (import type from backend-shared)
+  backend-desktop/     ← Electrobun backend entry point
+  backend-web/         ← HTTP/WebSocket server entry point
+  frontend-shared/     ← Solid.js UI: components, stores, lib (transport/storage registries)
+  frontend-desktop/    ← Desktop entry: setTransport(electrobun) + setStorage(rpc)
+  frontend-web/        ← Web entry: setTransport(websocket) + setStorage(indexeddb)
+  frontend-demo/       ← Demo entry: setTransport(inline) + setStorage(rpc), WASM SQLite
+```
 
-App state (connections, history, views) is stored via `AppStateStorage` interface with two adapters:
-- **Desktop** (`RpcAppStateStorage`): delegates to backend SQLite via RPC
-- **Web** (`IndexedDbAppStateStorage`): stores in browser IndexedDB, passwords encrypted by server
+### Dependency graph (no cycles)
 
-Vite build-time plugin swaps the adapter (same pattern as transport swap).
+```
+shared               ← no deps
+backend-shared       ← shared
+backend-types        ← backend-shared (import type only)
+frontend-shared      ← shared + backend-types (import type only)
+frontend-desktop     ← frontend-shared
+frontend-web         ← frontend-shared
+frontend-demo        ← frontend-shared + backend-shared (runtime — createHandlers/RpcAdapter)
+backend-desktop      ← backend-shared
+backend-web          ← backend-shared
+```
+
+### Transport & storage — registration pattern
+
+Entry points register concrete implementations via `setTransport()` / `setStorage()`. Shared code accesses them through lazy proxies — no Vite swap plugins, no build-time module resolution tricks.
+
+```typescript
+// frontend-desktop/main.tsx
+setTransport(createElectrobunTransport());
+setStorage(new RpcAppStateStorage());
+render(() => <App />, document.getElementById("app")!);
+```
 
 ## Implementation Workflow
 
@@ -79,6 +111,7 @@ Follow `docs/INSTRUCTIONS.md` — issue-driven development, one issue per invoca
 - **Parameterized queries** always — no string concatenation for SQL
 - **Dark theme** with CSS variables, no component CSS libraries
 - Tests in `tests/` directory, required for backend logic; skip for pure UI components
+- **No side effects in shared modules**: `shared/`, `backend-shared/`, `backend-types/`, `frontend-shared/` must not have top-level side effects. All initialization (transport, storage, listeners) goes in entry point modules.
 
 ## Testing
 

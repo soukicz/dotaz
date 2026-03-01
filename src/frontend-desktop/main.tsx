@@ -1,6 +1,6 @@
 import { setTransport } from "../frontend-shared/lib/transport";
 import { setStorage } from "../frontend-shared/lib/storage";
-import { createElectrobunTransport } from "../frontend-shared/lib/transport/electrobun";
+import { createElectrobunTransport } from "./transport";
 import { RpcAppStateStorage } from "../frontend-shared/lib/storage/rpc";
 import "../frontend-shared/styles/global.css";
 import { render } from "solid-js/web";

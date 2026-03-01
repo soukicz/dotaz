@@ -1,4 +1,4 @@
-import type { RpcTransport } from "./types";
+import type { RpcTransport } from "../frontend-shared/lib/transport/types";
 
 interface PendingRequest {
 	resolve: (value: any) => void;

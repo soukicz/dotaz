@@ -1,11 +1,11 @@
-# Frontend — `src/mainview/`
+# Frontend — `src/frontend-shared/`
 
-Solid.js UI running in system webview (desktop) or browser (web mode).
+Solid.js UI running in system webview (desktop) or browser (web/demo mode).
 
 ## Architecture
 
 ```
-main.tsx / App.tsx               ← Entry point and root component
+App.tsx                          ← Root component
 ├── components/
 │   ├── layout/                  ← AppShell, Sidebar, TabBar, StatusBar, Resizer
 │   ├── connection/              ← ConnectionDialog, ConnectionTree, DatabasePicker, PasswordDialog
@@ -27,17 +27,27 @@ main.tsx / App.tsx               ← Entry point and root component
 ├── lib/
 │   ├── rpc.ts                   ← Typed RPC client (namespace access: rpc.connections.list())
 │   ├── rpc-errors.ts            ← RPC error handling and user-friendly messages
-│   ├── transport/               ← Transport abstraction (Electrobun RPC vs WebSocket)
-│   ├── storage/                 ← App state storage (connections, history, views)
-│   │   ├── index.ts             ← Re-export (default: rpc.ts, swapped to indexeddb.ts in web mode)
-│   │   ├── rpc.ts               ← RpcAppStateStorage — delegates to backend RPC (desktop)
-│   │   └── indexeddb.ts         ← IndexedDbAppStateStorage — browser IndexedDB (web)
+│   ├── transport/               ← Transport abstraction
+│   │   ├── index.ts             ← setTransport() + lazy proxy
+│   │   └── types.ts             ← RpcTransport interface
+│   ├── storage/                 ← App state storage
+│   │   ├── index.ts             ← setStorage() + lazy proxy
+│   │   ├── rpc.ts               ← RpcAppStateStorage class (desktop + demo)
+│   │   └── indexeddb.ts         ← IndexedDbAppStateStorage class (web)
 │   ├── app-state-storage.ts     ← AppStateStorage interface
 │   ├── keyboard.ts              ← Keyboard shortcut system
 │   └── commands.ts              ← Command registry for command palette
 └── styles/
     └── global.css               ← Global styles, dark theme, CSS variables
 ```
+
+## Entry Points
+
+Entry points live outside this directory. Each registers transport + storage, then renders `<App />`:
+
+- `src/frontend-desktop/main.tsx` — Electrobun transport + RPC storage
+- `src/frontend-web/main.tsx` — WebSocket transport + IndexedDB storage
+- `src/frontend-demo/main.tsx` — Inline transport + RPC storage (via WASM SQLite handlers)
 
 ## State Management
 
@@ -67,17 +77,19 @@ New RPC methods added to `createHandlers()` are automatically available on the c
 
 ### Transport layer (`lib/transport/`)
 
-Abstraction over communication channel:
-- `electrobun.ts` — Electrobun RPC (desktop mode, default)
-- `websocket.ts` — WebSocket (web mode, swapped at build time)
+Registration pattern: entry points call `setTransport()` with a concrete implementation. Shared code accesses `transport` via a lazy proxy that throws if not initialized.
+
+Transport factory functions live in their respective entry point directories:
+- `frontend-desktop/transport.ts` — `createElectrobunTransport()` (Electrobun RPC)
+- `frontend-web/transport.ts` — `createWebSocketTransport()` (WebSocket)
+- `frontend-demo/transport.ts` — `createInlineTransport()` (direct handler invocation)
 
 ### Storage layer (`lib/storage/`)
 
-`AppStateStorage` interface for persisting connections, history, and saved views:
-- `rpc.ts` — `RpcAppStateStorage`: delegates to backend via RPC (desktop, default)
-- `indexeddb.ts` — `IndexedDbAppStateStorage`: stores in browser IndexedDB (web, swapped at build time)
+Registration pattern: entry points call `setStorage()` with a concrete implementation.
 
-Both transport and storage use **Vite build-time plugins** to swap implementations. The `index.ts` re-exports the default (`./rpc`), which is redirected to the web adapter via `storageSwapPlugin()` in `vite.config.ts` when building for web mode.
+- `RpcAppStateStorage` — delegates to backend via RPC (desktop + demo)
+- `IndexedDbAppStateStorage` — stores in browser IndexedDB (web)
 
 In web mode, passwords are encrypted by the server (`storage.encrypt` RPC) before being stored in IndexedDB. On connect, the encrypted config is sent back to the server for decryption.
 
@@ -102,3 +114,4 @@ In web mode, passwords are encrypted by the server (`storage.encrypt` RPC) befor
 - Keep components focused — extract logic into stores or lib utilities
 - RPC calls happen in stores, not in components directly (components call store actions)
 - All user-facing text is hardcoded (no i18n yet)
+- **No side effects at module top-level** — all initialization happens in entry points or via init functions called from `App.tsx`

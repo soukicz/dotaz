@@ -1,4 +1,4 @@
-import type { RpcTransport } from "./types";
+import type { RpcTransport } from "../frontend-shared/lib/transport/types";
 
 export function createInlineTransport(): RpcTransport {
 	const messageListeners = new Map<string, Set<(payload: any) => void>>();
@@ -15,7 +15,7 @@ export function createInlineTransport(): RpcTransport {
 
 	function getHandlers() {
 		if (!handlersPromise) {
-			handlersPromise = import("../../../frontend-demo/init").then((m) => m.initDemo(emitMessage));
+			handlersPromise = import("./init").then((m) => m.initDemo(emitMessage));
 		}
 		return handlersPromise;
 	}

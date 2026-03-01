@@ -1,6 +1,6 @@
 import { setTransport } from "../frontend-shared/lib/transport";
 import { setStorage } from "../frontend-shared/lib/storage";
-import { createWebSocketTransport } from "../frontend-shared/lib/transport/websocket";
+import { createWebSocketTransport } from "./transport";
 import { IndexedDbAppStateStorage } from "../frontend-shared/lib/storage/indexeddb";
 import "../frontend-shared/styles/global.css";
 import { render } from "solid-js/web";
