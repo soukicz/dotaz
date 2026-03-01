@@ -7,10 +7,10 @@
  *
  * Run: bun test tests/mysql-driver.test.ts
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { MysqlDriver } from "../src/bun/db/mysql-driver";
 import type { MysqlConnectionConfig } from "../src/shared/types/connection";
-import { MYSQL_URL, seedMysql } from "./helpers";
+import { seedMysql } from "./helpers";
 
 const config: MysqlConnectionConfig = {
 	type: "mysql",
@@ -25,14 +25,11 @@ let driver: MysqlDriver;
 
 beforeAll(async () => {
 	await seedMysql();
-});
-
-beforeEach(async () => {
 	driver = new MysqlDriver();
 	await driver.connect(config);
-});
+}, 30_000);
 
-afterEach(async () => {
+afterAll(async () => {
 	if (driver.isConnected()) {
 		await driver.disconnect();
 	}
@@ -41,11 +38,6 @@ afterEach(async () => {
 describe("MysqlDriver lifecycle", () => {
 	test("connect sets isConnected to true", () => {
 		expect(driver.isConnected()).toBe(true);
-	});
-
-	test("disconnect sets isConnected to false", async () => {
-		await driver.disconnect();
-		expect(driver.isConnected()).toBe(false);
 	});
 
 	test("rejects non-mysql config", async () => {
@@ -63,10 +55,17 @@ describe("MysqlDriver lifecycle", () => {
 		await expect(d.execute("SELECT 1")).rejects.toThrow("Not connected");
 	});
 
-	test("disconnect is idempotent", async () => {
-		await driver.disconnect();
-		await driver.disconnect(); // should not throw
-		expect(driver.isConnected()).toBe(false);
+	test("disconnect and reconnect", async () => {
+		const d = new MysqlDriver();
+		await d.connect(config);
+		expect(d.isConnected()).toBe(true);
+
+		await d.disconnect();
+		expect(d.isConnected()).toBe(false);
+
+		// disconnect is idempotent
+		await d.disconnect();
+		expect(d.isConnected()).toBe(false);
 	});
 });
 
@@ -123,34 +122,40 @@ describe("MysqlDriver execute", () => {
 	});
 
 	test("INSERT returns affectedRows", async () => {
-		const result = await driver.execute(
-			"INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
-			["Dave", "dave@example.com", 40],
-		);
-		expect(result.affectedRows).toBe(1);
-		// cleanup
-		await driver.execute(
-			"DELETE FROM users WHERE email = $1",
-			["dave@example.com"],
-		);
+		await driver.beginTransaction();
+		try {
+			const result = await driver.execute(
+				"INSERT INTO users (name, email, age) VALUES ($1, $2, $3)",
+				["Dave", "dave@example.com", 40],
+			);
+			expect(result.affectedRows).toBe(1);
+		} finally {
+			await driver.rollback();
+		}
 	});
 
 	test("UPDATE returns affectedRows", async () => {
 		await driver.beginTransaction();
-		const result = await driver.execute(
-			"UPDATE users SET age = 99 WHERE age IS NOT NULL",
-		);
-		expect(result.affectedRows).toBe(2);
-		await driver.rollback();
+		try {
+			const result = await driver.execute(
+				"UPDATE users SET age = 99 WHERE age IS NOT NULL",
+			);
+			expect(result.affectedRows).toBe(2);
+		} finally {
+			await driver.rollback();
+		}
 	});
 
 	test("DELETE returns affectedRows", async () => {
 		await driver.beginTransaction();
-		const result = await driver.execute(
-			"DELETE FROM posts WHERE published = false",
-		);
-		expect(result.affectedRows).toBe(1);
-		await driver.rollback();
+		try {
+			const result = await driver.execute(
+				"DELETE FROM posts WHERE published = false",
+			);
+			expect(result.affectedRows).toBe(1);
+		} finally {
+			await driver.rollback();
+		}
 	});
 
 	test("empty SELECT returns empty columns and rows", async () => {

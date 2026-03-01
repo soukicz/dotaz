@@ -10,7 +10,7 @@ import {
 	isServerConfig,
 	CONNECTION_TYPE_META,
 } from "../../shared/types/connection";
-import type { DatabaseInfo, SchemaInfo, TableInfo } from "../../shared/types/database";
+import type { DatabaseInfo, SchemaData, SchemaInfo, TableInfo, ColumnInfo, IndexInfo, ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../shared/types/database";
 import { rpc, messages, friendlyErrorMessage } from "../lib/rpc";
 import { isStateless } from "../lib/mode";
 import {
@@ -33,8 +33,10 @@ export interface SchemaTree {
 export interface ConnectionStoreState {
 	connections: ConnectionInfo[];
 	activeConnectionId: string | null;
-	// Nested: schemaTrees[connectionId][databaseName] = SchemaTree
+	// Nested: schemaTrees[connectionId][databaseName] = SchemaTree (for backward compat)
 	schemaTrees: Record<string, Record<string, SchemaTree>>;
+	// Full schema data: schemaDataCache[connectionId][databaseName] = SchemaData
+	schemaDataCache: Record<string, Record<string, SchemaData>>;
 	availableDatabases: Record<string, DatabaseInfo[]>;
 }
 
@@ -42,6 +44,7 @@ const [state, setState] = createStore<ConnectionStoreState>({
 	connections: [],
 	activeConnectionId: null,
 	schemaTrees: {},
+	schemaDataCache: {},
 	availableDatabases: {},
 });
 
@@ -68,18 +71,24 @@ const rememberPasswordMap = new Map<string, boolean>();
 // ── Schema loading ───────────────────────────────────────
 
 async function loadSchemaTree(connectionId: string, database?: string) {
-	const schemas = await rpc.schema.getSchemas(connectionId, database);
-	const tables: Record<string, TableInfo[]> = {};
-
-	for (const schema of schemas) {
-		tables[schema.name] = await rpc.schema.getTables(connectionId, schema.name, database);
-	}
+	const schemaData = await rpc.schema.load(connectionId, database);
 
 	const dbKey = database ?? getDefaultDatabaseKey(connectionId);
+
+	// Store full schema data
+	if (!state.schemaDataCache[connectionId]) {
+		setState("schemaDataCache", connectionId, {});
+	}
+	setState("schemaDataCache", connectionId, dbKey, schemaData);
+
+	// Also update the legacy SchemaTree for backward compat
 	if (!state.schemaTrees[connectionId]) {
 		setState("schemaTrees", connectionId, {});
 	}
-	setState("schemaTrees", connectionId, dbKey, { schemas, tables });
+	setState("schemaTrees", connectionId, dbKey, {
+		schemas: schemaData.schemas,
+		tables: schemaData.tables,
+	});
 }
 
 function getDefaultDatabaseKey(connectionId: string): string {
@@ -110,9 +119,12 @@ async function activateDatabase(connectionId: string, database: string) {
 async function deactivateDatabase(connectionId: string, database: string) {
 	await rpc.databases.deactivate(connectionId, database);
 
-	// Remove schema tree for this database
+	// Remove schema tree and schema data cache for this database
 	if (state.schemaTrees[connectionId]) {
 		setState("schemaTrees", connectionId, database, undefined!);
+	}
+	if (state.schemaDataCache[connectionId]) {
+		setState("schemaDataCache", connectionId, database, undefined!);
 	}
 
 	await loadAvailableDatabases(connectionId);
@@ -251,8 +263,9 @@ async function updateConnection(id: string, name: string, config: ConnectionConf
 async function deleteConnection(id: string) {
 	await rpc.connections.delete(id);
 	setState("connections", (prev) => prev.filter((c) => c.id !== id));
-	// Clean up schema trees and available databases
+	// Clean up schema trees, schema data cache, and available databases
 	setState("schemaTrees", id, undefined!);
+	setState("schemaDataCache", id, undefined!);
 	setState("availableDatabases", id, undefined!);
 	if (state.activeConnectionId === id) {
 		setState("activeConnectionId", null);
@@ -308,8 +321,9 @@ async function disconnectFrom(id: string) {
 	}
 	await rpc.connections.disconnect(id);
 	// Status will be updated via the statusChanged event
-	// Clean up schema trees and available databases
+	// Clean up schema trees, schema data cache, and available databases
 	setState("schemaTrees", id, undefined!);
+	setState("schemaDataCache", id, undefined!);
 	setState("availableDatabases", id, undefined!);
 }
 
@@ -379,6 +393,28 @@ export const connectionsStore = {
 		if (!connTrees) return undefined;
 		const dbKey = database ?? getDefaultDatabaseKey(connectionId);
 		return connTrees[dbKey];
+	},
+	getSchemaData(connectionId: string, database?: string): SchemaData | undefined {
+		const connCache = state.schemaDataCache[connectionId];
+		if (!connCache) return undefined;
+		const dbKey = database ?? getDefaultDatabaseKey(connectionId);
+		return connCache[dbKey];
+	},
+	getColumns(connectionId: string, schema: string, table: string, database?: string): ColumnInfo[] {
+		const data = this.getSchemaData(connectionId, database);
+		return data?.columns[`${schema}.${table}`] ?? [];
+	},
+	getIndexes(connectionId: string, schema: string, table: string, database?: string): IndexInfo[] {
+		const data = this.getSchemaData(connectionId, database);
+		return data?.indexes[`${schema}.${table}`] ?? [];
+	},
+	getForeignKeys(connectionId: string, schema: string, table: string, database?: string): ForeignKeyInfo[] {
+		const data = this.getSchemaData(connectionId, database);
+		return data?.foreignKeys[`${schema}.${table}`] ?? [];
+	},
+	getReferencingForeignKeys(connectionId: string, schema: string, table: string, database?: string): ReferencingForeignKeyInfo[] {
+		const data = this.getSchemaData(connectionId, database);
+		return data?.referencingForeignKeys[`${schema}.${table}`] ?? [];
 	},
 	getActiveDatabaseNames(connectionId: string): string[] {
 		const connTrees = state.schemaTrees[connectionId];

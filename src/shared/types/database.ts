@@ -55,3 +55,18 @@ export interface ReferencingForeignKeyInfo {
 	/** Column(s) in this table being referenced */
 	referencedColumns: string[];
 }
+
+/** Consolidated schema data returned by schema.load endpoint. */
+export interface SchemaData {
+	schemas: SchemaInfo[];
+	/** Tables per schema name */
+	tables: Record<string, TableInfo[]>;
+	/** Columns per "schema.table" key */
+	columns: Record<string, ColumnInfo[]>;
+	/** Indexes per "schema.table" key */
+	indexes: Record<string, IndexInfo[]>;
+	/** Foreign keys per "schema.table" key */
+	foreignKeys: Record<string, ForeignKeyInfo[]>;
+	/** Referencing foreign keys per "schema.table" key */
+	referencingForeignKeys: Record<string, ReferencingForeignKeyInfo[]>;
+}

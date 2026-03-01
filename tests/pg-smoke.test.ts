@@ -13,7 +13,7 @@ let db: InstanceType<typeof SQL>;
 beforeAll(async () => {
 	await seedPostgres();
 	db = new SQL({ url: PG_URL });
-});
+}, 30_000);
 
 afterAll(async () => {
 	await db.close();

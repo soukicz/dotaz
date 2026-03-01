@@ -9,7 +9,6 @@ import type { ConnectionType } from "../../../shared/types/connection";
 import { CONNECTION_TYPE_META } from "../../../shared/types/connection";
 import { editorStore } from "../../stores/editor";
 import { connectionsStore } from "../../stores/connections";
-import { rpc } from "../../lib/rpc";
 import ContextMenu from "../common/ContextMenu";
 import type { ContextMenuEntry } from "../common/ContextMenu";
 import "./SqlEditor.css";
@@ -198,41 +197,26 @@ function isSingleSchemaConnection(connectionId: string): boolean {
 	return !CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase;
 }
 
-async function buildSchemaSpec(
+function buildSchemaSpec(
 	connectionId: string,
 	database?: string,
-): Promise<Record<string, readonly string[]>> {
-	const tree = connectionsStore.getSchemaTree(connectionId, database);
-	if (!tree) return {};
+): Record<string, readonly string[]> {
+	const schemaData = connectionsStore.getSchemaData(connectionId, database);
+	if (!schemaData) return {};
 
 	const sqlite = isSingleSchemaConnection(connectionId);
 	const spec: Record<string, string[]> = {};
 
-	const fetchPromises: Promise<void>[] = [];
-
-	for (const schema of tree.schemas) {
-		const tables = tree.tables[schema.name] || [];
+	for (const schema of schemaData.schemas) {
+		const tables = schemaData.tables[schema.name] || [];
 		for (const table of tables) {
-			fetchPromises.push(
-				rpc.schema
-					.getColumns(connectionId, schema.name, table.name, database)
-					.then((columns) => {
-						const key = sqlite
-							? table.name
-							: `${schema.name}.${table.name}`;
-						spec[key] = columns.map((c) => c.name);
-					})
-					.catch(() => {
-						const key = sqlite
-							? table.name
-							: `${schema.name}.${table.name}`;
-						spec[key] = [];
-					}),
-			);
+			const tableKey = `${schema.name}.${table.name}`;
+			const columns = schemaData.columns[tableKey] || [];
+			const key = sqlite ? table.name : tableKey;
+			spec[key] = columns.map((c) => c.name);
 		}
 	}
 
-	await Promise.all(fetchPromises);
 	return spec;
 }
 
@@ -325,29 +309,24 @@ export default function SqlEditor(props: SqlEditorProps) {
 	});
 
 	// Reconfigure SQL extension with schema-aware completions
-	let schemaVersion = 0;
 	createEffect(() => {
 		// Access schema tree reactively — triggers when it changes
 		const tree = connectionsStore.getSchemaTree(props.connectionId, props.database);
 		if (!tree || !editorView) return;
 
-		const version = ++schemaVersion;
 		const dialect = getDialect(props.connectionId);
 		const sqlite = isSingleSchemaConnection(props.connectionId);
 
-		buildSchemaSpec(props.connectionId, props.database).then((schema) => {
-			// Guard against stale results from earlier schema tree versions
-			if (version !== schemaVersion || !editorView) return;
+		const schema = buildSchemaSpec(props.connectionId, props.database);
 
-			editorView.dispatch({
-				effects: sqlCompartment.reconfigure(
-					sql({
-						dialect,
-						schema,
-						defaultSchema: sqlite ? undefined : "public",
-					}),
-				),
-			});
+		editorView.dispatch({
+			effects: sqlCompartment.reconfigure(
+				sql({
+					dialect,
+					schema,
+					defaultSchema: sqlite ? undefined : "public",
+				}),
+			),
 		});
 	});
 

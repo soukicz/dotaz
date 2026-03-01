@@ -1,9 +1,10 @@
-import { createSignal, createEffect, For, Show, on } from "solid-js";
+import { createSignal, createEffect, createMemo, For, Show, on } from "solid-js";
 import type { GridColumnDef, ColumnFilter } from "../../../shared/types/grid";
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../../shared/types/database";
 import ChevronUp from "lucide-solid/icons/chevron-up";
 import ChevronDown from "lucide-solid/icons/chevron-down";
 import { rpc } from "../../lib/rpc";
+import { connectionsStore } from "../../stores/connections";
 import Dialog from "../common/Dialog";
 import "./RowDetailDialog.css";
 
@@ -113,14 +114,12 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 	const currentRow = () => props.rows[currentIndex()];
 
 	// ── Reverse FK (Referenced By) ───────────────────────────
-	const [referencingFks, setReferencingFks] = createSignal<ReferencingForeignKeyInfo[]>([]);
-	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number>>({});
-
-	createEffect(() => {
-		rpc.schema.getReferencingForeignKeys(
+	const referencingFks = createMemo(() =>
+		connectionsStore.getReferencingForeignKeys(
 			props.connectionId, props.schema, props.table, props.database,
-		).then(setReferencingFks).catch(() => setReferencingFks([]));
-	});
+		),
+	);
+	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number>>({});
 
 	// Fetch counts for each referencing FK when row changes
 	createEffect(on([referencingFks, currentIndex], () => {

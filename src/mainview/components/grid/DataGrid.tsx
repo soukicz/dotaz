@@ -6,6 +6,7 @@ import type { FkTarget } from "../../stores/grid";
 import { gridStore } from "../../stores/grid";
 import { tabsStore } from "../../stores/tabs";
 import { viewsStore } from "../../stores/views";
+import { connectionsStore } from "../../stores/connections";
 import { rpc } from "../../lib/rpc";
 import { createKeyHandler } from "../../lib/keyboard";
 import GridHeader from "./GridHeader";
@@ -165,7 +166,7 @@ export default function DataGrid(props: DataGridProps) {
 			}
 		}
 
-		await loadForeignKeys(props.schema, props.table);
+		loadForeignKeys(props.schema, props.table);
 	});
 
 	// Reload FK info when the table changes (e.g. after FK navigation).
@@ -176,28 +177,22 @@ export default function DataGrid(props: DataGridProps) {
 		{ defer: true },
 	));
 
-	async function loadForeignKeys(schema: string, table: string) {
-		try {
-			const fks = await rpc.schema.getForeignKeys(
-				props.connectionId,
-				schema,
-				table,
-				props.database,
-			);
-			setForeignKeys(fks);
-			const fkCols = new Set<string>();
-			for (const fk of fks) {
-				for (const col of fk.columns) {
-					fkCols.add(col);
-				}
+	function loadForeignKeys(schema: string, table: string) {
+		const fks = connectionsStore.getForeignKeys(
+			props.connectionId,
+			schema,
+			table,
+			props.database,
+		);
+		setForeignKeys(fks);
+		const fkCols = new Set<string>();
+		for (const fk of fks) {
+			for (const col of fk.columns) {
+				fkCols.add(col);
 			}
-			setFkColumns(fkCols);
-			setFkMap(buildFkMap(fks));
-		} catch {
-			setForeignKeys([]);
-			setFkColumns(new Set<string>());
-			setFkMap(new Map<string, FkTarget>());
 		}
+		setFkColumns(fkCols);
+		setFkMap(buildFkMap(fks));
 	}
 
 	function handleQuickSearchInput(value: string) {
