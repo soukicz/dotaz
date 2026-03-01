@@ -10,6 +10,55 @@ export interface WhereClauseResult {
 	params: unknown[];
 }
 
+/** Returns true if the column data type is searchable with CAST(... AS TEXT) LIKE. */
+function isSearchableType(dataType: string): boolean {
+	const lower = dataType.toLowerCase();
+	// Exclude binary types that can't meaningfully be cast to text
+	if (lower.includes("bytea") || lower.includes("blob") || lower === "oid") return false;
+	return true;
+}
+
+/**
+ * Build a quick search clause that ORs LIKE conditions across multiple columns.
+ * Returns a parenthesized SQL fragment (without WHERE) and param values.
+ * Uses ILIKE for PostgreSQL (true case-insensitive), LIKE for SQLite.
+ */
+export function buildQuickSearchClause(
+	columns: { name: string; dataType: string }[],
+	searchTerm: string,
+	driver: DatabaseDriver,
+	paramOffset = 0,
+): WhereClauseResult {
+	if (!searchTerm || columns.length === 0) {
+		return { sql: "", params: [] };
+	}
+
+	const searchable = columns.filter((c) => isSearchableType(c.dataType));
+	if (searchable.length === 0) {
+		return { sql: "", params: [] };
+	}
+
+	const isPostgres = driver.getDriverType() === "postgresql";
+	const likeOp = isPostgres ? "ILIKE" : "LIKE";
+	const pattern = `%${searchTerm}%`;
+
+	const conditions: string[] = [];
+	const params: unknown[] = [];
+	let paramIndex = paramOffset;
+
+	for (const col of searchable) {
+		paramIndex++;
+		const quoted = driver.quoteIdentifier(col.name);
+		conditions.push(`CAST(${quoted} AS TEXT) ${likeOp} $${paramIndex}`);
+		params.push(pattern);
+	}
+
+	return {
+		sql: `(${conditions.join(" OR ")})`,
+		params,
+	};
+}
+
 /**
  * Build a WHERE clause from an array of column filters.
  * Returns the SQL fragment (including "WHERE") and the parameter values.
@@ -133,6 +182,34 @@ export function buildOrderByClause(
 }
 
 /**
+ * Combine column filter WHERE clause and quick search clause into a single WHERE fragment.
+ */
+function combineWhereClauses(
+	filterWhere: WhereClauseResult,
+	quickSearch: WhereClauseResult | undefined,
+): WhereClauseResult {
+	const hasFilter = filterWhere.sql.length > 0;
+	const hasSearch = quickSearch != null && quickSearch.sql.length > 0;
+
+	if (!hasFilter && !hasSearch) return { sql: "", params: [] };
+	if (hasFilter && !hasSearch) return filterWhere;
+
+	if (!hasFilter && hasSearch) {
+		return {
+			sql: `WHERE ${quickSearch!.sql}`,
+			params: quickSearch!.params,
+		};
+	}
+
+	// Both present: strip "WHERE " from filterWhere and AND them together
+	const filterConditions = filterWhere.sql.replace(/^WHERE /, "");
+	return {
+		sql: `WHERE ${filterConditions} AND ${quickSearch!.sql}`,
+		params: [...filterWhere.params, ...quickSearch!.params],
+	};
+}
+
+/**
  * Build a complete SELECT query with pagination, sorting, and filtering.
  * Returns the SQL string and parameter values.
  */
@@ -144,9 +221,11 @@ export function buildSelectQuery(
 	sort: SortColumn[] | undefined,
 	filters: ColumnFilter[] | undefined,
 	driver: DatabaseDriver,
+	quickSearch?: WhereClauseResult,
 ): { sql: string; params: unknown[] } {
 	const from = driver.qualifyTable(schema, table);
-	const where = buildWhereClause(filters, driver);
+	const filterWhere = buildWhereClause(filters, driver);
+	const where = combineWhereClauses(filterWhere, quickSearch);
 	const orderBy = buildOrderByClause(sort, driver);
 
 	const offset = (page - 1) * pageSize;
@@ -177,9 +256,11 @@ export function buildCountQuery(
 	table: string,
 	filters: ColumnFilter[] | undefined,
 	driver: DatabaseDriver,
+	quickSearch?: WhereClauseResult,
 ): { sql: string; params: unknown[] } {
 	const from = driver.qualifyTable(schema, table);
-	const where = buildWhereClause(filters, driver);
+	const filterWhere = buildWhereClause(filters, driver);
+	const where = combineWhereClauses(filterWhere, quickSearch);
 
 	const parts = [`SELECT COUNT(*) AS count FROM ${from}`];
 	if (where.sql) parts.push(where.sql);

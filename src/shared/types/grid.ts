@@ -35,6 +35,7 @@ export interface GridDataRequest {
 	pageSize: number;
 	sort?: SortColumn[];
 	filters?: ColumnFilter[];
+	quickSearch?: string;
 	database?: string;
 }
 

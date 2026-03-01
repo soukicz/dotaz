@@ -4,6 +4,7 @@ import {
 	buildOrderByClause,
 	buildSelectQuery,
 	buildCountQuery,
+	buildQuickSearchClause,
 	splitStatements,
 	QueryExecutor,
 } from "../src/bun/services/query-executor";
@@ -269,6 +270,137 @@ describe("buildCountQuery", () => {
 		const driver = mockDriver("sqlite");
 		const result = buildCountQuery("main", "users", undefined, driver);
 		expect(result.sql).toBe('SELECT COUNT(*) AS count FROM "users"');
+	});
+});
+
+// ── buildQuickSearchClause ────────────────────────────────
+
+describe("buildQuickSearchClause", () => {
+	const pgDriver = mockDriver("postgresql");
+	const sqliteDriver = mockDriver("sqlite");
+
+	const columns = [
+		{ name: "name", dataType: "varchar" },
+		{ name: "email", dataType: "text" },
+		{ name: "age", dataType: "integer" },
+	];
+
+	test("returns empty for empty search term", () => {
+		expect(buildQuickSearchClause(columns, "", pgDriver)).toEqual({ sql: "", params: [] });
+	});
+
+	test("returns empty for empty columns", () => {
+		expect(buildQuickSearchClause([], "test", pgDriver)).toEqual({ sql: "", params: [] });
+	});
+
+	test("generates OR ILIKE conditions for PostgreSQL", () => {
+		const result = buildQuickSearchClause(columns, "alice", pgDriver);
+		expect(result.sql).toBe(
+			'(CAST("name" AS TEXT) ILIKE $1 OR CAST("email" AS TEXT) ILIKE $2 OR CAST("age" AS TEXT) ILIKE $3)',
+		);
+		expect(result.params).toEqual(["%alice%", "%alice%", "%alice%"]);
+	});
+
+	test("generates OR LIKE conditions for SQLite", () => {
+		const result = buildQuickSearchClause(columns, "alice", sqliteDriver);
+		expect(result.sql).toBe(
+			'(CAST("name" AS TEXT) LIKE $1 OR CAST("email" AS TEXT) LIKE $2 OR CAST("age" AS TEXT) LIKE $3)',
+		);
+		expect(result.params).toEqual(["%alice%", "%alice%", "%alice%"]);
+	});
+
+	test("excludes bytea columns", () => {
+		const cols = [
+			{ name: "name", dataType: "varchar" },
+			{ name: "avatar", dataType: "bytea" },
+		];
+		const result = buildQuickSearchClause(cols, "test", pgDriver);
+		expect(result.sql).toBe('(CAST("name" AS TEXT) ILIKE $1)');
+		expect(result.params).toEqual(["%test%"]);
+	});
+
+	test("excludes blob columns", () => {
+		const cols = [
+			{ name: "name", dataType: "text" },
+			{ name: "data", dataType: "blob" },
+		];
+		const result = buildQuickSearchClause(cols, "test", sqliteDriver);
+		expect(result.sql).toBe('(CAST("name" AS TEXT) LIKE $1)');
+		expect(result.params).toEqual(["%test%"]);
+	});
+
+	test("returns empty when all columns are binary", () => {
+		const cols = [{ name: "data", dataType: "bytea" }];
+		expect(buildQuickSearchClause(cols, "test", pgDriver)).toEqual({ sql: "", params: [] });
+	});
+
+	test("respects paramOffset", () => {
+		const cols = [{ name: "name", dataType: "text" }];
+		const result = buildQuickSearchClause(cols, "test", pgDriver, 3);
+		expect(result.sql).toBe('(CAST("name" AS TEXT) ILIKE $4)');
+		expect(result.params).toEqual(["%test%"]);
+	});
+});
+
+// ── buildSelectQuery with quickSearch ────────────────────
+
+describe("buildSelectQuery with quickSearch", () => {
+	test("adds quick search to WHERE clause", () => {
+		const driver = mockDriver("postgresql");
+		const quickSearch = {
+			sql: '(CAST("name" AS TEXT) ILIKE $1)',
+			params: ["%test%"],
+		};
+		const result = buildSelectQuery("public", "users", 1, 50, undefined, undefined, driver, quickSearch);
+		expect(result.sql).toBe(
+			'SELECT * FROM "public"."users" WHERE (CAST("name" AS TEXT) ILIKE $1) LIMIT $2 OFFSET $3',
+		);
+		expect(result.params).toEqual(["%test%", 50, 0]);
+	});
+
+	test("combines filters and quick search with AND", () => {
+		const driver = mockDriver("postgresql");
+		const filters: ColumnFilter[] = [{ column: "age", operator: "gt", value: 20 }];
+		const quickSearch = {
+			sql: '(CAST("name" AS TEXT) ILIKE $2)',
+			params: ["%test%"],
+		};
+		const result = buildSelectQuery("public", "users", 1, 50, undefined, filters, driver, quickSearch);
+		expect(result.sql).toBe(
+			'SELECT * FROM "public"."users" WHERE "age" > $1 AND (CAST("name" AS TEXT) ILIKE $2) LIMIT $3 OFFSET $4',
+		);
+		expect(result.params).toEqual([20, "%test%", 50, 0]);
+	});
+});
+
+// ── buildCountQuery with quickSearch ─────────────────────
+
+describe("buildCountQuery with quickSearch", () => {
+	test("adds quick search to count query", () => {
+		const driver = mockDriver("postgresql");
+		const quickSearch = {
+			sql: '(CAST("name" AS TEXT) ILIKE $1)',
+			params: ["%test%"],
+		};
+		const result = buildCountQuery("public", "users", undefined, driver, quickSearch);
+		expect(result.sql).toBe(
+			'SELECT COUNT(*) AS count FROM "public"."users" WHERE (CAST("name" AS TEXT) ILIKE $1)',
+		);
+		expect(result.params).toEqual(["%test%"]);
+	});
+
+	test("combines filters and quick search in count", () => {
+		const driver = mockDriver("postgresql");
+		const filters: ColumnFilter[] = [{ column: "age", operator: "gt", value: 20 }];
+		const quickSearch = {
+			sql: '(CAST("name" AS TEXT) ILIKE $2)',
+			params: ["%test%"],
+		};
+		const result = buildCountQuery("public", "users", filters, driver, quickSearch);
+		expect(result.sql).toBe(
+			'SELECT COUNT(*) AS count FROM "public"."users" WHERE "age" > $1 AND (CAST("name" AS TEXT) ILIKE $2)',
+		);
+		expect(result.params).toEqual([20, "%test%"]);
 	});
 });
 

@@ -74,10 +74,12 @@ export default function DataGrid(props: DataGridProps) {
 	const [saveViewForceNew, setSaveViewForceNew] = createSignal(false);
 	const [savedViewConfig, setSavedViewConfig] = createSignal<SavedViewConfig | null>(null);
 	const [now, setNow] = createSignal(Date.now());
+	const [searchInput, setSearchInput] = createSignal("");
 	let scrollRef: HTMLDivElement | undefined;
 	let gridRef: HTMLDivElement | undefined;
 	let anchorRow = -1;
 	let staleTimer: ReturnType<typeof setInterval> | undefined;
+	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const tab = () => gridStore.getTab(props.tabId);
 	const tabInfo = () => tabsStore.openTabs.find((t) => t.id === props.tabId);
@@ -113,6 +115,7 @@ export default function DataGrid(props: DataGridProps) {
 	});
 	onCleanup(() => {
 		if (staleTimer) clearInterval(staleTimer);
+		if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
 	});
 
 	// Sync tab dirty flag with pending changes state
@@ -195,6 +198,20 @@ export default function DataGrid(props: DataGridProps) {
 			setFkColumns(new Set<string>());
 			setFkMap(new Map<string, FkTarget>());
 		}
+	}
+
+	function handleQuickSearchInput(value: string) {
+		setSearchInput(value);
+		if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+		searchDebounceTimer = setTimeout(() => {
+			gridStore.setQuickSearch(props.tabId, value);
+		}, 300);
+	}
+
+	function handleClearQuickSearch() {
+		setSearchInput("");
+		if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+		gridStore.setQuickSearch(props.tabId, "");
 	}
 
 	function handleRefresh() {
@@ -849,6 +866,35 @@ export default function DataGrid(props: DataGridProps) {
 									</Show>
 								</Show>
 							</div>
+							<div
+								class="data-grid__quick-search"
+								classList={{ "data-grid__quick-search--active": searchInput().length > 0 }}
+							>
+								<Icon name="search" size={12} />
+								<input
+									type="text"
+									class="data-grid__quick-search-input"
+									placeholder="Search..."
+									value={searchInput()}
+									onInput={(e) => handleQuickSearchInput(e.currentTarget.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Escape" && searchInput()) {
+											e.preventDefault();
+											e.stopPropagation();
+											handleClearQuickSearch();
+										}
+									}}
+								/>
+								<Show when={searchInput()}>
+									<button
+										class="data-grid__quick-search-clear"
+										onClick={handleClearQuickSearch}
+										title="Clear search"
+									>
+										<Icon name="close" size={10} />
+									</button>
+								</Show>
+							</div>
 							<FilterBar
 								columns={tabState().columns}
 								filters={tabState().filters}
@@ -974,9 +1020,11 @@ export default function DataGrid(props: DataGridProps) {
 									<Icon name="table" size={32} class="empty-state__icon" />
 									<div class="empty-state__title">No data</div>
 									<div class="empty-state__subtitle">
-										{tabState().filters.length > 0
-											? "No rows match the current filters."
-											: "This table is empty."}
+										{tabState().quickSearch
+											? "No rows match the current search."
+											: tabState().filters.length > 0
+												? "No rows match the current filters."
+												: "This table is empty."}
 									</div>
 								</div>
 							</Show>

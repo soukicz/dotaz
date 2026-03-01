@@ -76,6 +76,7 @@ export interface TabGridState {
 	pageSize: number;
 	sort: SortColumn[];
 	filters: ColumnFilter[];
+	quickSearch: string;
 	selectedRows: Set<number>;
 	focusedCell: FocusedCell | null;
 	editingCell: EditingCell | null;
@@ -115,6 +116,7 @@ function createDefaultTabState(
 		pageSize: 100,
 		sort: [],
 		filters: [],
+		quickSearch: "",
 		selectedRows: new Set(),
 		focusedCell: null,
 		editingCell: null,
@@ -172,6 +174,7 @@ async function fetchData(tabId: string) {
 			pageSize: tab.pageSize,
 			sort: tab.sort.length > 0 ? tab.sort : undefined,
 			filters: tab.filters.length > 0 ? tab.filters : undefined,
+			quickSearch: tab.quickSearch || undefined,
 			database: tab.database,
 		});
 
@@ -290,6 +293,14 @@ async function removeFilter(tabId: string, column: string) {
 		"filters",
 		tab.filters.filter((f) => f.column !== column),
 	);
+	setState("tabs", tabId, "currentPage", 1);
+	setState("tabs", tabId, "selectedRows", new Set());
+	await fetchData(tabId);
+}
+
+async function setQuickSearch(tabId: string, search: string) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "quickSearch", search);
 	setState("tabs", tabId, "currentPage", 1);
 	setState("tabs", tabId, "selectedRows", new Set());
 	await fetchData(tabId);
@@ -887,6 +898,7 @@ async function resetToDefault(tabId: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "sort", []);
 	setState("tabs", tabId, "filters", []);
+	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "columnConfig", {});
 	setState("tabs", tabId, "columnOrder", []);
 	setState("tabs", tabId, "activeViewId", null);
@@ -968,6 +980,7 @@ async function navigateToFkTarget(
 		{ column: targetColumn, operator: "eq", value: String(value) },
 	]);
 	setState("tabs", tabId, "sort", []);
+	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "columnConfig", {});
 	setState("tabs", tabId, "columnOrder", []);
 	setState("tabs", tabId, "currentPage", 1);
@@ -997,6 +1010,7 @@ async function navigateBack(tabId: string) {
 	setState("tabs", tabId, "sort", entry.sort);
 	setState("tabs", tabId, "columnConfig", entry.columnConfig);
 	setState("tabs", tabId, "columnOrder", entry.columnOrder);
+	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "currentPage", 1);
 	setState("tabs", tabId, "selectedRows", new Set());
 	setState("tabs", tabId, "focusedCell", null);
@@ -1026,6 +1040,7 @@ export const gridStore = {
 	setFilter,
 	removeFilter,
 	clearFilters,
+	setQuickSearch,
 	selectRow,
 	toggleRowInSelection,
 	selectRange,

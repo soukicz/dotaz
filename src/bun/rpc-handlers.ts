@@ -5,7 +5,7 @@ import type { AppDatabase } from "./storage/app-db";
 import type { EncryptionService } from "./services/encryption";
 import type { GridDataRequest } from "../shared/types/grid";
 import type { ExportOptions, ExportPreviewRequest } from "../shared/types/export";
-import { buildSelectQuery, buildCountQuery, QueryExecutor, generateChangeSql, generateChangesPreview } from "./services/query-executor";
+import { buildSelectQuery, buildCountQuery, buildQuickSearchClause, QueryExecutor, generateChangeSql, generateChangesPreview } from "./services/query-executor";
 import { TransactionManager } from "./services/transaction-manager";
 import { exportToFile, exportPreview } from "./services/export-service";
 import { formatSql } from "./services/sql-formatter";
@@ -85,11 +85,6 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 		// ── Data Grid ────────────────────────────────────
 		"data.getTableData": async (req: GridDataRequest) => {
 			const driver = cm.getDriver(req.connectionId, req.database);
-			const { sql, params } = buildSelectQuery(
-				req.schema, req.table, req.page, req.pageSize,
-				req.sort, req.filters, driver,
-			);
-			const result = await driver.execute(sql, params);
 
 			// Get column metadata
 			const columns = await driver.getColumns(req.schema, req.table);
@@ -100,8 +95,26 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 				isPrimaryKey: c.isPrimaryKey,
 			}));
 
-			// Get total count with same filters
-			const countQuery = buildCountQuery(req.schema, req.table, req.filters, driver);
+			// Build quick search clause if search term is provided
+			const filterParamCount = (req.filters ?? []).reduce((sum, f) => {
+				if (f.operator === "isNull" || f.operator === "isNotNull") return sum;
+				if (f.operator === "in" || f.operator === "notIn") {
+					return sum + (Array.isArray(f.value) ? f.value.length : 1);
+				}
+				return sum + 1;
+			}, 0);
+			const quickSearchClause = req.quickSearch
+				? buildQuickSearchClause(gridColumns, req.quickSearch, driver, filterParamCount)
+				: undefined;
+
+			const { sql, params } = buildSelectQuery(
+				req.schema, req.table, req.page, req.pageSize,
+				req.sort, req.filters, driver, quickSearchClause,
+			);
+			const result = await driver.execute(sql, params);
+
+			// Get total count with same filters + quick search
+			const countQuery = buildCountQuery(req.schema, req.table, req.filters, driver, quickSearchClause);
 			const countResult = await driver.execute(countQuery.sql, countQuery.params);
 			const totalRows = Number(countResult.rows[0]?.count ?? 0);
 
