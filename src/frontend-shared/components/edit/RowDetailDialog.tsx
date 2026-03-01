@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, For, Show, on } from "solid-js";
 import type { GridColumnDef, ColumnFilter } from "../../../shared/types/grid";
-import { DatabaseDataType } from "../../../shared/types/database";
+import { DatabaseDataType, SQL_DEFAULT, isSqlDefault } from "../../../shared/types/database";
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../../shared/types/database";
 import ChevronUp from "lucide-solid/icons/chevron-up";
 import ChevronDown from "lucide-solid/icons/chevron-down";
@@ -37,6 +37,7 @@ interface RowDetailDialogProps {
 
 function valueToString(value: unknown): string {
 	if (value === null || value === undefined) return "";
+	if (isSqlDefault(value)) return "";
 	if (typeof value === "object") return JSON.stringify(value, null, 2);
 	return String(value);
 }
@@ -57,7 +58,7 @@ function parseValue(text: string, column: GridColumnDef): unknown {
 }
 
 function dateInputValue(value: unknown, dataType: DatabaseDataType): string {
-	if (value === null || value === undefined) return "";
+	if (value === null || value === undefined || isSqlDefault(value)) return "";
 	const str = String(value);
 	if (dataType === DatabaseDataType.Date) {
 		return str.substring(0, 10);
@@ -162,6 +163,10 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 		return v === null || v === undefined;
 	}
 
+	function isFieldDefault(column: string): boolean {
+		return isSqlDefault(getValue(column));
+	}
+
 	function isChanged(column: string): boolean {
 		// Changed in this dialog session
 		if (column in localEdits()) return true;
@@ -176,6 +181,32 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 
 	function setNull(column: string) {
 		setFieldValue(column, null);
+	}
+
+	function setDefault(column: string) {
+		setFieldValue(column, SQL_DEFAULT);
+	}
+
+	/** Handle Ctrl+key quick value shortcuts on field inputs. */
+	function handleFieldKeyDown(e: KeyboardEvent, col: GridColumnDef) {
+		if (!(e.ctrlKey || e.metaKey)) return;
+		const key = e.key.toLowerCase();
+		const isPk = pkColumns().has(col.name);
+		if (isPk) return;
+
+		if (key === "n" && col.nullable) {
+			e.preventDefault();
+			setNull(col.name);
+		} else if (key === "t" && isBooleanType(col.dataType)) {
+			e.preventDefault();
+			setFieldValue(col.name, true);
+		} else if (key === "f" && isBooleanType(col.dataType)) {
+			e.preventDefault();
+			setFieldValue(col.name, false);
+		} else if (key === "d") {
+			e.preventDefault();
+			setDefault(col.name);
+		}
 	}
 
 	// ── Dialog title ──────────────────────────────────────────
@@ -256,26 +287,37 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 		const readOnly = isPk;
 		const value = getValue(col.name);
 		const isNull = isFieldNull(col.name);
+		const isDef = isFieldDefault(col.name);
+		const specialPlaceholder = isDef ? "DEFAULT" : isNull ? "NULL" : "";
 
 		if (isBooleanType(col.dataType)) {
 			return (
-				<div class="row-detail__checkbox-row">
+				<div class="row-detail__checkbox-row" onKeyDown={(e) => handleFieldKeyDown(e, col)}>
 					<input
 						type="checkbox"
-						checked={!!value && !isNull}
+						checked={!!value && !isNull && !isDef}
 						disabled={readOnly}
 						onChange={(e) => setFieldValue(col.name, e.target.checked)}
 					/>
 					<span style={{ "font-size": "var(--font-size-sm)", color: "var(--ink-secondary)" }}>
-						{isNull ? "NULL" : value ? "true" : "false"}
+						{isDef ? "DEFAULT" : isNull ? "NULL" : value ? "true" : "false"}
 					</span>
 					<Show when={col.nullable && !readOnly}>
 						<button
 							class="row-detail__null-btn"
 							onClick={() => setNull(col.name)}
-							title="Set NULL"
+							title="Set NULL (Ctrl+N)"
 						>
 							NULL
+						</button>
+					</Show>
+					<Show when={!readOnly}>
+						<button
+							class="row-detail__null-btn"
+							onClick={() => setDefault(col.name)}
+							title="Set DEFAULT (Ctrl+D)"
+						>
+							DEF
 						</button>
 					</Show>
 				</div>
@@ -288,11 +330,15 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 				<div class="row-detail__input-row">
 					<input
 						class="row-detail__input"
-						classList={{ "row-detail__input--null": isNull }}
+						classList={{
+							"row-detail__input--null": isNull,
+							"row-detail__input--default": isDef,
+						}}
 						type={inputType}
-						value={isNull ? "" : dateInputValue(value, col.dataType)}
+						value={isNull || isDef ? "" : dateInputValue(value, col.dataType)}
 						readOnly={readOnly}
-						placeholder={isNull ? "NULL" : ""}
+						placeholder={specialPlaceholder}
+						onKeyDown={(e) => handleFieldKeyDown(e, col)}
 						onInput={(e) => {
 							const v = e.target.value;
 							if (v === "") {
@@ -306,9 +352,18 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 						<button
 							class="row-detail__null-btn"
 							onClick={() => setNull(col.name)}
-							title="Set NULL"
+							title="Set NULL (Ctrl+N)"
 						>
 							NULL
+						</button>
+					</Show>
+					<Show when={!readOnly}>
+						<button
+							class="row-detail__null-btn"
+							onClick={() => setDefault(col.name)}
+							title="Set DEFAULT (Ctrl+D)"
+						>
+							DEF
 						</button>
 					</Show>
 				</div>
@@ -318,21 +373,25 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 		if (isTextType(col.dataType)) {
 			return (
 				<div class="row-detail__input-row">
-					<Show when={isNull && readOnly}>
+					<Show when={(isNull || isDef) && readOnly}>
 						<input
 							class="row-detail__input row-detail__input--null"
 							type="text"
-							value="NULL"
+							value={isDef ? "DEFAULT" : "NULL"}
 							readOnly
 						/>
 					</Show>
-					<Show when={!(isNull && readOnly)}>
+					<Show when={!((isNull || isDef) && readOnly)}>
 						<textarea
 							class="row-detail__textarea"
-							classList={{ "row-detail__input--null": isNull }}
-							value={isNull ? "" : valueToString(value)}
+							classList={{
+								"row-detail__input--null": isNull,
+								"row-detail__input--default": isDef,
+							}}
+							value={isNull || isDef ? "" : valueToString(value)}
 							readOnly={readOnly}
-							placeholder={isNull ? "NULL" : ""}
+							placeholder={specialPlaceholder}
+							onKeyDown={(e) => handleFieldKeyDown(e, col)}
 							onInput={(e) => {
 								setFieldValue(col.name, parseValue(e.target.value, col));
 							}}
@@ -342,9 +401,18 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 						<button
 							class="row-detail__null-btn"
 							onClick={() => setNull(col.name)}
-							title="Set NULL"
+							title="Set NULL (Ctrl+N)"
 						>
 							NULL
+						</button>
+					</Show>
+					<Show when={!readOnly}>
+						<button
+							class="row-detail__null-btn"
+							onClick={() => setDefault(col.name)}
+							title="Set DEFAULT (Ctrl+D)"
+						>
+							DEF
 						</button>
 					</Show>
 				</div>
@@ -356,12 +424,16 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 			<div class="row-detail__input-row">
 				<input
 					class="row-detail__input"
-					classList={{ "row-detail__input--null": isNull }}
+					classList={{
+						"row-detail__input--null": isNull,
+						"row-detail__input--default": isDef,
+					}}
 					type="text"
 					inputMode={isNumericType(col.dataType) ? "numeric" : undefined}
-					value={isNull ? "" : valueToString(value)}
+					value={isNull || isDef ? "" : valueToString(value)}
 					readOnly={readOnly}
-					placeholder={isNull ? "NULL" : ""}
+					placeholder={specialPlaceholder}
+					onKeyDown={(e) => handleFieldKeyDown(e, col)}
 					onInput={(e) => {
 						setFieldValue(col.name, parseValue(e.target.value, col));
 					}}
@@ -370,9 +442,18 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 					<button
 						class="row-detail__null-btn"
 						onClick={() => setNull(col.name)}
-						title="Set NULL"
+						title="Set NULL (Ctrl+N)"
 					>
 						NULL
+					</button>
+				</Show>
+				<Show when={!readOnly}>
+					<button
+						class="row-detail__null-btn"
+						onClick={() => setDefault(col.name)}
+						title="Set DEFAULT (Ctrl+D)"
+					>
+						DEF
 					</button>
 				</Show>
 			</div>

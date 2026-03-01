@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
+import { isSqlDefault } from "../../../shared/types/database";
 import Check from "lucide-solid/icons/check";
 import X from "lucide-solid/icons/x";
 import InlineEditor from "../edit/InlineEditor";
@@ -46,12 +47,14 @@ export default function GridCell(props: GridCellProps) {
 	const [jsonExpanded, setJsonExpanded] = createSignal(false);
 
 	const isNull = () => props.value === null || props.value === undefined;
+	const isDefault = () => isSqlDefault(props.value);
 	const isNumber = () => isNumericType(props.column.dataType);
 	const isBool = () => isBooleanType(props.column.dataType);
 	const isTs = () => isTimestampType(props.column.dataType);
 	const isJson = () => isJsonType(props.column.dataType);
 
 	const displayValue = () => {
+		if (isDefault()) return "DEFAULT";
 		if (isNull()) return "NULL";
 		if (isBool()) return props.value ? <Check size={14} /> : <X size={14} />;
 		if (isTs()) return formatTimestamp(props.value);
@@ -116,10 +119,11 @@ export default function GridCell(props: GridCellProps) {
 				class="grid-cell"
 				classList={{
 					"grid-cell--null": isNull(),
-					"grid-cell--number": isNumber() && !isNull(),
-					"grid-cell--boolean": isBool() && !isNull(),
-					"grid-cell--json": isJson() && !isNull(),
-					"grid-cell--timestamp": isTs() && !isNull(),
+					"grid-cell--default": isDefault(),
+					"grid-cell--number": isNumber() && !isNull() && !isDefault(),
+					"grid-cell--boolean": isBool() && !isNull() && !isDefault(),
+					"grid-cell--json": isJson() && !isNull() && !isDefault(),
+					"grid-cell--timestamp": isTs() && !isNull() && !isDefault(),
 					"grid-cell--fk": isFk(),
 					"grid-cell--changed": !!props.changed,
 					"grid-cell--deleted": !!props.deleted,

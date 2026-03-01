@@ -17,6 +17,11 @@
 	font-style: italic;
 }
 
+.grid-cell--default {
+	color: var(--info);
+	font-style: italic;
+}
+
 .grid-cell--number {
 	text-align: right;
 }

@@ -1,6 +1,6 @@
 import { createSignal, onMount } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
-import { DatabaseDataType } from "../../../shared/types/database";
+import { DatabaseDataType, SQL_DEFAULT, isSqlDefault } from "../../../shared/types/database";
 import { isNumericType, isBooleanType, isDateType, isTextType } from "../../lib/column-types";
 import "./InlineEditor.css";
 
@@ -16,6 +16,7 @@ interface InlineEditorProps {
 
 function valueToString(value: unknown): string {
 	if (value === null || value === undefined) return "";
+	if (isSqlDefault(value)) return "";
 	if (typeof value === "object") return JSON.stringify(value);
 	return String(value);
 }
@@ -38,10 +39,64 @@ function parseValue(text: string, column: GridColumnDef): unknown {
 	return text;
 }
 
+/**
+ * Try to handle a quick value shortcut key.
+ * Returns true if the shortcut was handled, false otherwise.
+ *
+ * Ctrl+key shortcuts always work.
+ * Single-key shortcuts work when the input is empty (except for text columns
+ * where single letters are valid input).
+ */
+function tryQuickValueShortcut(
+	e: KeyboardEvent,
+	column: GridColumnDef,
+	inputEmpty: boolean,
+	isTextColumn: boolean,
+	onSave: (value: unknown) => void,
+): boolean {
+	const key = e.key.toLowerCase();
+	const isCtrl = e.ctrlKey || e.metaKey;
+
+	// Ctrl+N or 'n' when empty (non-text) → NULL
+	if (key === "n" && column.nullable && (isCtrl || (inputEmpty && !isTextColumn))) {
+		e.preventDefault();
+		e.stopPropagation();
+		onSave(null);
+		return true;
+	}
+
+	// Ctrl+T or 't' when empty (non-text) → true (boolean only)
+	if (key === "t" && isBooleanType(column.dataType) && (isCtrl || inputEmpty)) {
+		e.preventDefault();
+		e.stopPropagation();
+		onSave(true);
+		return true;
+	}
+
+	// Ctrl+F or 'f' when empty (non-text) → false (boolean only)
+	if (key === "f" && isBooleanType(column.dataType) && (isCtrl || inputEmpty)) {
+		e.preventDefault();
+		e.stopPropagation();
+		onSave(false);
+		return true;
+	}
+
+	// Ctrl+D or 'd' when empty (non-text) → DEFAULT
+	if (key === "d" && (isCtrl || (inputEmpty && !isTextColumn))) {
+		e.preventDefault();
+		e.stopPropagation();
+		onSave(SQL_DEFAULT);
+		return true;
+	}
+
+	return false;
+}
+
 export default function InlineEditor(props: InlineEditorProps) {
 	const [isNull, setIsNull] = createSignal(
 		props.value === null || props.value === undefined,
 	);
+	const [isDefault, setIsDefault] = createSignal(isSqlDefault(props.value));
 	let inputRef: HTMLInputElement | HTMLTextAreaElement | undefined;
 
 	const dataType = () => props.column.dataType;
@@ -64,6 +119,10 @@ export default function InlineEditor(props: InlineEditorProps) {
 			props.onSave(null);
 			return;
 		}
+		if (isDefault()) {
+			props.onSave(SQL_DEFAULT);
+			return;
+		}
 		if (isBool()) {
 			// Checkbox value is handled in handleCheckboxChange
 			return;
@@ -74,7 +133,18 @@ export default function InlineEditor(props: InlineEditorProps) {
 		}
 	}
 
+	function getInputEmpty(): boolean {
+		if (isNull() || isDefault()) return true;
+		if (inputRef) return inputRef.value === "";
+		return false;
+	}
+
 	function handleKeyDown(e: KeyboardEvent) {
+		// Try quick value shortcuts first
+		if (tryQuickValueShortcut(e, props.column, getInputEmpty(), isText(), props.onSave)) {
+			return;
+		}
+
 		if (e.key === "Escape") {
 			e.preventDefault();
 			e.stopPropagation();
@@ -99,12 +169,13 @@ export default function InlineEditor(props: InlineEditorProps) {
 
 	function handleSetNull() {
 		setIsNull(true);
+		setIsDefault(false);
 		props.onSave(null);
 	}
 
 	// Date formatting for input[type=date]/input[type=datetime-local]
 	function dateInputValue(): string {
-		if (isNull() || props.value === null || props.value === undefined) return "";
+		if (isNull() || isDefault() || props.value === null || props.value === undefined) return "";
 		const str = String(props.value);
 		if (dataType() === DatabaseDataType.Date) {
 			// Return YYYY-MM-DD
@@ -122,11 +193,12 @@ export default function InlineEditor(props: InlineEditorProps) {
 				class="inline-editor inline-editor--boolean"
 				style={{ width: `${props.width}px` }}
 				onKeyDown={handleKeyDown}
+				tabIndex={0}
 			>
 				<input
 					ref={(el) => { inputRef = el; }}
 					type="checkbox"
-					checked={!!props.value && !isNull()}
+					checked={!!props.value && !isNull() && !isDefault()}
 					onChange={handleCheckboxChange}
 				/>
 				{props.column.nullable && (
@@ -172,7 +244,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 					ref={(el) => { inputRef = el; }}
 					type="text"
 					inputMode="numeric"
-					value={isNull() ? "" : valueToString(props.value)}
+					value={isNull() || isDefault() ? "" : valueToString(props.value)}
 					onBlur={() => save()}
 				/>
 				{props.column.nullable && (
@@ -194,7 +266,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 			>
 				<textarea
 					ref={(el) => { inputRef = el; }}
-					value={isNull() ? "" : valueToString(props.value)}
+					value={isNull() || isDefault() ? "" : valueToString(props.value)}
 					onBlur={() => save()}
 					rows={1}
 					onInput={(e) => {
@@ -222,7 +294,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 			<input
 				ref={(el) => { inputRef = el; }}
 				type="text"
-				value={isNull() ? "" : valueToString(props.value)}
+				value={isNull() || isDefault() ? "" : valueToString(props.value)}
 				onBlur={() => save()}
 			/>
 			{props.column.nullable && (

@@ -13,6 +13,7 @@ import {
 import type { DataChange, InsertChange, UpdateChange, DeleteChange } from "../src/shared/types/rpc";
 import type { DatabaseDriver } from "../src/backend-shared/db/driver";
 import type { SqliteConnectionConfig } from "../src/shared/types/connection";
+import { SQL_DEFAULT, isSqlDefault } from "../src/shared/types/database";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -301,6 +302,93 @@ describe("SQL Generation", () => {
 			expect(lines[0]).toContain("INSERT INTO");
 			expect(lines[1]).toContain("UPDATE");
 			expect(lines[2]).toContain("DELETE FROM");
+		});
+	});
+
+	describe("SQL_DEFAULT sentinel", () => {
+		test("isSqlDefault identifies the sentinel", () => {
+			expect(isSqlDefault(SQL_DEFAULT)).toBe(true);
+			expect(isSqlDefault(null)).toBe(false);
+			expect(isSqlDefault("DEFAULT")).toBe(false);
+			expect(isSqlDefault(42)).toBe(false);
+			expect(isSqlDefault({ __dotaz_sentinel: "OTHER" })).toBe(false);
+		});
+
+		test("INSERT with SQL_DEFAULT uses DEFAULT keyword", () => {
+			const change: InsertChange = {
+				type: "insert",
+				schema: "main",
+				table: "users",
+				values: { name: "Alice", age: SQL_DEFAULT },
+			};
+			const result = generateInsert(change, driver);
+			expect(result.sql).toBe('INSERT INTO "users" ("name", "age") VALUES ($1, DEFAULT)');
+			expect(result.params).toEqual(["Alice"]);
+		});
+
+		test("INSERT with all SQL_DEFAULT values uses DEFAULT for each", () => {
+			const change: InsertChange = {
+				type: "insert",
+				schema: "main",
+				table: "users",
+				values: { name: SQL_DEFAULT, age: SQL_DEFAULT },
+			};
+			const result = generateInsert(change, driver);
+			expect(result.sql).toBe('INSERT INTO "users" ("name", "age") VALUES (DEFAULT, DEFAULT)');
+			expect(result.params).toEqual([]);
+		});
+
+		test("UPDATE with SQL_DEFAULT uses DEFAULT keyword", () => {
+			const change: UpdateChange = {
+				type: "update",
+				schema: "main",
+				table: "users",
+				primaryKeys: { id: 1 },
+				values: { name: "Alice", age: SQL_DEFAULT },
+			};
+			const result = generateUpdate(change, driver);
+			expect(result.sql).toBe(
+				'UPDATE "users" SET "name" = $1, "age" = DEFAULT WHERE "id" = $2',
+			);
+			expect(result.params).toEqual(["Alice", 1]);
+		});
+
+		test("UPDATE with only SQL_DEFAULT values", () => {
+			const change: UpdateChange = {
+				type: "update",
+				schema: "main",
+				table: "users",
+				primaryKeys: { id: 1 },
+				values: { age: SQL_DEFAULT },
+			};
+			const result = generateUpdate(change, driver);
+			expect(result.sql).toBe(
+				'UPDATE "users" SET "age" = DEFAULT WHERE "id" = $1',
+			);
+			expect(result.params).toEqual([1]);
+		});
+
+		test("INSERT preview shows DEFAULT for sentinel values", () => {
+			const change: DataChange = {
+				type: "insert",
+				schema: "main",
+				table: "users",
+				values: { name: "Alice", age: SQL_DEFAULT },
+			};
+			const result = generateChangePreview(change, driver);
+			expect(result).toBe(`INSERT INTO "users" ("name", "age") VALUES ('Alice', DEFAULT);`);
+		});
+
+		test("UPDATE preview shows DEFAULT for sentinel values", () => {
+			const change: DataChange = {
+				type: "update",
+				schema: "main",
+				table: "users",
+				primaryKeys: { id: 1 },
+				values: { age: SQL_DEFAULT },
+			};
+			const result = generateChangePreview(change, driver);
+			expect(result).toBe(`UPDATE "users" SET "age" = DEFAULT WHERE "id" = 1;`);
 		});
 	});
 });

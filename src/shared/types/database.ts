@@ -1,5 +1,23 @@
 // Database metadata types
 
+/**
+ * Sentinel value representing SQL DEFAULT — the database column's default value.
+ * Used in pending changes to generate `SET col = DEFAULT` in UPDATE
+ * or `DEFAULT` in INSERT column lists.
+ */
+export const SQL_DEFAULT = Object.freeze({ __dotaz_sentinel: "DEFAULT" } as const);
+export type SqlDefault = typeof SQL_DEFAULT;
+
+/** Type guard: returns true if the value is the SQL_DEFAULT sentinel. */
+export function isSqlDefault(value: unknown): value is SqlDefault {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"__dotaz_sentinel" in value &&
+		(value as Record<string, unknown>).__dotaz_sentinel === "DEFAULT"
+	);
+}
+
 /** Canonical data type categories for compile-time type classification. */
 export enum DatabaseDataType {
 	Integer = "integer",

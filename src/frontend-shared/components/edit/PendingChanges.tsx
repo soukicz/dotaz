@@ -1,5 +1,6 @@
 import { createSignal, For, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
+import { isSqlDefault } from "../../../shared/types/database";
 import { gridStore } from "../../stores/grid";
 import Plus from "lucide-solid/icons/plus";
 import Pencil from "lucide-solid/icons/pencil";
@@ -24,6 +25,7 @@ interface ChangeItem {
 }
 
 function formatValue(value: unknown): string {
+	if (isSqlDefault(value)) return "DEFAULT";
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "object") return JSON.stringify(value);
 	return String(value);

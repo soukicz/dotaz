@@ -137,6 +137,11 @@
 	font-style: italic;
 }
 
+.row-detail__input--default {
+	color: var(--info);
+	font-style: italic;
+}
+
 .row-detail__textarea {
 	flex: 1;
 	background: var(--surface-inset);

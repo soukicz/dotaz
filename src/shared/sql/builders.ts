@@ -1,7 +1,7 @@
 import type { SqlDialect } from "./dialect";
 import type { ColumnFilter, SortColumn } from "../types/grid";
 import type { DataChange, InsertChange, UpdateChange, DeleteChange } from "../types/rpc";
-import { DatabaseDataType } from "../types/database";
+import { DatabaseDataType, isSqlDefault } from "../types/database";
 
 export interface WhereClauseResult {
 	sql: string;
@@ -290,11 +290,20 @@ export function generateInsert(change: InsertChange, dialect: SqlDialect): Gener
 
 	const columns = Object.keys(values);
 	const quotedCols = columns.map((c) => dialect.quoteIdentifier(c));
-	const placeholders = columns.map((_, i) => dialect.placeholder(i + 1));
-	const params = columns.map((c) => values[c]);
+	const params: unknown[] = [];
+	let paramIndex = 0;
+
+	const valueParts = columns.map((c) => {
+		if (isSqlDefault(values[c])) {
+			return "DEFAULT";
+		}
+		paramIndex++;
+		params.push(values[c]);
+		return dialect.placeholder(paramIndex);
+	});
 
 	return {
-		sql: `INSERT INTO ${table} (${quotedCols.join(", ")}) VALUES (${placeholders.join(", ")})`,
+		sql: `INSERT INTO ${table} (${quotedCols.join(", ")}) VALUES (${valueParts.join(", ")})`,
 		params,
 	};
 }
@@ -320,6 +329,9 @@ export function generateUpdate(change: UpdateChange, dialect: SqlDialect): Gener
 	let paramIndex = 0;
 
 	const setClauses = setCols.map((col) => {
+		if (isSqlDefault(values[col])) {
+			return `${dialect.quoteIdentifier(col)} = DEFAULT`;
+		}
 		paramIndex++;
 		params.push(values[col]);
 		return `${dialect.quoteIdentifier(col)} = ${dialect.placeholder(paramIndex)}`;
@@ -382,6 +394,7 @@ export function generateChangeSql(change: DataChange, dialect: SqlDialect): Gene
  * Format a value for readable SQL preview (not for execution).
  */
 export function formatValueForPreview(value: unknown): string {
+	if (isSqlDefault(value)) return "DEFAULT";
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number") return String(value);
 	if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
