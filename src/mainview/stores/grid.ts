@@ -883,6 +883,30 @@ async function resetToDefault(tabId: string) {
 	await fetchData(tabId);
 }
 
+/** Compare current grid state against a saved view config. Ignores columnWidths to reduce noise. */
+function isViewModified(tabId: string, savedConfig: SavedViewConfig): boolean {
+	const tab = getTab(tabId);
+	if (!tab) return false;
+
+	// Compare sort
+	const currentSort = tab.sort.map(s => `${s.column}:${s.direction}`).join(",");
+	const savedSort = (savedConfig.sort ?? []).map(s => `${s.column}:${s.direction}`).join(",");
+	if (currentSort !== savedSort) return true;
+
+	// Compare filters
+	const currentFilters = tab.filters.map(f => `${f.column}:${f.operator}:${f.value}`).join(",");
+	const savedFilters = (savedConfig.filters ?? []).map(f => `${f.column}:${f.operator}:${f.value}`).join(",");
+	if (currentFilters !== savedFilters) return true;
+
+	// Compare visible columns (order matters)
+	if (savedConfig.columns) {
+		const visibleCols = getVisibleColumns(tab).map(c => c.name);
+		if (visibleCols.join(",") !== savedConfig.columns.join(",")) return true;
+	}
+
+	return false;
+}
+
 function captureViewConfig(tabId: string): SavedViewConfig {
 	const tab = ensureTab(tabId);
 	const visible = getVisibleColumns(tab);
@@ -1014,6 +1038,7 @@ export const gridStore = {
 	applyViewConfig,
 	resetToDefault,
 	captureViewConfig,
+	isViewModified,
 
 	// Editing
 	startEditing,

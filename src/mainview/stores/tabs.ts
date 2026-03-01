@@ -12,6 +12,8 @@ export interface OpenTabConfig {
 	connectionId: string;
 	schema?: string;
 	table?: string;
+	viewId?: string;
+	viewName?: string;
 }
 
 const [state, setState] = createStore<TabState>({
@@ -46,6 +48,8 @@ function openTab(config: OpenTabConfig): string {
 		schema: config.schema,
 		table: config.table,
 		dirty: false,
+		viewId: config.viewId,
+		viewName: config.viewName,
 	};
 	setState("openTabs", (tabs) => [...tabs, tab]);
 	setState("activeTabId", id);
@@ -170,6 +174,56 @@ function activatePrevTab() {
 	setState("activeTabId", tabs[prev].id);
 }
 
+/** Find an open default (no viewId) data-grid tab for the given table and focus it. Returns tab ID or null. */
+function findDefaultTab(connectionId: string, schema: string, table: string): string | null {
+	const found = state.openTabs.find(
+		(t) => t.type === "data-grid" && t.connectionId === connectionId && t.schema === schema && t.table === table && !t.viewId,
+	);
+	if (found) {
+		setState("activeTabId", found.id);
+		return found.id;
+	}
+	return null;
+}
+
+/** Find an open tab for the given saved view and focus it. Returns tab ID or null. */
+function findViewTab(viewId: string): string | null {
+	const found = state.openTabs.find((t) => t.viewId === viewId);
+	if (found) {
+		setState("activeTabId", found.id);
+		return found.id;
+	}
+	return null;
+}
+
+/** Associate a tab with a saved view. */
+function setTabView(tabId: string, viewId: string, viewName: string) {
+	const idx = state.openTabs.findIndex((t) => t.id === tabId);
+	if (idx !== -1) {
+		setState("openTabs", idx, "viewId", viewId);
+		setState("openTabs", idx, "viewName", viewName);
+		setState("openTabs", idx, "viewModified", false);
+	}
+}
+
+/** Clear the view association from a tab (revert to default tab). */
+function clearTabView(tabId: string) {
+	const idx = state.openTabs.findIndex((t) => t.id === tabId);
+	if (idx !== -1) {
+		setState("openTabs", idx, "viewId", undefined);
+		setState("openTabs", idx, "viewName", undefined);
+		setState("openTabs", idx, "viewModified", false);
+	}
+}
+
+/** Set the viewModified flag on a tab. */
+function setViewModified(tabId: string, modified: boolean) {
+	const idx = state.openTabs.findIndex((t) => t.id === tabId);
+	if (idx !== -1) {
+		setState("openTabs", idx, "viewModified", modified);
+	}
+}
+
 export const tabsStore = {
 	get openTabs() {
 		return state.openTabs;
@@ -190,6 +244,11 @@ export const tabsStore = {
 	setTabDirty,
 	activateNextTab,
 	activatePrevTab,
+	findDefaultTab,
+	findViewTab,
+	setTabView,
+	clearTabView,
+	setViewModified,
 	setBeforeCloseHook,
 	onTabClosed,
 };

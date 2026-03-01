@@ -134,7 +134,15 @@ export default function TabBar(props: TabBarProps) {
 							<Show
 								when={editingTabId() === tab.id}
 								fallback={
-									<span class="tab-bar__tab-title">{tab.title}</span>
+									<Show
+										when={tab.viewName}
+										fallback={<span class="tab-bar__tab-title">{tab.title}</span>}
+									>
+										<span class="tab-bar__tab-title tab-bar__tab-title--view">
+											<span class="tab-bar__tab-title-table">{tab.title}</span>
+											<span class="tab-bar__tab-title-view">{tab.viewName}</span>
+										</span>
+									</Show>
 								}
 							>
 								<input
@@ -146,6 +154,9 @@ export default function TabBar(props: TabBarProps) {
 									ref={(el) => setTimeout(() => { el.focus(); el.select(); })}
 									onClick={(e) => e.stopPropagation()}
 								/>
+							</Show>
+							<Show when={tab.viewModified}>
+								<span class="tab-bar__tab-modified" title="View modified">&bull;</span>
 							</Show>
 							<Show when={tab.dirty}>
 								<span class="tab-bar__tab-dirty">&bull;</span>

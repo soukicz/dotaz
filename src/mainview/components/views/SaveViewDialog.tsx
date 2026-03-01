@@ -11,8 +11,10 @@ interface SaveViewDialogProps {
 	connectionId: string;
 	schema: string;
 	table: string;
+	initialName?: string;
+	forceNew?: boolean;
 	onClose: () => void;
-	onSaved: () => void;
+	onSaved: (viewId: string, viewName: string, config: SavedViewConfig) => void;
 }
 
 export default function SaveViewDialog(props: SaveViewDialogProps) {
@@ -27,11 +29,11 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 	createEffect(() => {
 		if (props.open) {
 			const t = tab();
-			if (t?.activeViewId && t?.activeViewName) {
+			if (!props.forceNew && t?.activeViewId && t?.activeViewName) {
 				setName(t.activeViewName);
 				setUpdateExisting(true);
 			} else {
-				setName("");
+				setName(props.initialName ?? "");
 				setUpdateExisting(false);
 			}
 			setError(null);
@@ -52,6 +54,8 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 		};
 	}
 
+	const showUpdateCheckbox = () => !props.forceNew && !!tab()?.activeViewId;
+
 	async function handleSave() {
 		const trimmed = name().trim();
 		if (!trimmed) {
@@ -66,13 +70,14 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 			const config: SavedViewConfig = gridStore.captureViewConfig(props.tabId);
 			const t = tab();
 
-			if (updateExisting() && t?.activeViewId) {
+			if (updateExisting() && t?.activeViewId && !props.forceNew) {
 				const updated = await rpc.views.update({
 					id: t.activeViewId,
 					name: trimmed,
 					config,
 				});
 				gridStore.setActiveView(props.tabId, updated.id, updated.name);
+				props.onSaved(updated.id, updated.name, updated.config);
 			} else {
 				const created = await rpc.views.save({
 					connectionId: props.connectionId,
@@ -82,9 +87,9 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 					config,
 				});
 				gridStore.setActiveView(props.tabId, created.id, created.name);
+				props.onSaved(created.id, created.name, created.config);
 			}
 
-			props.onSaved();
 			props.onClose();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
@@ -103,7 +108,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 	return (
 		<Dialog
 			open={props.open}
-			title={updateExisting() ? "Update Saved View" : "Save View"}
+			title={updateExisting() && !props.forceNew ? "Update Saved View" : "Save View"}
 			onClose={props.onClose}
 		>
 			<div class="save-view-dialog" onKeyDown={handleKeyDown}>
@@ -119,7 +124,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 					/>
 				</div>
 
-				<Show when={tab()?.activeViewId}>
+				<Show when={showUpdateCheckbox()}>
 					<div class="save-view-dialog__field">
 						<label class="save-view-dialog__checkbox-label">
 							<input
@@ -154,7 +159,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 						onClick={handleSave}
 						disabled={saving() || !name().trim()}
 					>
-						{saving() ? "Saving..." : updateExisting() ? "Update" : "Save"}
+						{saving() ? "Saving..." : updateExisting() && !props.forceNew ? "Update" : "Save"}
 					</button>
 				</div>
 			</div>

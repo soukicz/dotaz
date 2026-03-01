@@ -1,9 +1,11 @@
 import { createEffect, createMemo, createSignal, For, onMount, onCleanup, Show } from "solid-js";
 import type { ColumnFilter } from "../../../shared/types/grid";
 import type { ForeignKeyInfo } from "../../../shared/types/database";
+import type { SavedViewConfig } from "../../../shared/types/rpc";
 import type { FkTarget } from "../../stores/grid";
 import { gridStore } from "../../stores/grid";
 import { tabsStore } from "../../stores/tabs";
+import { viewsStore } from "../../stores/views";
 import { rpc } from "../../lib/rpc";
 import { createKeyHandler } from "../../lib/keyboard";
 import GridHeader from "./GridHeader";
@@ -13,7 +15,6 @@ import ColumnManager from "./ColumnManager";
 import Pagination from "./Pagination";
 import RowDetailDialog from "../edit/RowDetailDialog";
 import PendingChanges from "../edit/PendingChanges";
-import SavedViewPicker from "../views/SavedViewPicker";
 import SaveViewDialog from "../views/SaveViewDialog";
 import ExportDialog from "../export/ExportDialog";
 import ContextMenu from "../common/ContextMenu";
@@ -66,6 +67,8 @@ export default function DataGrid(props: DataGridProps) {
 		y: number;
 		column: string;
 	} | null>(null);
+	const [saveViewForceNew, setSaveViewForceNew] = createSignal(false);
+	const [savedViewConfig, setSavedViewConfig] = createSignal<SavedViewConfig | null>(null);
 	const [now, setNow] = createSignal(Date.now());
 	let scrollRef: HTMLDivElement | undefined;
 	let gridRef: HTMLDivElement | undefined;
@@ -73,10 +76,18 @@ export default function DataGrid(props: DataGridProps) {
 	let staleTimer: ReturnType<typeof setInterval> | undefined;
 
 	const tab = () => gridStore.getTab(props.tabId);
+	const tabInfo = () => tabsStore.openTabs.find((t) => t.id === props.tabId);
 
 	// Current schema/table from tab state (changes on FK navigation)
 	const currentSchema = () => tab()?.schema ?? props.schema;
 	const currentTable = () => tab()?.table ?? props.table;
+
+	const hasActiveView = () => !!tab()?.activeViewId;
+	const isModified = () => {
+		const config = savedViewConfig();
+		if (!config) return false;
+		return gridStore.isViewModified(props.tabId, config);
+	};
 
 	const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -108,6 +119,17 @@ export default function DataGrid(props: DataGridProps) {
 		if (!dirty) setShowPendingPanel(false);
 	});
 
+	// Track view modification status
+	createEffect(() => {
+		const config = savedViewConfig();
+		if (!config || !hasActiveView()) {
+			tabsStore.setViewModified(props.tabId, false);
+			return;
+		}
+		const modified = gridStore.isViewModified(props.tabId, config);
+		tabsStore.setViewModified(props.tabId, modified);
+	});
+
 	const visibleColumns = () => {
 		const t = tab();
 		return t ? gridStore.getVisibleColumns(t) : [];
@@ -122,7 +144,18 @@ export default function DataGrid(props: DataGridProps) {
 	onMount(async () => {
 		const existing = gridStore.getTab(props.tabId);
 		if (!existing || existing.columns.length === 0) {
-			gridStore.loadTableData(props.tabId, props.connectionId, props.schema, props.table);
+			await gridStore.loadTableData(props.tabId, props.connectionId, props.schema, props.table);
+		}
+
+		// Apply saved view config if this tab was opened for a specific view
+		const ti = tabInfo();
+		if (ti?.viewId) {
+			const view = viewsStore.getViewById(props.connectionId, ti.viewId);
+			if (view) {
+				gridStore.setActiveView(props.tabId, view.id, view.name);
+				await gridStore.applyViewConfig(props.tabId, view.config);
+				setSavedViewConfig(view.config);
+			}
 		}
 
 		await loadForeignKeys(props.schema, props.table);
@@ -321,20 +354,50 @@ export default function DataGrid(props: DataGridProps) {
 	async function handleQuickSave() {
 		const t = tab();
 		if (!t?.activeViewId) {
+			setSaveViewForceNew(false);
 			setSaveViewOpen(true);
 			return;
 		}
 		try {
 			const config = gridStore.captureViewConfig(props.tabId);
-			await rpc.views.update({
+			const updated = await rpc.views.update({
 				id: t.activeViewId,
 				name: t.activeViewName!,
 				config,
 			});
+			setSavedViewConfig(updated.config);
+			tabsStore.setTabView(props.tabId, updated.id, updated.name);
+			await viewsStore.refreshViews(props.connectionId);
 		} catch {
 			// Fall back to dialog on error
 			setSaveViewOpen(true);
 		}
+	}
+
+	async function handleResetView() {
+		const config = savedViewConfig();
+		if (!config) return;
+		await gridStore.applyViewConfig(props.tabId, config);
+	}
+
+	function handleSaveAsNew() {
+		setSaveViewForceNew(true);
+		setSaveViewOpen(true);
+	}
+
+	function generateAutoName(): string {
+		const t = tab();
+		if (!t) return "";
+		const parts: string[] = [];
+		if (t.filters.length > 0) {
+			const cols = t.filters.map((f) => f.column).join(", ");
+			parts.push(`filtered by ${cols}`);
+		}
+		if (t.sort.length > 0) {
+			const cols = t.sort.map((s) => s.column).join(", ");
+			parts.push(`sorted by ${cols}`);
+		}
+		return parts.length > 0 ? parts.join(", ") : "Custom view";
 	}
 
 	// ── FK navigation ─────────────────────────────────────
@@ -740,13 +803,47 @@ export default function DataGrid(props: DataGridProps) {
 				<Show when={tab()}>
 					{(tabState) => (
 						<>
-							<SavedViewPicker
-								tabId={props.tabId}
-								connectionId={props.connectionId}
-								schema={currentSchema()}
-								table={currentTable()}
-								onSaveView={() => setSaveViewOpen(true)}
-							/>
+							<div class="data-grid__view-actions">
+								<Show
+									when={hasActiveView()}
+									fallback={
+										<button
+											class="data-grid__toolbar-btn"
+											onClick={() => {
+												setSaveViewForceNew(false);
+												setSaveViewOpen(true);
+											}}
+											title="Save current view"
+										>
+											<Icon name="save" size={12} /> Save View
+										</button>
+									}
+								>
+									<button
+										class="data-grid__toolbar-btn"
+										onClick={handleQuickSave}
+										title="Save view (Ctrl+S)"
+									>
+										<Icon name="save" size={12} /> Save
+									</button>
+									<Show when={isModified()}>
+										<button
+											class="data-grid__toolbar-btn"
+											onClick={handleResetView}
+											title="Reset to saved state"
+										>
+											Reset
+										</button>
+										<button
+											class="data-grid__toolbar-btn"
+											onClick={handleSaveAsNew}
+											title="Save as new view"
+										>
+											Save As...
+										</button>
+									</Show>
+								</Show>
+							</div>
 							<FilterBar
 								columns={tabState().columns}
 								filters={tabState().filters}
@@ -945,9 +1042,14 @@ export default function DataGrid(props: DataGridProps) {
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
+				initialName={hasActiveView() ? undefined : generateAutoName()}
+				forceNew={saveViewForceNew()}
 				onClose={() => setSaveViewOpen(false)}
-				onSaved={() => {
-					// Dialog closes itself; picker will reload on next open
+				onSaved={async (viewId, viewName, config) => {
+					tabsStore.setTabView(props.tabId, viewId, viewName);
+					gridStore.setActiveView(props.tabId, viewId, viewName);
+					setSavedViewConfig(config);
+					await viewsStore.refreshViews(props.connectionId);
 				}}
 			/>
 

@@ -143,6 +143,13 @@ export class AppDatabase {
 		this.db.prepare("DELETE FROM saved_views WHERE id = ?").run(id);
 	}
 
+	listSavedViewsByConnection(connectionId: string): SavedView[] {
+		const rows = this.db.prepare(
+			"SELECT * FROM saved_views WHERE connection_id = ? ORDER BY table_name, name",
+		).all(connectionId) as SavedViewRow[];
+		return rows.map(rowToSavedView);
+	}
+
 	getSavedViewById(id: string): SavedView | null {
 		const row = this.db.prepare("SELECT * FROM saved_views WHERE id = ?").get(id) as SavedViewRow | null;
 		return row ? rowToSavedView(row) : null;

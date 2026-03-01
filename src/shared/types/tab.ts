@@ -12,4 +12,10 @@ export interface TabInfo {
 	table?: string;
 	/** Whether the tab has unsaved changes */
 	dirty?: boolean;
+	/** Associated saved view ID (if this tab is showing a saved view) */
+	viewId?: string;
+	/** Display name of the associated saved view */
+	viewName?: string;
+	/** Whether the view config has been modified from its saved state */
+	viewModified?: boolean;
 }

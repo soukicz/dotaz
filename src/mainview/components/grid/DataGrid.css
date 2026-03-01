@@ -62,7 +62,10 @@
 	background: var(--bg-panel);
 }
 
-.data-grid__toolbar > .saved-view-picker {
+.data-grid__view-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
 	flex-shrink: 0;
 	padding-left: var(--spacing-md);
 }

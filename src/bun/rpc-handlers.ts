@@ -257,6 +257,10 @@ export function createHandlers(cm: ConnectionManager, qe?: QueryExecutor, appDb?
 			if (!appDb) throw new Error("AppDatabase not available");
 			appDb.deleteSavedView(id);
 		},
+		"views.listByConnection": ({ connectionId }: { connectionId: string }) => {
+			if (!appDb) throw new Error("AppDatabase not available");
+			return appDb.listSavedViewsByConnection(connectionId);
+		},
 
 		// ── System ────────────────────────────────────────
 		"system.showOpenDialog": async ({ filters, multiple }: OpenDialogParams) => {

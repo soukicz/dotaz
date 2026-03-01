@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import Icon from "../common/Icon";
 import "./ConnectionTree.css";
 
-export type TreeItemType = "connection" | "schema" | "table";
+export type TreeItemType = "connection" | "schema" | "table" | "view";
 
 interface ConnectionTreeItemProps {
 	label: string;
@@ -32,6 +32,7 @@ export default function ConnectionTreeItem(props: ConnectionTreeItemProps) {
 	return (
 		<div
 			class="tree-item"
+			classList={{ "tree-item--view": props.type === "view" }}
 			style={{ "padding-left": `${props.level * 16 + 4}px` }}
 			onClick={handleClick}
 			onContextMenu={props.onContextMenu}

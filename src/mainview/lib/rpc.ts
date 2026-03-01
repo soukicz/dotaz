@@ -132,6 +132,8 @@ export const rpc = {
 	views: {
 		list: (params: ViewListParams) =>
 			call<SavedView[]>("views.list", params),
+		listByConnection: (connectionId: string) =>
+			call<SavedView[]>("views.listByConnection", { connectionId }),
 		save: (params: SaveViewParams) =>
 			call<SavedView>("views.save", params),
 		update: (params: UpdateViewParams) =>

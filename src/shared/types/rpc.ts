@@ -318,6 +318,10 @@ export type DotazRPC = {
 				params: { id: string };
 				response: void;
 			};
+			"views.listByConnection": {
+				params: ConnectionIdParams;
+				response: SavedView[];
+			};
 
 			// System
 			"system.showOpenDialog": {

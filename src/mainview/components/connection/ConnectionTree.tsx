@@ -1,8 +1,12 @@
 import { createSignal, For, Show } from "solid-js";
 import type { ConnectionInfo, ConnectionState } from "../../../shared/types/connection";
 import type { SchemaInfo, TableInfo } from "../../../shared/types/database";
+import type { SavedView } from "../../../shared/types/rpc";
 import { connectionsStore } from "../../stores/connections";
 import { tabsStore } from "../../stores/tabs";
+import { viewsStore } from "../../stores/views";
+import { gridStore } from "../../stores/grid";
+import { rpc } from "../../lib/rpc";
 import ContextMenu, { type ContextMenuEntry } from "../common/ContextMenu";
 import ConnectionTreeItem from "./ConnectionTreeItem";
 import "./ConnectionTree.css";
@@ -33,6 +37,7 @@ interface ContextMenuState {
 export default function ConnectionTree(props: ConnectionTreeProps) {
 	const [expandedConnections, setExpandedConnections] = createSignal<Set<string>>(new Set());
 	const [expandedSchemas, setExpandedSchemas] = createSignal<Set<string>>(new Set());
+	const [expandedTables, setExpandedTables] = createSignal<Set<string>>(new Set());
 	const [contextMenu, setContextMenu] = createSignal<ContextMenuState | null>(null);
 
 	function isConnectionExpanded(id: string): boolean {
@@ -41,6 +46,26 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 
 	function isSchemaExpanded(key: string): boolean {
 		return expandedSchemas().has(key);
+	}
+
+	function isTableExpanded(key: string): boolean {
+		return expandedTables().has(key);
+	}
+
+	function toggleTable(tableKey: string) {
+		setExpandedTables((prev) => {
+			const next = new Set(prev);
+			if (next.has(tableKey)) {
+				next.delete(tableKey);
+			} else {
+				next.add(tableKey);
+			}
+			return next;
+		});
+	}
+
+	function tableKey(connectionId: string, schemaName: string, tableName: string): string {
+		return `${connectionId}:${schemaName}:${tableName}`;
 	}
 
 	function toggleConnection(conn: ConnectionInfo) {
@@ -55,12 +80,40 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			return;
 		}
 
+		const isExpanding = !expandedConnections().has(conn.id);
 		setExpandedConnections((prev) => {
 			const next = new Set(prev);
 			if (next.has(conn.id)) {
 				next.delete(conn.id);
 			} else {
 				next.add(conn.id);
+			}
+			return next;
+		});
+
+		// Load views when expanding
+		if (isExpanding && conn.state === "connected") {
+			viewsStore.loadViewsForConnection(conn.id).then(() => {
+				// Auto-expand tables that have views
+				autoExpandTablesWithViews(conn.id);
+			});
+		}
+	}
+
+	function autoExpandTablesWithViews(connectionId: string) {
+		const tree = connectionsStore.getSchemaTree(connectionId);
+		if (!tree) return;
+
+		setExpandedTables((prev) => {
+			const next = new Set(prev);
+			for (const schema of tree.schemas) {
+				const tables = tree.tables[schema.name] ?? [];
+				for (const table of tables) {
+					const views = viewsStore.getViewsForTable(connectionId, schema.name, table.name);
+					if (views.length > 0) {
+						next.add(tableKey(connectionId, schema.name, table.name));
+					}
+				}
 			}
 			return next;
 		});
@@ -79,12 +132,38 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	}
 
 	function handleTableClick(connectionId: string, schema: string, table: string) {
+		// Reuse existing default tab for this table
+		const existing = tabsStore.findDefaultTab(connectionId, schema, table);
+		if (existing) return;
+
 		tabsStore.openTab({
 			type: "data-grid",
 			title: table,
 			connectionId,
 			schema,
 			table,
+		});
+	}
+
+	function handleViewClick(connectionId: string, schema: string, table: string, view: SavedView) {
+		// Reuse existing view tab
+		const existing = tabsStore.findViewTab(view.id);
+		if (existing) return;
+
+		const tabId = tabsStore.openTab({
+			type: "data-grid",
+			title: table,
+			connectionId,
+			schema,
+			table,
+			viewId: view.id,
+			viewName: view.name,
+		});
+
+		// Apply the saved view config once grid data is loaded
+		gridStore.loadTableData(tabId, connectionId, schema, table).then(() => {
+			gridStore.setActiveView(tabId, view.id, view.name);
+			gridStore.applyViewConfig(tabId, view.config);
 		});
 	}
 
@@ -198,6 +277,89 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		];
 	}
 
+	function viewMenuItems(connectionId: string, view: SavedView): ContextMenuEntry[] {
+		return [
+			{
+				label: "Open",
+				action: () => handleViewClick(connectionId, view.schemaName, view.tableName, view),
+			},
+			{
+				label: "Rename",
+				action: async () => {
+					const newName = window.prompt("Rename view:", view.name);
+					if (newName && newName.trim() && newName.trim() !== view.name) {
+						try {
+							await rpc.views.update({
+								id: view.id,
+								name: newName.trim(),
+								config: view.config,
+							});
+							await viewsStore.refreshViews(connectionId);
+						} catch {
+							// Ignore rename errors
+						}
+					}
+				},
+			},
+			"separator",
+			{
+				label: "Delete",
+				action: async () => {
+					const confirmed = window.confirm(
+						`Delete view "${view.name}"? This cannot be undone.`,
+					);
+					if (confirmed) {
+						try {
+							await rpc.views.delete(view.id);
+							await viewsStore.refreshViews(connectionId);
+						} catch {
+							// Ignore delete errors
+						}
+					}
+				},
+			},
+		];
+	}
+
+	// ── Table rendering helper with optional views ──────
+
+	function renderTable(conn: ConnectionInfo, schema: SchemaInfo, table: TableInfo, baseLevel: number) {
+		const tKey = tableKey(conn.id, schema.name, table.name);
+		const views = () => viewsStore.getViewsForTable(conn.id, schema.name, table.name);
+		const hasViews = () => views().length > 0;
+		const tExpanded = () => isTableExpanded(tKey);
+
+		return (
+			<>
+				<ConnectionTreeItem
+					label={table.name}
+					level={baseLevel}
+					type="table"
+					icon={table.type === "view" ? "\u{1F441}" : "\u{1F4CB}"}
+					expanded={hasViews() ? tExpanded() : undefined}
+					hasChildren={hasViews()}
+					onClick={() => handleTableClick(conn.id, schema.name, table.name)}
+					onToggle={hasViews() ? () => toggleTable(tKey) : undefined}
+					onContextMenu={(e) => showContextMenu(e, tableMenuItems(conn.id, schema.name, table.name))}
+				/>
+				<Show when={hasViews() && tExpanded()}>
+					<For each={views()}>
+						{(view) => (
+							<ConnectionTreeItem
+								label={view.name}
+								level={baseLevel + 1}
+								type="view"
+								icon={"\u{1F516}"}
+								onClick={() => handleViewClick(conn.id, schema.name, table.name, view)}
+								onContextMenu={(e) => showContextMenu(e, viewMenuItems(conn.id, view))}
+							/>
+						)}
+					</For>
+				</Show>
+			</>
+		);
+	}
+
 	return (
 		<div class="connection-tree">
 			<Show
@@ -250,16 +412,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 													when={!isSingleSchema()}
 													fallback={
 														<For each={tables()}>
-															{(table: TableInfo) => (
-																<ConnectionTreeItem
-																	label={table.name}
-																	level={1}
-																	type="table"
-																	icon={table.type === "view" ? "\u{1F441}" : "\u{1F4CB}"}
-																	onClick={() => handleTableClick(conn.id, schema.name, table.name)}
-																	onContextMenu={(e) => showContextMenu(e, tableMenuItems(conn.id, schema.name, table.name))}
-																/>
-															)}
+															{(table: TableInfo) => renderTable(conn, schema, table, 1)}
 														</For>
 													}
 												>
@@ -277,16 +430,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 
 													<Show when={sExpanded()}>
 														<For each={tables()}>
-															{(table: TableInfo) => (
-																<ConnectionTreeItem
-																	label={table.name}
-																	level={2}
-																	type="table"
-																	icon={table.type === "view" ? "\u{1F441}" : "\u{1F4CB}"}
-																	onClick={() => handleTableClick(conn.id, schema.name, table.name)}
-																	onContextMenu={(e) => showContextMenu(e, tableMenuItems(conn.id, schema.name, table.name))}
-																/>
-															)}
+															{(table: TableInfo) => renderTable(conn, schema, table, 2)}
 														</For>
 													</Show>
 												</Show>
