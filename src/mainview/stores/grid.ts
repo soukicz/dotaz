@@ -6,7 +6,15 @@ import type {
 	SortColumn,
 } from "../../shared/types/grid";
 import type { DataChange, SavedViewConfig } from "../../shared/types/rpc";
+import {
+	buildSelectQuery,
+	buildCountQuery,
+	buildQuickSearchClause,
+	generateChangeSql,
+	generateChangesPreview,
+} from "../../shared/sql";
 import { rpc } from "../lib/rpc";
+import { connectionsStore } from "./connections";
 
 // ── Column config (visibility, order, widths, pinned) ────
 
@@ -166,26 +174,56 @@ async function fetchData(tabId: string) {
 
 	setState("tabs", tabId, "loading", true);
 	try {
-		const response = await rpc.data.getTableData({
-			connectionId: tab.connectionId,
-			schema: tab.schema,
-			table: tab.table,
-			page: tab.currentPage,
-			pageSize: tab.pageSize,
-			sort: tab.sort.length > 0 ? tab.sort : undefined,
-			filters: tab.filters.length > 0 ? tab.filters : undefined,
-			quickSearch: tab.quickSearch || undefined,
-			database: tab.database,
-		});
+		const dialect = connectionsStore.getDialect(tab.connectionId);
+
+		// Get column metadata from cached schema
+		const cachedColumns = connectionsStore.getColumns(tab.connectionId, tab.schema, tab.table, tab.database);
+		const gridColumns: GridColumnDef[] = cachedColumns.map((c) => ({
+			name: c.name,
+			dataType: c.dataType,
+			nullable: c.nullable,
+			isPrimaryKey: c.isPrimaryKey,
+		}));
+
+		// Build quick search clause if search term is provided
+		const filters = tab.filters.length > 0 ? tab.filters : undefined;
+		const sort = tab.sort.length > 0 ? tab.sort : undefined;
+		const filterParamCount = (filters ?? []).reduce((sum, f) => {
+			if (f.operator === "isNull" || f.operator === "isNotNull") return sum;
+			if (f.operator === "in" || f.operator === "notIn") {
+				return sum + (Array.isArray(f.value) ? f.value.length : 1);
+			}
+			return sum + 1;
+		}, 0);
+		const quickSearchClause = tab.quickSearch
+			? buildQuickSearchClause(gridColumns, tab.quickSearch, dialect, filterParamCount)
+			: undefined;
+
+		// Build and execute data query
+		const selectQuery = buildSelectQuery(
+			tab.schema, tab.table, tab.currentPage, tab.pageSize,
+			sort, filters, dialect, quickSearchClause,
+		);
+		const countQuery = buildCountQuery(tab.schema, tab.table, filters, dialect, quickSearchClause);
+
+		// Execute both queries
+		const queryId = `grid-${tabId}-${requestId}`;
+		const [dataResults, countResults] = await Promise.all([
+			rpc.query.execute(tab.connectionId, selectQuery.sql, queryId, selectQuery.params, tab.database),
+			rpc.query.execute(tab.connectionId, countQuery.sql, `${queryId}-count`, countQuery.params, tab.database),
+		]);
 
 		// Ignore stale responses — a newer request has been issued
 		if (latestFetchId.get(tabId) !== requestId) return;
 
+		const rows = dataResults[0]?.rows ?? [];
+		const totalRows = Number(countResults[0]?.rows[0]?.count ?? 0);
+
 		setState("tabs", tabId, {
-			columns: response.columns,
-			rows: response.rows,
-			totalCount: response.totalRows,
-			currentPage: response.page,
+			columns: gridColumns,
+			rows,
+			totalCount: totalRows,
+			currentPage: tab.currentPage,
 			loading: false,
 			lastLoadedAt: Date.now(),
 			selectedRows: new Set<number>(),
@@ -824,6 +862,24 @@ function buildDataChanges(tabId: string): DataChange[] {
 	return changes;
 }
 
+async function applyChanges(tabId: string, database?: string) {
+	const tab = ensureTab(tabId);
+	const changes = buildDataChanges(tabId);
+	if (changes.length === 0) return;
+
+	const dialect = connectionsStore.getDialect(tab.connectionId);
+	const statements = changes.map((change) => generateChangeSql(change, dialect));
+	await rpc.query.executeStatements(tab.connectionId, statements, database);
+}
+
+function generateSqlPreview(tabId: string): string {
+	const tab = ensureTab(tabId);
+	const changes = buildDataChanges(tabId);
+	if (changes.length === 0) return "";
+	const dialect = connectionsStore.getDialect(tab.connectionId);
+	return generateChangesPreview(changes, dialect);
+}
+
 function revertChanges(tabId: string) {
 	const tab = ensureTab(tabId);
 
@@ -1120,6 +1176,8 @@ export const gridStore = {
 	isRowNew,
 	isRowDeleted,
 	buildDataChanges,
+	applyChanges,
+	generateSqlPreview,
 	revertChanges,
 	clearPendingChanges,
 	revertRowUpdate,

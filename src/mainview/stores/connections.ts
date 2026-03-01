@@ -10,7 +10,10 @@ import {
 	isServerConfig,
 	CONNECTION_TYPE_META,
 } from "../../shared/types/connection";
+import type { ConnectionType } from "../../shared/types/connection";
 import type { DatabaseInfo, SchemaData, SchemaInfo, TableInfo, ColumnInfo, IndexInfo, ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../shared/types/database";
+import type { SqlDialect } from "../../shared/sql";
+import { PostgresDialect, SqliteDialect, MysqlDialect } from "../../shared/sql";
 import { rpc, messages, friendlyErrorMessage } from "../lib/rpc";
 import { isStateless } from "../lib/mode";
 import {
@@ -423,6 +426,18 @@ export const connectionsStore = {
 	},
 	getAvailableDatabases(connectionId: string): DatabaseInfo[] {
 		return state.availableDatabases[connectionId] ?? [];
+	},
+	getConnectionType(connectionId: string): ConnectionType | undefined {
+		const conn = state.connections.find((c) => c.id === connectionId);
+		return conn?.config.type;
+	},
+	getDialect(connectionId: string): SqlDialect {
+		const type = this.getConnectionType(connectionId);
+		switch (type) {
+			case "sqlite": return new SqliteDialect();
+			case "mysql": return new MysqlDialect();
+			default: return new PostgresDialect();
+		}
 	},
 	getRememberPassword,
 	loadConnections,

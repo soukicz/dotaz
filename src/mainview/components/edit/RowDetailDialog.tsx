@@ -3,6 +3,7 @@ import type { GridColumnDef, ColumnFilter } from "../../../shared/types/grid";
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from "../../../shared/types/database";
 import ChevronUp from "lucide-solid/icons/chevron-up";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import { buildCountQuery } from "../../../shared/sql";
 import { rpc } from "../../lib/rpc";
 import { connectionsStore } from "../../stores/connections";
 import Dialog from "../common/Dialog";
@@ -130,6 +131,7 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 			return;
 		}
 
+		const dialect = connectionsStore.getDialect(props.connectionId);
 		const counts: Record<string, number> = {};
 		const promises = fks.map(async (fk) => {
 			const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
@@ -144,16 +146,12 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 			}
 
 			try {
-				const result = await rpc.data.getTableData({
-					connectionId: props.connectionId,
-					schema: fk.referencingSchema,
-					table: fk.referencingTable,
-					page: 1,
-					pageSize: 1,
-					filters,
-					database: props.database,
-				});
-				counts[fk.constraintName] = result.totalRows;
+				const countQuery = buildCountQuery(fk.referencingSchema, fk.referencingTable, filters, dialect);
+				const results = await rpc.query.execute(
+					props.connectionId, countQuery.sql, `ref-count-${fk.constraintName}`,
+					countQuery.params, props.database,
+				);
+				counts[fk.constraintName] = Number(results[0]?.rows[0]?.count ?? 0);
 			} catch {
 				counts[fk.constraintName] = -1;
 			}

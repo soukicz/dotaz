@@ -58,6 +58,8 @@ export interface ExecuteQueryParams {
 	queryId: string;
 	params?: unknown[];
 	database?: string;
+	/** When provided, execute each statement with its own params sequentially (auto-wrapped in transaction). */
+	statements?: { sql: string; params?: unknown[] }[];
 }
 
 export interface FormatSqlParams {

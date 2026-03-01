@@ -153,6 +153,31 @@ export class DemoAdapter implements RpcAdapter {
 		return results;
 	}
 
+	async executeStatements(connectionId: string, statements: { sql: string; params?: unknown[] }[]): Promise<QueryResult[]> {
+		const d = this.getConnectedDriver(connectionId);
+		const inExistingTx = d.inTransaction();
+		if (!inExistingTx) {
+			await d.beginTransaction();
+		}
+		try {
+			const results: QueryResult[] = [];
+			for (const stmt of statements) {
+				const start = performance.now();
+				const result = await d.execute(stmt.sql, stmt.params);
+				results.push({ ...result, durationMs: Math.round(performance.now() - start) });
+			}
+			if (!inExistingTx) {
+				await d.commit();
+			}
+			return results;
+		} catch (err) {
+			if (!inExistingTx) {
+				try { await d.rollback(); } catch { /* don't mask original error */ }
+			}
+			throw err;
+		}
+	}
+
 	async cancelQuery(): Promise<void> {
 		// WASM SQLite operations are synchronous; cancellation is a no-op
 	}

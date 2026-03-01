@@ -204,7 +204,10 @@ export function createHandlers(adapter: RpcAdapter) {
 		},
 
 		// ── Query Execution ──────────────────────────────
-		"query.execute": async ({ connectionId, sql, queryId, params, database }: ExecuteQueryParams) => {
+		"query.execute": async ({ connectionId, sql, queryId, params, database, statements }: ExecuteQueryParams) => {
+			if (statements && statements.length > 0) {
+				return adapter.executeStatements(connectionId, statements, database);
+			}
 			return adapter.executeQuery(connectionId, sql, params, queryId, database);
 		},
 		"query.cancel": async ({ queryId }: { queryId: string }) => {

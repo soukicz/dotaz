@@ -32,6 +32,8 @@ export interface RpcAdapter {
 
 	// ── Query execution ───────────────────────────────────
 	executeQuery(connectionId: string, sql: string, params?: unknown[], queryId?: string, database?: string): Promise<QueryResult[]>;
+	/** Execute a batch of parameterized statements sequentially, auto-wrapped in transaction. */
+	executeStatements(connectionId: string, statements: { sql: string; params?: unknown[] }[], database?: string): Promise<QueryResult[]>;
 	cancelQuery(queryId: string): Promise<void>;
 
 	// ── Transactions ──────────────────────────────────────

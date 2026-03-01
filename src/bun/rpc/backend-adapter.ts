@@ -101,6 +101,31 @@ export class BackendAdapter implements RpcAdapter {
 		return this.queryExecutor.executeQuery(connectionId, sql, params, undefined, queryId, database);
 	}
 
+	async executeStatements(connectionId: string, statements: { sql: string; params?: unknown[] }[], database?: string): Promise<QueryResult[]> {
+		const driver = this.cm.getDriver(connectionId, database);
+		const inExistingTx = driver.inTransaction();
+		if (!inExistingTx) {
+			await driver.beginTransaction();
+		}
+		try {
+			const results: QueryResult[] = [];
+			for (const stmt of statements) {
+				const start = performance.now();
+				const result = await driver.execute(stmt.sql, stmt.params);
+				results.push({ ...result, durationMs: Math.round(performance.now() - start) });
+			}
+			if (!inExistingTx) {
+				await driver.commit();
+			}
+			return results;
+		} catch (err) {
+			if (!inExistingTx) {
+				try { await driver.rollback(); } catch { /* don't mask original error */ }
+			}
+			throw err;
+		}
+	}
+
 	async cancelQuery(queryId: string): Promise<void> {
 		await this.queryExecutor.cancelQuery(queryId);
 	}

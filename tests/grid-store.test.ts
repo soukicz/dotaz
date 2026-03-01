@@ -54,21 +54,66 @@ mock.module("solid-js/store", () => ({
 
 // ── Mock RPC ─────────────────────────────────────────────
 
-let mockGetTableData: ReturnType<typeof mock>;
+let mockQueryExecute: ReturnType<typeof mock>;
+
+// Default test data
+const defaultColumns = [
+	{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true, isAutoIncrement: false, defaultValue: null },
+	{ name: "name", dataType: "text", nullable: true, isPrimaryKey: false, isAutoIncrement: false, defaultValue: null },
+];
+const defaultRows = [
+	{ id: 1, name: "Alice" },
+	{ id: 2, name: "Bob" },
+	{ id: 3, name: "Charlie" },
+];
+const defaultTotalRows = 50;
+
+function makeQueryResult(rows: Record<string, unknown>[], rowCount?: number) {
+	return [{ columns: [], rows, rowCount: rowCount ?? rows.length }];
+}
+
+function defaultQueryExecuteImpl(_connId: string, sql: string) {
+	// Count queries return totalRows
+	if (sql.trimStart().toUpperCase().startsWith("SELECT COUNT(")) {
+		return Promise.resolve(makeQueryResult([{ count: defaultTotalRows }]));
+	}
+	// Data queries return fresh copies of rows (to avoid cross-test mutation)
+	return Promise.resolve(makeQueryResult(defaultRows.map((r) => ({ ...r }))));
+}
 
 mock.module("../src/mainview/lib/rpc", () => {
-	mockGetTableData = mock(() =>
-		Promise.resolve(makeResponse()),
-	);
+	mockQueryExecute = mock(defaultQueryExecuteImpl);
 
 	return {
 		rpc: {
-			data: {
-				getTableData: mockGetTableData,
+			query: {
+				execute: (...args: any[]) => mockQueryExecute(...args),
+				executeStatements: mock(() => Promise.resolve([])),
 			},
 		},
+		messages: {
+			onConnectionStatusChanged: () => () => {},
+			onMenuAction: () => () => {},
+		},
+		friendlyErrorMessage: (err: unknown) => String(err),
 	};
 });
+
+// ── Mock connections store (needed by grid store) ────────
+mock.module("../src/mainview/stores/connections", () => ({
+	connectionsStore: {
+		connections: [],
+		getDialect: () => ({
+			quoteIdentifier: (name: string) => `"${name}"`,
+			qualifyTable: (schema: string, table: string) => `"${schema}"."${table}"`,
+			emptyInsertSql: (qt: string) => `INSERT INTO ${qt} DEFAULT VALUES`,
+			getDriverType: () => "sqlite" as const,
+		}),
+		getColumns: () => defaultColumns,
+		getSchemaData: () => undefined,
+		getConnectionType: () => "sqlite",
+	},
+}));
 
 // ── Import after mocks ───────────────────────────────────
 
@@ -82,12 +127,8 @@ function makeResponse(overrides?: Partial<GridDataResponse>): GridDataResponse {
 			{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
 			{ name: "name", dataType: "text", nullable: true, isPrimaryKey: false },
 		],
-		rows: [
-			{ id: 1, name: "Alice" },
-			{ id: 2, name: "Bob" },
-			{ id: 3, name: "Charlie" },
-		],
-		totalRows: 50,
+		rows: defaultRows,
+		totalRows: defaultTotalRows,
 		page: 1,
 		pageSize: 100,
 		...overrides,
@@ -96,8 +137,8 @@ function makeResponse(overrides?: Partial<GridDataResponse>): GridDataResponse {
 
 function resetState() {
 	storeState.tabs = {};
-	mockGetTableData.mockReset();
-	mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse()));
+	mockQueryExecute.mockReset();
+	mockQueryExecute.mockImplementation(defaultQueryExecuteImpl);
 }
 
 // ── Tests ────────────────────────────────────────────────
@@ -121,23 +162,19 @@ describe("grid store", () => {
 			expect(tab!.totalCount).toBe(50);
 			expect(tab!.loading).toBe(false);
 
-			expect(mockGetTableData).toHaveBeenCalledTimes(1);
-			expect(mockGetTableData).toHaveBeenCalledWith({
-				connectionId: "conn-1",
-				schema: "public",
-				table: "users",
-				page: 1,
-				pageSize: 100,
-				sort: undefined,
-				filters: undefined,
-			});
+			// 2 calls per fetch: data query + count query
+			expect(mockQueryExecute).toHaveBeenCalledTimes(2);
+			// First call is the data SELECT, second is COUNT
+			expect(mockQueryExecute.mock.calls[0][0]).toBe("conn-1");
+			expect(mockQueryExecute.mock.calls[1][0]).toBe("conn-1");
 		});
 
 		test("reuses existing tab state on subsequent calls", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
-			expect(mockGetTableData).toHaveBeenCalledTimes(2);
+			// 2 calls per fetch × 2 fetches = 4
+			expect(mockQueryExecute).toHaveBeenCalledTimes(4);
 			// Tab should still exist
 			expect(gridStore.getTab("tab-1")).toBeDefined();
 		});
@@ -145,17 +182,16 @@ describe("grid store", () => {
 
 	describe("per-tab isolation", () => {
 		test("each tab has independent state", async () => {
-			const response1 = makeResponse({
-				rows: [{ id: 1, name: "Alice" }],
-				totalRows: 10,
+			// Each fetch makes 2 calls (data + count).
+			// Use custom impl that returns different data per connectionId.
+			mockQueryExecute.mockImplementation((_connId: string, sql: string) => {
+				if (sql.trimStart().toUpperCase().startsWith("SELECT COUNT(")) {
+					if (_connId === "conn-1") return Promise.resolve(makeQueryResult([{ count: 10 }]));
+					return Promise.resolve(makeQueryResult([{ count: 200 }]));
+				}
+				if (_connId === "conn-1") return Promise.resolve(makeQueryResult([{ id: 1, name: "Alice" }]));
+				return Promise.resolve(makeQueryResult([{ id: 100, name: "Zara" }]));
 			});
-			const response2 = makeResponse({
-				rows: [{ id: 100, name: "Zara" }],
-				totalRows: 200,
-			});
-
-			mockGetTableData.mockImplementationOnce(() => Promise.resolve(response1));
-			mockGetTableData.mockImplementationOnce(() => Promise.resolve(response2));
 
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 			await gridStore.loadTableData("tab-2", "conn-2", "mydb", "orders");
@@ -186,14 +222,11 @@ describe("grid store", () => {
 		test("setPage updates page and reloads data", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
-			const page2Response = makeResponse({ page: 2, totalRows: 50 });
-			mockGetTableData.mockImplementationOnce(() => Promise.resolve(page2Response));
-
 			await gridStore.setPage("tab-1", 2);
 
-			expect(mockGetTableData).toHaveBeenCalledTimes(2);
-			const lastCall = mockGetTableData.mock.calls[1][0] as any;
-			expect(lastCall.page).toBe(2);
+			// 2 fetches × 2 calls each = 4
+			expect(mockQueryExecute).toHaveBeenCalledTimes(4);
+			expect(gridStore.getTab("tab-1")!.currentPage).toBe(2);
 		});
 
 		test("setPage clears row selection", async () => {
@@ -207,10 +240,7 @@ describe("grid store", () => {
 
 		test("setPageSize updates page size and resets to page 1", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 2 })));
 			await gridStore.setPage("tab-1", 2);
-
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 1, pageSize: 50 })));
 			await gridStore.setPageSize("tab-1", 50);
 
 			const tab = gridStore.getTab("tab-1")!;
@@ -227,14 +257,14 @@ describe("grid store", () => {
 			expect(gridStore.getTab("tab-1")!.selectedRows.size).toBe(0);
 		});
 
-		test("setPageSize sends new page size in RPC request", async () => {
+		test("setPageSize sends correct page size", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
 			await gridStore.setPageSize("tab-1", 250);
 
-			const lastCall = mockGetTableData.mock.calls[1][0] as any;
-			expect(lastCall.pageSize).toBe(250);
-			expect(lastCall.page).toBe(1);
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.pageSize).toBe(250);
+			expect(tab.currentPage).toBe(1);
 		});
 	});
 
@@ -246,8 +276,8 @@ describe("grid store", () => {
 
 			const tab = gridStore.getTab("tab-1")!;
 			expect(tab.sort).toEqual([{ column: "name", direction: "asc" }]);
-			// Should have reloaded data
-			expect(mockGetTableData).toHaveBeenCalledTimes(2);
+			// 2 fetches × 2 calls each = 4
+			expect(mockQueryExecute).toHaveBeenCalledTimes(4);
 		});
 
 		test("toggleSort changes to descending on second click", async () => {
@@ -273,22 +303,18 @@ describe("grid store", () => {
 
 		test("toggleSort resets to page 1", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
-			// Move to page 2
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 2 })));
 			await gridStore.setPage("tab-1", 2);
-
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 1 })));
 			await gridStore.toggleSort("tab-1", "name");
 
 			expect(gridStore.getTab("tab-1")!.currentPage).toBe(1);
 		});
 
-		test("toggleSort sends sort in RPC request", async () => {
+		test("toggleSort updates sort state", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 			await gridStore.toggleSort("tab-1", "id");
 
-			const lastCall = mockGetTableData.mock.calls[1][0] as any;
-			expect(lastCall.sort).toEqual([{ column: "id", direction: "asc" }]);
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.sort).toEqual([{ column: "id", direction: "asc" }]);
 		});
 	});
 
@@ -309,7 +335,8 @@ describe("grid store", () => {
 				operator: "eq",
 				value: "Alice",
 			});
-			expect(mockGetTableData).toHaveBeenCalledTimes(2);
+			// 2 fetches × 2 calls each = 4
+			expect(mockQueryExecute).toHaveBeenCalledTimes(4);
 		});
 
 		test("setFilter updates existing filter for same column", async () => {
@@ -334,10 +361,8 @@ describe("grid store", () => {
 
 		test("setFilter resets to page 1", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse({ page: 2 })));
 			await gridStore.setPage("tab-1", 2);
 
-			mockGetTableData.mockImplementation(() => Promise.resolve(makeResponse()));
 			await gridStore.setFilter("tab-1", {
 				column: "id",
 				operator: "gt",
@@ -359,7 +384,7 @@ describe("grid store", () => {
 			expect(tab.filters).toHaveLength(0);
 		});
 
-		test("setFilter sends filters in RPC request", async () => {
+		test("setFilter updates filter state", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
 			await gridStore.setFilter("tab-1", {
@@ -368,8 +393,8 @@ describe("grid store", () => {
 				value: "Alice",
 			});
 
-			const lastCall = mockGetTableData.mock.calls[1][0] as any;
-			expect(lastCall.filters).toEqual([
+			const tab = gridStore.getTab("tab-1")!;
+			expect(tab.filters).toEqual([
 				{ column: "name", operator: "eq", value: "Alice" },
 			]);
 		});
@@ -507,10 +532,12 @@ describe("grid store", () => {
 		});
 
 		test("buildClipboardTsv copies single cell with NULL as empty string", async () => {
-			const response = makeResponse({
-				rows: [{ id: 1, name: null }],
+			mockQueryExecute.mockImplementation((_connId: string, sql: string) => {
+				if (sql.trimStart().toUpperCase().startsWith("SELECT COUNT(")) {
+					return Promise.resolve(makeQueryResult([{ count: 1 }]));
+				}
+				return Promise.resolve(makeQueryResult([{ id: 1, name: null }]));
 			});
-			mockGetTableData.mockImplementationOnce(() => Promise.resolve(response));
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
 			gridStore.selectRow("tab-1", 0);
@@ -618,7 +645,7 @@ describe("grid store", () => {
 		test("loading remains false after RPC error", async () => {
 			await gridStore.loadTableData("tab-1", "conn-1", "public", "users");
 
-			mockGetTableData.mockImplementationOnce(() =>
+			mockQueryExecute.mockImplementation(() =>
 				Promise.reject(new Error("Connection lost")),
 			);
 

@@ -1,7 +1,6 @@
 import { createSignal, For, Show, type JSX } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import { gridStore } from "../../stores/grid";
-import { rpc } from "../../lib/rpc";
 import Plus from "lucide-solid/icons/plus";
 import Pencil from "lucide-solid/icons/pencil";
 import Minus from "lucide-solid/icons/minus";
@@ -140,13 +139,12 @@ export default function PendingChanges(props: PendingChangesProps) {
 	}
 
 	async function handleApplyAll() {
-		const changes = gridStore.buildDataChanges(props.tabId);
-		if (changes.length === 0) return;
+		if (!gridStore.hasPendingChanges(props.tabId)) return;
 
 		setApplying(true);
 		setError(null);
 		try {
-			await rpc.data.applyChanges(props.connectionId, changes, props.database);
+			await gridStore.applyChanges(props.tabId, props.database);
 			gridStore.clearPendingChanges(props.tabId);
 			setPreviewSql(null);
 			props.onApplied();
@@ -157,13 +155,11 @@ export default function PendingChanges(props: PendingChangesProps) {
 		}
 	}
 
-	async function handlePreviewSql() {
-		const changes = gridStore.buildDataChanges(props.tabId);
-		if (changes.length === 0) return;
-
+	function handlePreviewSql() {
+		if (!gridStore.hasPendingChanges(props.tabId)) return;
 		try {
-			const result = await rpc.data.generateSql(props.connectionId, changes, props.database);
-			setPreviewSql(result.sql);
+			const sql = gridStore.generateSqlPreview(props.tabId);
+			setPreviewSql(sql);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
 		}

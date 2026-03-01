@@ -117,6 +117,8 @@ export const rpc = {
 	query: {
 		execute: (connectionId: string, sql: string, queryId: string, params?: unknown[], database?: string) =>
 			call<QueryResult[]>("query.execute", { connectionId, sql, queryId, params, database }),
+		executeStatements: (connectionId: string, statements: { sql: string; params?: unknown[] }[], database?: string) =>
+			call<QueryResult[]>("query.execute", { connectionId, sql: "", queryId: "", statements, database }),
 		cancel: (queryId: string) =>
 			call<void>("query.cancel", { queryId }),
 		format: (sql: string) =>
