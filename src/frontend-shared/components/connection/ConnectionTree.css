@@ -6,6 +6,75 @@
 	height: 100%;
 }
 
+/* ── Filter input ────────────────────────────────────── */
+
+.connection-tree__filter {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	flex-shrink: 0;
+	border: 1px solid var(--edge);
+	border-radius: var(--radius-sm);
+	padding: 0 var(--spacing-sm);
+	height: 26px;
+	margin: var(--spacing-sm) var(--spacing-sm) 0;
+	color: var(--ink-muted);
+	transition: border-color 0.15s;
+}
+
+.connection-tree__filter:focus-within {
+	border-color: var(--accent);
+	color: var(--ink);
+}
+
+.connection-tree__filter--active {
+	border-color: var(--accent);
+	background: rgba(59, 130, 246, 0.08);
+}
+
+.connection-tree__filter-input {
+	border: none;
+	outline: none;
+	background: transparent;
+	color: var(--ink);
+	font-size: var(--font-size-xs);
+	font-family: var(--font-ui);
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	height: 100%;
+}
+
+.connection-tree__filter-input::placeholder {
+	color: var(--ink-muted);
+}
+
+.connection-tree__filter-clear {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	border: none;
+	border-radius: 50%;
+	background: var(--ink-muted);
+	color: var(--surface);
+	cursor: pointer;
+	padding: 0;
+	flex-shrink: 0;
+}
+
+.connection-tree__filter-clear:hover {
+	background: var(--ink-secondary);
+}
+
+.connection-tree__no-results {
+	padding: var(--spacing-md);
+	color: var(--ink-muted);
+	font-size: var(--font-size-xs);
+	text-align: center;
+}
+
 .connection-tree__empty {
 	display: flex;
 	flex-direction: column;

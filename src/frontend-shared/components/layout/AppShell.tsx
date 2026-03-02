@@ -460,6 +460,18 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "focus-navigator-filter",
+			label: "Filter in Navigator",
+			shortcut: "Ctrl+Shift+L",
+			category: "Navigation",
+			handler: () => {
+				// Ensure sidebar is visible first
+				if (sidebarCollapsed()) toggleCollapse();
+				window.dispatchEvent(new CustomEvent("dotaz:focus-navigator-filter"));
+			},
+		});
+
+		commandRegistry.register({
 			id: "save-view",
 			label: "Save View",
 			shortcut: "Ctrl+S",
@@ -652,6 +664,7 @@ export default function AppShell() {
 		keyboardManager.register("Ctrl+Tab", "next-tab");
 		keyboardManager.register("Ctrl+Shift+Tab", "prev-tab");
 		keyboardManager.register("Ctrl+B", "toggle-sidebar");
+		keyboardManager.register("Ctrl+Shift+L", "focus-navigator-filter");
 
 		// SQL console context
 		keyboardManager.register("Ctrl+Enter", "run-query", "sql-console");

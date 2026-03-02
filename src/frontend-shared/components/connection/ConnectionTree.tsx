@@ -1,4 +1,4 @@
-import { createSignal, For, Show, type JSX } from "solid-js";
+import { createSignal, For, Show, type JSX, onCleanup } from "solid-js";
 import type { ConnectionInfo, ConnectionState, ConnectionType } from "../../../shared/types/connection";
 import { CONNECTION_TYPE_META, getDefaultDatabase } from "../../../shared/types/connection";
 import type { SchemaInfo, TableInfo } from "../../../shared/types/database";
@@ -18,6 +18,7 @@ import FolderOpen from "lucide-solid/icons/folder-open";
 import Plus from "lucide-solid/icons/plus";
 import Lock from "lucide-solid/icons/lock";
 import Database from "lucide-solid/icons/database";
+import Icon from "../common/Icon";
 import ContextMenu, { type ContextMenuEntry } from "../common/ContextMenu";
 import ConnectionTreeItem from "./ConnectionTreeItem";
 import "./ConnectionTree.css";
@@ -67,6 +68,87 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	const [expandedSchemas, setExpandedSchemas] = createSignal<Set<string>>(new Set());
 	const [expandedTables, setExpandedTables] = createSignal<Set<string>>(new Set());
 	const [contextMenu, setContextMenu] = createSignal<ContextMenuState | null>(null);
+
+	// ── Navigator filter ─────────────────────────────────
+	const [filterInput, setFilterInput] = createSignal("");
+	const [filterTerm, setFilterTerm] = createSignal("");
+	let filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let searchInputRef: HTMLInputElement | undefined;
+
+	function handleFilterInput(value: string) {
+		setFilterInput(value);
+		if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+		filterDebounceTimer = setTimeout(() => {
+			setFilterTerm(value.toLowerCase().trim());
+		}, 150);
+	}
+
+	function handleClearFilter() {
+		setFilterInput("");
+		setFilterTerm("");
+		if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+		searchInputRef?.focus();
+	}
+
+	/** Check if a table/view name matches the current filter */
+	function matchesFilter(name: string): boolean {
+		const term = filterTerm();
+		if (!term) return true;
+		return name.toLowerCase().includes(term);
+	}
+
+	/** Filter tables in a schema, returns only those matching */
+	function filteredTables(tables: TableInfo[]): TableInfo[] {
+		const term = filterTerm();
+		if (!term) return tables;
+		return tables.filter((t) => matchesFilter(t.name));
+	}
+
+	/** Check if any table in a schema matches */
+	function schemaHasMatch(tree: SchemaTree, schemaName: string): boolean {
+		const term = filterTerm();
+		if (!term) return true;
+		const tables = tree.tables[schemaName] ?? [];
+		return tables.some((t) => matchesFilter(t.name));
+	}
+
+	/** Check if any table in a connection matches */
+	function connectionHasMatch(connectionId: string): boolean {
+		const term = filterTerm();
+		if (!term) return true;
+		const tree = connectionsStore.getSchemaTree(connectionId);
+		if (!tree) return true; // Show loading connections
+		return tree.schemas.some((s) => schemaHasMatch(tree, s.name));
+	}
+
+	/** Check if any table in a database matches */
+	function databaseHasMatch(connectionId: string, dbName: string): boolean {
+		const term = filterTerm();
+		if (!term) return true;
+		const tree = connectionsStore.getSchemaTree(connectionId, dbName);
+		if (!tree) return true;
+		return tree.schemas.some((s) => schemaHasMatch(tree, s.name));
+	}
+
+	// Focus search on Ctrl+F when sidebar is focused
+	function handleTreeKeyDown(e: KeyboardEvent) {
+		if (e.key === "f" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+			e.preventDefault();
+			e.stopPropagation();
+			searchInputRef?.focus();
+		}
+	}
+
+	// Listen for global "focus navigator filter" event (Ctrl+Shift+L)
+	function handleFocusFilter() {
+		searchInputRef?.focus();
+	}
+	window.addEventListener("dotaz:focus-navigator-filter", handleFocusFilter);
+
+	onCleanup(() => {
+		if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+		window.removeEventListener("dotaz:focus-navigator-filter", handleFocusFilter);
+	});
 
 	function isConnectionExpanded(id: string): boolean {
 		return expandedConnections().has(id);
@@ -509,6 +591,9 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		);
 	}
 
+	// ── Filter active check ───────────────────────────────
+	const isFiltering = () => filterTerm().length > 0;
+
 	// ── Schema tree rendering (shared between database and non-database views) ──
 
 	function renderSchemaTree(conn: ConnectionInfo, tree: SchemaTree, schemas: SchemaInfo[], baseLevel: number, database?: string) {
@@ -516,37 +601,45 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			<For each={schemas}>
 				{(schema: SchemaInfo) => {
 					const sKey = () => schemaKey(conn.id, schema.name, database);
-					const tables = () => tree.tables[schema.name] ?? [];
-					const sExpanded = () => isSchemaExpanded(sKey());
+					const tables = () => {
+						const allTables = tree.tables[schema.name] ?? [];
+						return isFiltering() ? filteredTables(allTables) : allTables;
+					};
+					const sExpanded = () => isFiltering() || isSchemaExpanded(sKey());
 
 					// For SQLite with only "main" schema, skip schema level
 					const isSingleSchema = () => schemas.length === 1 && schema.name === "main";
 
-					return (
-						<Show
-							when={!isSingleSchema()}
-							fallback={
-								<For each={tables()}>
-									{(table: TableInfo) => renderTable(conn, schema, table, baseLevel, database)}
-								</For>
-							}
-						>
-							<ConnectionTreeItem
-								label={schema.name}
-								level={baseLevel}
-								type="schema"
-								icon={<FolderOpen size={14} />}
-								expanded={sExpanded()}
-								hasChildren={tables().length > 0}
-								onToggle={() => toggleSchema(sKey())}
-								onClick={() => toggleSchema(sKey())}
-								onContextMenu={(e) => showContextMenu(e, schemaMenuItems(conn.id, schema.name, database))}
-							/>
+					// Hide schema if filtering and no tables match
+					const visible = () => !isFiltering() || schemaHasMatch(tree, schema.name);
 
-							<Show when={sExpanded()}>
-								<For each={tables()}>
-									{(table: TableInfo) => renderTable(conn, schema, table, baseLevel + 1, database)}
-								</For>
+					return (
+						<Show when={visible()}>
+							<Show
+								when={!isSingleSchema()}
+								fallback={
+									<For each={tables()}>
+										{(table: TableInfo) => renderTable(conn, schema, table, baseLevel, database)}
+									</For>
+								}
+							>
+								<ConnectionTreeItem
+									label={schema.name}
+									level={baseLevel}
+									type="schema"
+									icon={<FolderOpen size={14} />}
+									expanded={sExpanded()}
+									hasChildren={tables().length > 0}
+									onToggle={() => toggleSchema(sKey())}
+									onClick={() => toggleSchema(sKey())}
+									onContextMenu={(e) => showContextMenu(e, schemaMenuItems(conn.id, schema.name, database))}
+								/>
+
+								<Show when={sExpanded()}>
+									<For each={tables()}>
+										{(table: TableInfo) => renderTable(conn, schema, table, baseLevel + 1, database)}
+									</For>
+								</Show>
 							</Show>
 						</Show>
 					);
@@ -555,8 +648,25 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		);
 	}
 
+	/** Connections that have at least one matching table (or all when not filtering) */
+	const visibleConnections = () => {
+		if (!isFiltering()) return connectionsStore.connections;
+		return connectionsStore.connections.filter((conn) => {
+			// Always show disconnected/loading connections
+			if (conn.state !== "connected") return true;
+			// For multi-db connections, check all databases
+			if (hasMultipleDatabases(conn)) {
+				return connectionsStore.getActiveDatabaseNames(conn.id).some((db) => databaseHasMatch(conn.id, db));
+			}
+			return connectionHasMatch(conn.id);
+		});
+	};
+
+	/** Check if any connection has matching tables — for empty state */
+	const hasFilterResults = () => visibleConnections().length > 0;
+
 	return (
-		<div class="connection-tree">
+		<div class="connection-tree" onKeyDown={handleTreeKeyDown}>
 			<Show
 				when={connectionsStore.connections.length > 0}
 				fallback={
@@ -568,11 +678,55 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 					</div>
 				}
 			>
-				<For each={connectionsStore.connections}>
+				{/* ── Filter input ───────────────────────────── */}
+				<div
+					class="connection-tree__filter"
+					classList={{ "connection-tree__filter--active": filterInput().length > 0 }}
+				>
+					<Icon name="search" size={12} />
+					<input
+						ref={searchInputRef}
+						type="text"
+						class="connection-tree__filter-input"
+						placeholder="Filter tables..."
+						value={filterInput()}
+						onInput={(e) => handleFilterInput(e.currentTarget.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") {
+								e.preventDefault();
+								e.stopPropagation();
+								if (filterInput()) {
+									handleClearFilter();
+								} else {
+									searchInputRef?.blur();
+								}
+							}
+						}}
+					/>
+					<Show when={filterInput()}>
+						<button
+							class="connection-tree__filter-clear"
+							onClick={handleClearFilter}
+							title="Clear filter"
+						>
+							<Icon name="close" size={10} />
+						</button>
+					</Show>
+				</div>
+
+				{/* ── Empty filter state ─────────────────────── */}
+				<Show when={isFiltering() && !hasFilterResults()}>
+					<div class="connection-tree__no-results">
+						No tables matching "{filterInput()}"
+					</div>
+				</Show>
+
+				{/* ── Tree ───────────────────────────────────── */}
+				<For each={visibleConnections()}>
 					{(conn) => {
 						const tree = () => connectionsStore.getSchemaTree(conn.id);
 						const schemas = () => tree()?.schemas ?? [];
-						const expanded = () => isConnectionExpanded(conn.id);
+						const expanded = () => isFiltering() || isConnectionExpanded(conn.id);
 						const loading = () => isLoading(conn);
 						const hasSchemas = () => conn.state === "connected" && schemas().length > 0;
 						const multiDb = () => hasMultipleDatabases(conn);
@@ -609,11 +763,11 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 												const dbKey = () => databaseKey(conn.id, dbName);
 												const dbTree = () => connectionsStore.getSchemaTree(conn.id, dbName);
 												const dbSchemas = () => dbTree()?.schemas ?? [];
-												const dbExpanded = () => isDatabaseExpanded(dbKey());
-												const isDefault = () => getDefaultDatabase(conn.config) === dbName;
+												const dbExpanded = () => isFiltering() || isDatabaseExpanded(dbKey());
+												const dbVisible = () => !isFiltering() || databaseHasMatch(conn.id, dbName);
 
 												return (
-													<>
+													<Show when={dbVisible()}>
 														<ConnectionTreeItem
 															label={dbName}
 															level={1}
@@ -629,8 +783,12 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 														<Show when={dbExpanded() && dbSchemas().length > 0}>
 															{renderSchemaTree(conn, dbTree()!, dbSchemas(), 2, dbName)}
 														</Show>
-													</>
+													</Show>
 												);
+
+												function isDefault() {
+													return getDefaultDatabase(conn.config) === dbName;
+												}
 											}}
 										</For>
 									</Show>
