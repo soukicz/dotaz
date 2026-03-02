@@ -3,6 +3,7 @@ import {
 	parseCsvStream,
 	coerceValue,
 	CsvParseError,
+	MAX_BUFFER_SIZE,
 	type CsvBatch,
 	type CsvStreamOptions,
 } from "../src/backend-shared/services/csv-stream-parser";
@@ -583,6 +584,33 @@ describe("parseCsvStream", () => {
 			} catch (err) {
 				expect(err).toBeInstanceOf(CsvParseError);
 			}
+		});
+
+		test("throws when buffer size exceeds maxBufferSize", async () => {
+			// Use a small maxBufferSize for testing. Send a single chunk that
+			// exceeds the limit so the check fires before any processing.
+			const limit = 1024; // 1 KB
+			const oversizedCsv = "val\n" + "x".repeat(limit + 100) + "\n";
+			const stream = streamFromString(oversizedCsv);
+
+			try {
+				await collectRows(stream, { ...defaultOptions, maxBufferSize: limit });
+				expect(true).toBe(false); // should not reach
+			} catch (err) {
+				expect(err).toBeInstanceOf(CsvParseError);
+				expect((err as CsvParseError).message).toContain("buffer size exceeded");
+			}
+		});
+
+		test("normal CSV stays under maxBufferSize limit", async () => {
+			// Verify normal parsing works fine with a small buffer limit,
+			// as long as individual chunks + unprocessed data stay within limit.
+			const csv = "a,b\n1,2\n3,4\n";
+			const { rows } = await collectRows(
+				streamFromString(csv),
+				{ ...defaultOptions, maxBufferSize: 1024 },
+			);
+			expect(rows).toHaveLength(2);
 		});
 	});
 

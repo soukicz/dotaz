@@ -122,7 +122,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-103 | Transaction state notification on reconnect | done | hadTransaction on ReconnectState, transactionLost in StatusChangeEvent, frontend resets editor tx state + warning toast |
 | DOTAZ-104 | Parameterize LIMIT/OFFSET in driver iterate() | done | SQLite + MySQL iterate — use ? params instead of interpolation |
 | DOTAZ-105 | Runtime validation for settings and shared types | done | Type guards for AiProvider/DateFormat/DecimalSeparator/ThousandsSeparator/BooleanDisplay/BinaryDisplay, ImportSource discriminated union, buildRowKey collision-free encoding |
-| DOTAZ-106 | CSV parser memory protection | not started | Max buffer size limit to prevent OOM on malformed input |
+| DOTAZ-106 | CSV parser memory protection | done | MAX_BUFFER_SIZE 64 MB, configurable via maxBufferSize option, CsvParseError on overflow |
 | DOTAZ-107 | Web streaming and session tests | not started | Token registry, session lifecycle, stream ref counting tests; depends on DOTAZ-102 |
 | DOTAZ-108 | Frontend cleanup and error handling | not started | Global stale timer, catch handlers for non-critical async ops |
 
@@ -140,5 +140,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-02 — DOTAZ-105 done*
+*Last updated: 2026-03-02 — DOTAZ-106 done*
 

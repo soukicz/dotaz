@@ -6,12 +6,17 @@ export interface CsvStreamOptions {
 	batchSize: number;
 	/** Stop after N data rows (for preview). Does not consume rest of stream. */
 	maxRows?: number;
+	/** Maximum buffer size in bytes before rejecting input. Defaults to MAX_BUFFER_SIZE (64 MB). */
+	maxBufferSize?: number;
 }
 
 export interface CsvBatch {
 	columns: string[];
 	rows: Record<string, unknown>[];
 }
+
+/** 64 MB — maximum buffer size before rejecting input as malformed. */
+export const MAX_BUFFER_SIZE = 64 * 1024 * 1024;
 
 const enum RowAction {
 	Continue,
@@ -28,7 +33,7 @@ export async function* parseCsvStream(
 	stream: ReadableStream<Uint8Array>,
 	options: CsvStreamOptions,
 ): AsyncGenerator<CsvBatch> {
-	const { delimiter, hasHeader, batchSize, maxRows } = options;
+	const { delimiter, hasHeader, batchSize, maxRows, maxBufferSize = MAX_BUFFER_SIZE } = options;
 	const decoder = new TextDecoder("utf-8");
 	const reader = stream.getReader();
 
@@ -81,6 +86,13 @@ export async function* parseCsvStream(
 				streamDone = true;
 			} else {
 				buffer += decoder.decode(result.value, { stream: true });
+			}
+
+			if (buffer.length > maxBufferSize) {
+				throw new CsvParseError(
+					`buffer size exceeded ${maxBufferSize / (1024 * 1024)}MB — possible malformed input or extremely large field`,
+					lineNumber,
+				);
 			}
 
 			// Process characters in the buffer
