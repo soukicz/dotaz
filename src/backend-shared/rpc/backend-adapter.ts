@@ -320,6 +320,16 @@ export class BackendAdapter implements RpcAdapter {
 		}, req.limit);
 	}
 
+	// ── Settings ─────────────────────────────────────────
+
+	getAllSettings(): Record<string, string> {
+		return this.appDb.getAllSettings();
+	}
+
+	setSetting(key: string, value: string): void {
+		this.appDb.setSetting(key, value);
+	}
+
 	// ── Storage ──────────────────────────────────────────
 
 	async encrypt(config: string): Promise<string> {

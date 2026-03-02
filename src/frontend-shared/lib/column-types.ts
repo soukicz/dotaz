@@ -46,6 +46,10 @@ export function isJsonType(dataType: DatabaseDataType): boolean {
 	return JSON_TYPES.has(dataType);
 }
 
+export function isBinaryType(dataType: DatabaseDataType): boolean {
+	return dataType === DatabaseDataType.Binary;
+}
+
 export function isTimestampType(dataType: DatabaseDataType): boolean {
 	return dataType === DatabaseDataType.Timestamp || dataType === DatabaseDataType.Date;
 }

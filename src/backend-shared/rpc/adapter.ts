@@ -81,6 +81,10 @@ export interface RpcAdapter {
 	importData(opts: ImportOptions): Promise<ImportResult>;
 	importPreview(req: ImportPreviewRequest): Promise<ImportPreviewResult>;
 
+	// ── Settings ─────────────────────────────────────────
+	getAllSettings(): Record<string, string>;
+	setSetting(key: string, value: string): void;
+
 	// ── Storage ──────────────────────────────────────────
 	encrypt?(config: string): Promise<string>;
 

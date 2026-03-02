@@ -1,10 +1,10 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import { isSqlDefault } from "../../../shared/types/database";
-import Check from "lucide-solid/icons/check";
-import X from "lucide-solid/icons/x";
+import type { DateFormat, FormatProfile } from "../../../shared/types/settings";
 import InlineEditor from "../edit/InlineEditor";
-import { isNumericType, isBooleanType, isTimestampType, isJsonType } from "../../lib/column-types";
+import { isNumericType, isBooleanType, isTimestampType, isJsonType, isBinaryType } from "../../lib/column-types";
+import { settingsStore } from "../../stores/settings";
 import "./GridCell.css";
 
 interface GridCellProps {
@@ -27,22 +27,91 @@ interface GridCellProps {
 	onFkClick?: () => void;
 }
 
-function formatTimestamp(value: unknown): string {
+function formatTimestamp(value: unknown, fmt: DateFormat): string {
+	let d: Date | null = null;
 	if (value instanceof Date) {
-		return formatDate(value);
-	}
-	if (typeof value === "string") {
-		const d = new Date(value);
-		if (!Number.isNaN(d.getTime())) {
-			return formatDate(d);
+		d = value;
+	} else if (typeof value === "string") {
+		const parsed = new Date(value);
+		if (!Number.isNaN(parsed.getTime())) {
+			d = parsed;
 		}
 	}
-	return String(value);
+	if (!d) return String(value);
+	return formatDateWithProfile(d, fmt);
 }
 
-function formatDate(d: Date): string {
+function formatDateWithProfile(d: Date, fmt: DateFormat): string {
 	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+	const Y = d.getFullYear();
+	const M = pad(d.getMonth() + 1);
+	const D = pad(d.getDate());
+	const h = pad(d.getHours());
+	const m = pad(d.getMinutes());
+	const s = pad(d.getSeconds());
+
+	switch (fmt) {
+		case "YYYY-MM-DD HH:mm:ss":
+			return `${Y}-${M}-${D} ${h}:${m}:${s}`;
+		case "DD.MM.YYYY HH:mm:ss":
+			return `${D}.${M}.${Y} ${h}:${m}:${s}`;
+		case "MM/DD/YYYY HH:mm:ss":
+			return `${M}/${D}/${Y} ${h}:${m}:${s}`;
+		case "YYYY-MM-DD":
+			return `${Y}-${M}-${D}`;
+		case "ISO 8601":
+			return d.toISOString();
+	}
+}
+
+function formatNumber(value: unknown, profile: FormatProfile): string {
+	const num = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(num)) return String(value);
+
+	let str: string;
+	if (profile.decimalPlaces >= 0) {
+		str = num.toFixed(profile.decimalPlaces);
+	} else {
+		str = String(num);
+	}
+
+	const [intPart, fracPart] = str.split(".");
+
+	let formattedInt = intPart;
+	if (profile.thousandsSeparator) {
+		formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, profile.thousandsSeparator);
+	}
+
+	if (fracPart !== undefined) {
+		return formattedInt + profile.decimalSeparator + fracPart;
+	}
+	return formattedInt;
+}
+
+function formatBoolean(value: unknown, profile: FormatProfile): string {
+	const truthy = !!value;
+	const parts = profile.booleanDisplay.split("/");
+	return truthy ? parts[0] : parts[1];
+}
+
+function formatBinary(value: unknown, profile: FormatProfile): string {
+	if (value instanceof ArrayBuffer || value instanceof Uint8Array) {
+		const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+		switch (profile.binaryDisplay) {
+			case "hex":
+				return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+			case "base64":
+				return btoa(String.fromCharCode(...bytes));
+			case "size":
+				return `(binary ${bytes.length} bytes)`;
+		}
+	}
+	// Fallback for non-buffer binary values
+	const str = String(value);
+	if (profile.binaryDisplay === "size") {
+		return `(binary ${str.length} bytes)`;
+	}
+	return str;
 }
 
 export default function GridCell(props: GridCellProps) {
@@ -54,12 +123,16 @@ export default function GridCell(props: GridCellProps) {
 	const isBool = () => isBooleanType(props.column.dataType);
 	const isTs = () => isTimestampType(props.column.dataType);
 	const isJson = () => isJsonType(props.column.dataType);
+	const isBin = () => isBinaryType(props.column.dataType);
 
 	const displayValue = () => {
+		const profile = settingsStore.formatProfile;
 		if (isDefault()) return "DEFAULT";
-		if (isNull()) return "NULL";
-		if (isBool()) return props.value ? <Check size={14} /> : <X size={14} />;
-		if (isTs()) return formatTimestamp(props.value);
+		if (isNull()) return profile.nullDisplay;
+		if (isBool()) return formatBoolean(props.value, profile);
+		if (isTs()) return formatTimestamp(props.value, profile.dateFormat);
+		if (isBin()) return formatBinary(props.value, profile);
+		if (isNumber()) return formatNumber(props.value, profile);
 		if (isJson() && typeof props.value === "object")
 			return JSON.stringify(props.value);
 		return String(props.value);

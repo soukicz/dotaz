@@ -208,6 +208,14 @@ export function createHandlers(adapter: RpcAdapter) {
 			adapter.deleteBookmark(id);
 		},
 
+		// ── Settings ─────────────────────────────────────
+		"settings.getAll": () => {
+			return adapter.getAllSettings();
+		},
+		"settings.set": ({ key, value }: { key: string; value: string }) => {
+			adapter.setSetting(key, value);
+		},
+
 		// ── Storage ──────────────────────────────────────
 		"storage.encrypt": async ({ config }: { config: string }) => {
 			if (!adapter.encrypt) {

@@ -94,12 +94,25 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-089 | Advanced Copy with configurable format | done | Ctrl+Shift+C dialog with delimiter/headers/row numbers/value format/NULL repr options, live preview, session memory, context menu entry |
 | DOTAZ-090 | Transaction log and pending transaction viewer | done | SessionLog in-memory per-connection, RPC endpoints, TransactionLog panel, TX warning dialog with Commit/Rollback/Cancel, pending count in status bar |
 | DOTAZ-091 | Query navigation in SQL editor | done | Alt+Up/Down navigate between SQL statements, extracted findSemicolons helper, Prec.highest to override default line-move bindings |
-| DOTAZ-092 | Data format profiles | not started | Global date/number/NULL display settings |
+| DOTAZ-092 | Data format profiles | done | FormatProfile types, settings RPC, settingsStore, FormatSettingsDialog, GridCell formatting (date/number/null/boolean/binary), command palette access |
 | DOTAZ-093 | Advanced Paste into data grid | not started | Multi-row paste with delimiter detection |
 | DOTAZ-094 | AI SQL generation from natural language | not started | LLM-powered SQL with schema context |
 | DOTAZ-095 | Workspace persistence (tabs, editor state, layout) | not started | Restore open tabs, SQL content, layout after restart |
 
 ---
 
-*Last updated: 2026-03-02 — DOTAZ-091 done*
+## Phase 13 — Robust Streaming Import/Export
+
+| Issue | Title | Status | Notes |
+|-------|-------|--------|-------|
+| DOTAZ-096 | Driver `iterate()` and `importBatch()` methods | not started | PG cursors (own reserved conn, REPEATABLE READ), SQLite LIMIT/OFFSET, multi-row VALUES INSERT |
+| DOTAZ-097 | Streaming CSV parser | not started | Async generator, ReadableStream input, RFC 4180, chunk-boundary-safe UTF-8, maxRows for preview |
+| DOTAZ-098 | Export service streaming refactor | not started | `exportToStream()` using `driver.iterate()`, backpressure, no LIMIT/OFFSET in service |
+| DOTAZ-099 | Import service streaming refactor | not started | `importFromStream()` using CSV parser + `driver.importBatch()`, full rollback, filePath/fileContent dispatch |
+| DOTAZ-100 | Frontend capabilities and desktop/demo mode updates | not started | Capability registration, mode-aware ImportDialog/ExportDialog, demo Blob download, progress counter |
+| DOTAZ-101 | Web streaming infrastructure | not started | Token registry, HTTP stream endpoints, StreamSaver.js, session bridging, delayed cleanup, cancellation |
+
+---
+
+*Last updated: 2026-03-02 — DOTAZ-092 done*
 

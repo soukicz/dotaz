@@ -23,6 +23,7 @@ import SchemaViewer from "../schema/SchemaViewer";
 import ComparisonView from "../comparison/ComparisonView";
 import ComparisonDialog from "../comparison/ComparisonDialog";
 import DatabaseSearchDialog from "../search/DatabaseSearchDialog";
+import FormatSettingsDialog from "../common/FormatSettingsDialog";
 import type { ComparisonSource, ComparisonColumnMapping } from "../../../shared/types/comparison";
 import type { ConnectionInfo } from "../../../shared/types/connection";
 import type { SearchScope } from "../../../shared/types/rpc";
@@ -31,6 +32,7 @@ import { connectionsStore } from "../../stores/connections";
 import { editorStore } from "../../stores/editor";
 import { gridStore } from "../../stores/grid";
 import { uiStore } from "../../stores/ui";
+import { settingsStore } from "../../stores/settings";
 import { friendlyErrorMessage, messages } from "../../lib/rpc";
 import { setComparisonParams, getComparisonParams, removeComparisonParams } from "../../stores/comparison";
 import { commandRegistry } from "../../lib/commands";
@@ -69,6 +71,7 @@ export default function AppShell() {
 	const [searchInitialSchema, setSearchInitialSchema] = createSignal<string | undefined>(undefined);
 	const [searchInitialTable, setSearchInitialTable] = createSignal<string | undefined>(undefined);
 	const [searchInitialDatabase, setSearchInitialDatabase] = createSignal<string | undefined>(undefined);
+	const [formatSettingsOpen, setFormatSettingsOpen] = createSignal(false);
 	const [txLogOpen, setTxLogOpen] = createSignal(false);
 	const [txWarningOpen, setTxWarningOpen] = createSignal(false);
 	const [txWarningTabId, setTxWarningTabId] = createSignal<string | null>(null);
@@ -184,6 +187,7 @@ export default function AppShell() {
 
 	onMount(async () => {
 		connectionsStore.loadConnections();
+		settingsStore.loadSettings();
 		registerCommands();
 		registerShortcuts();
 		keyboardManager.setContextProvider((): ShortcutContext => {
@@ -650,10 +654,10 @@ export default function AppShell() {
 
 		commandRegistry.register({
 			id: "settings",
-			label: "Settings",
-			category: "Navigation",
+			label: "Data Format Settings",
+			category: "View",
 			handler: () => {
-				uiStore.addToast("info", "Settings will be available in a future update.");
+				setFormatSettingsOpen(true);
 			},
 		});
 	}
@@ -922,6 +926,11 @@ export default function AppShell() {
 				initialSchema={searchInitialSchema()}
 				initialTable={searchInitialTable()}
 				initialDatabase={searchInitialDatabase()}
+			/>
+
+			<FormatSettingsDialog
+				open={formatSettingsOpen()}
+				onClose={() => setFormatSettingsOpen(false)}
 			/>
 
 			<ToastContainer />

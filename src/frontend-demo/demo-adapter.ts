@@ -405,6 +405,16 @@ export class DemoAdapter implements RpcAdapter {
 		}, req.limit);
 	}
 
+	// ── Settings ─────────────────────────────────────────
+
+	getAllSettings(): Record<string, string> {
+		return this.state.getAllSettings();
+	}
+
+	setSetting(key: string, value: string): void {
+		this.state.setSetting(key, value);
+	}
+
 	// ── SQL formatting ───────────────────────────────────
 
 	formatSql(sql: string): string {
