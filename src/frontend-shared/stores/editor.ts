@@ -13,6 +13,14 @@ import { uiStore } from "./ui";
 
 export type TxMode = "auto-commit" | "manual";
 
+export interface PinnedResultSet {
+	id: string;
+	results: QueryResult[];
+	error: string | null;
+	duration: number;
+	explainResult: ExplainResult | null;
+}
+
 export interface TabEditorState {
 	connectionId: string;
 	database?: string;
@@ -32,6 +40,10 @@ export interface TabEditorState {
 	errorOffset: number | null;
 	/** EXPLAIN plan result (when explain mode is used instead of run) */
 	explainResult: ExplainResult | null;
+	/** Pinned result sets that are preserved across query executions */
+	pinnedResults: PinnedResultSet[];
+	/** Which result view is active: null = current results, string = pinned id */
+	activeResultView: string | null;
 }
 
 function createDefaultEditorState(connectionId: string, database?: string): TabEditorState {
@@ -51,6 +63,8 @@ function createDefaultEditorState(connectionId: string, database?: string): TabE
 		executedRange: null,
 		errorOffset: null,
 		explainResult: null,
+		pinnedResults: [],
+		activeResultView: null,
 	};
 }
 
@@ -152,6 +166,7 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0) {
 		explainResult: null,
 		duration: 0,
 		errorOffset: null,
+		activeResultView: null,
 	});
 
 	const startTime = performance.now();
@@ -345,6 +360,7 @@ async function explainQuery(tabId: string, analyze = false) {
 		explainResult: null,
 		duration: 0,
 		errorOffset: null,
+		activeResultView: null,
 	});
 
 	try {
@@ -371,6 +387,43 @@ async function explainQuery(tabId: string, analyze = false) {
 	}
 }
 
+function pinCurrentResult(tabId: string) {
+	const tab = ensureTab(tabId);
+	if (tab.results.length === 0 && !tab.error && !tab.explainResult) return;
+
+	const pinned: PinnedResultSet = {
+		id: crypto.randomUUID(),
+		results: tab.results,
+		error: tab.error,
+		duration: tab.duration,
+		explainResult: tab.explainResult,
+	};
+
+	setState("tabs", tabId, "pinnedResults", [...tab.pinnedResults, pinned]);
+	setState("tabs", tabId, "activeResultView", pinned.id);
+	// Clear current results so the next query goes into a fresh tab
+	setState("tabs", tabId, {
+		results: [],
+		error: null,
+		duration: 0,
+		explainResult: null,
+		errorOffset: null,
+	});
+}
+
+function unpinResult(tabId: string, pinnedId: string) {
+	const tab = ensureTab(tabId);
+	setState("tabs", tabId, "pinnedResults", tab.pinnedResults.filter((p) => p.id !== pinnedId));
+	if (tab.activeResultView === pinnedId) {
+		setState("tabs", tabId, "activeResultView", null);
+	}
+}
+
+function setActiveResultView(tabId: string, view: string | null) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "activeResultView", view);
+}
+
 function removeTab(tabId: string) {
 	setState("tabs", tabId, undefined!);
 }
@@ -394,6 +447,9 @@ export const editorStore = {
 	commitTransaction,
 	rollbackTransaction,
 	removeTab,
+	pinCurrentResult,
+	unpinResult,
+	setActiveResultView,
 	get pendingDestructiveQuery() {
 		return pendingDestructiveQuery();
 	},

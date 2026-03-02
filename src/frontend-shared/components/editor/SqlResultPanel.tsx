@@ -2,9 +2,12 @@ import { createSignal, createEffect, For, Show, Switch, Match } from "solid-js";
 import type { QueryResult, QueryResultColumn } from "../../../shared/types/query";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import type { ColumnConfig } from "../../stores/grid";
-import { editorStore } from "../../stores/editor";
+import { editorStore, type PinnedResultSet } from "../../stores/editor";
 import ChevronUp from "lucide-solid/icons/chevron-up";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import Pin from "lucide-solid/icons/pin";
+import PinOff from "lucide-solid/icons/pin-off";
+import X from "lucide-solid/icons/x";
 import GridHeader from "../grid/GridHeader";
 import VirtualScroller from "../grid/VirtualScroller";
 import ExplainPanel from "./ExplainPanel";
@@ -48,11 +51,43 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 	const [minimized, setMinimized] = createSignal(false);
 
 	const tab = () => editorStore.getTab(props.tabId);
-	const results = () => tab()?.results ?? [];
-	const error = () => tab()?.error ?? null;
+	const pinnedResults = () => tab()?.pinnedResults ?? [];
+	const activeResultView = () => tab()?.activeResultView ?? null;
+	const hasPinnedTabs = () => pinnedResults().length > 0;
+
+	// Current (unpinned) result data
+	const currentResults = () => tab()?.results ?? [];
+	const currentError = () => tab()?.error ?? null;
+	const currentDuration = () => tab()?.duration ?? 0;
+	const currentExplain = () => tab()?.explainResult ?? null;
+	const currentHasContent = () => currentResults().length > 0 || currentError() !== null || currentExplain() !== null;
+
+	// The viewed result set — either pinned or current
+	const viewedPinned = (): PinnedResultSet | undefined => {
+		const view = activeResultView();
+		if (!view) return undefined;
+		return pinnedResults().find((p) => p.id === view);
+	};
+
+	const isViewingPinned = () => activeResultView() !== null && viewedPinned() !== undefined;
+
+	const results = () => {
+		const pinned = viewedPinned();
+		return pinned ? pinned.results : currentResults();
+	};
+	const error = () => {
+		const pinned = viewedPinned();
+		return pinned ? pinned.error : currentError();
+	};
+	const duration = () => {
+		const pinned = viewedPinned();
+		return pinned ? pinned.duration : currentDuration();
+	};
+	const explainResult = () => {
+		const pinned = viewedPinned();
+		return pinned ? pinned.explainResult : currentExplain();
+	};
 	const isRunning = () => tab()?.isRunning ?? false;
-	const duration = () => tab()?.duration ?? 0;
-	const explainResult = () => tab()?.explainResult ?? null;
 
 	createEffect(() => {
 		results();
@@ -66,21 +101,63 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 	};
 
 	const hasContent = () => results().length > 0 || error() !== null || explainResult() !== null;
+	const anyContent = () => hasContent() || currentHasContent() || hasPinnedTabs();
 
 	return (
 		<div
 			class="sql-result-panel"
 			classList={{ "sql-result-panel--minimized": minimized() }}
 		>
-			<Show when={hasContent() || isRunning()}>
+			<Show when={anyContent() || isRunning()}>
 				<div class="sql-result-panel__header">
 					<div class="sql-result-panel__header-left">
-						<Show when={explainResult()}>
-						<span class="sql-result-panel__meta" style={{ "font-weight": "600", color: "var(--ink)" }}>
-							Explain Plan
-						</span>
-					</Show>
-					<Show when={!explainResult() && results().length > 1}>
+						{/* Pinned result set tabs */}
+						<Show when={hasPinnedTabs()}>
+							<For each={pinnedResults()}>
+								{(pinned, idx) => (
+									<button
+										class="sql-result-panel__result-tab"
+										classList={{
+											"sql-result-panel__result-tab--active": activeResultView() === pinned.id,
+											"sql-result-panel__result-tab--pinned": true,
+										}}
+										onClick={() => editorStore.setActiveResultView(props.tabId, pinned.id)}
+										title={`Pinned result ${idx() + 1}`}
+									>
+										<Pin size={10} />
+										<span>Result {idx() + 1}</span>
+										<button
+											class="sql-result-panel__result-tab-close"
+											onClick={(e) => {
+												e.stopPropagation();
+												editorStore.unpinResult(props.tabId, pinned.id);
+											}}
+											title="Unpin and close"
+										>
+											<X size={10} />
+										</button>
+									</button>
+								)}
+							</For>
+							<button
+								class="sql-result-panel__result-tab"
+								classList={{
+									"sql-result-panel__result-tab--active": activeResultView() === null,
+								}}
+								onClick={() => editorStore.setActiveResultView(props.tabId, null)}
+								title="Current results"
+							>
+								<span>Current</span>
+							</button>
+						</Show>
+
+						{/* Sub-tabs for multiple results within the active result set */}
+						<Show when={!hasPinnedTabs() && explainResult()}>
+							<span class="sql-result-panel__meta" style={{ "font-weight": "600", color: "var(--ink)" }}>
+								Explain Plan
+							</span>
+						</Show>
+						<Show when={!hasPinnedTabs() && !explainResult() && results().length > 1}>
 							<For each={results()}>
 								{(result, idx) => (
 									<button
@@ -99,6 +176,28 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 					</div>
 
 					<div class="sql-result-panel__header-right">
+						<Show when={hasPinnedTabs() && explainResult()}>
+							<span class="sql-result-panel__meta" style={{ "font-weight": "600", color: "var(--ink)" }}>
+								Explain Plan
+							</span>
+						</Show>
+						{/* Sub-tabs within pinned mode */}
+						<Show when={hasPinnedTabs() && !explainResult() && results().length > 1}>
+							<For each={results()}>
+								{(result, idx) => (
+									<button
+										class="sql-result-panel__tab"
+										classList={{
+											"sql-result-panel__tab--active":
+												activeResultIndex() === idx(),
+										}}
+										onClick={() => setActiveResultIndex(idx())}
+									>
+										{getResultLabel(result, idx())}
+									</button>
+								)}
+							</For>
+						</Show>
 						<Show
 							when={
 								activeResult() &&
@@ -119,6 +218,16 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 							<span class="sql-result-panel__meta">
 								{formatDuration(duration())}
 							</span>
+						</Show>
+						{/* Pin button for current results */}
+						<Show when={!isViewingPinned() && currentHasContent()}>
+							<button
+								class="sql-result-panel__pin-btn"
+								onClick={() => editorStore.pinCurrentResult(props.tabId)}
+								title="Pin current results"
+							>
+								<PinOff size={12} />
+							</button>
 						</Show>
 						<button
 							class="sql-result-panel__toggle"
@@ -142,7 +251,7 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 							</div>
 						</Match>
 
-						<Match when={isRunning()}>
+						<Match when={!isViewingPinned() && isRunning()}>
 							<div class="sql-result-panel__loading">
 								<Icon name="spinner" size={14} />
 								Running query...

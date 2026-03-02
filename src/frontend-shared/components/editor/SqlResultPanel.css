@@ -56,6 +56,73 @@
 	color: var(--ink);
 }
 
+/* Result set tabs (pinned + current) */
+.sql-result-panel__result-tab {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px;
+	border: none;
+	background: transparent;
+	color: var(--ink-secondary);
+	font-size: var(--font-size-xs);
+	font-family: var(--font-ui);
+	cursor: pointer;
+	border-radius: 3px;
+}
+
+.sql-result-panel__result-tab:hover {
+	background: var(--surface-hover);
+}
+
+.sql-result-panel__result-tab--active {
+	background: var(--surface-active);
+	color: var(--ink);
+}
+
+.sql-result-panel__result-tab--pinned {
+	color: var(--accent, #82aaff);
+}
+
+.sql-result-panel__result-tab--pinned.sql-result-panel__result-tab--active {
+	color: var(--accent, #82aaff);
+}
+
+.sql-result-panel__result-tab-close {
+	display: flex;
+	align-items: center;
+	padding: 0 1px;
+	border: none;
+	background: transparent;
+	color: var(--ink-muted);
+	cursor: pointer;
+	border-radius: 2px;
+	line-height: 1;
+}
+
+.sql-result-panel__result-tab-close:hover {
+	color: var(--ink);
+	background: var(--surface-hover);
+}
+
+/* Pin button */
+.sql-result-panel__pin-btn {
+	display: flex;
+	align-items: center;
+	padding: 2px 4px;
+	border: none;
+	background: transparent;
+	color: var(--ink-muted);
+	cursor: pointer;
+	border-radius: 3px;
+	line-height: 1;
+}
+
+.sql-result-panel__pin-btn:hover {
+	color: var(--ink);
+	background: var(--surface-hover);
+}
+
 /* Metadata */
 .sql-result-panel__meta {
 	color: var(--ink-muted);
