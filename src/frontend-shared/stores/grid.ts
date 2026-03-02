@@ -174,6 +174,13 @@ const [state, setState] = createStore<GridStoreState>({
 	tabs: {},
 });
 
+/** Callbacks invoked before FK navigation (for navigation history). */
+const beforeFkNavigationCallbacks: ((tabId: string) => void)[] = [];
+
+function onBeforeFkNavigation(cb: (tabId: string) => void) {
+	beforeFkNavigationCallbacks.push(cb);
+}
+
 // ── Internal helpers ─────────────────────────────────────
 
 /** Tracks the latest fetch request ID per tab to prevent stale responses. */
@@ -1153,6 +1160,7 @@ async function navigateToFkTarget(
 	targetColumn: string,
 	value: unknown,
 ) {
+	for (const cb of beforeFkNavigationCallbacks) cb(tabId);
 	const tab = ensureTab(tabId);
 
 	// Push current state to navigation history
@@ -1195,6 +1203,7 @@ async function navigateToTableWithFilters(
 	targetTable: string,
 	filters: ColumnFilter[],
 ) {
+	for (const cb of beforeFkNavigationCallbacks) cb(tabId);
 	const tab = ensureTab(tabId);
 
 	const entry: FkNavigationEntry = {
@@ -1230,6 +1239,7 @@ async function navigateToTableWithFilters(
 async function navigateBack(tabId: string) {
 	const tab = ensureTab(tabId);
 	if (tab.fkNavigationHistory.length === 0) return;
+	for (const cb of beforeFkNavigationCallbacks) cb(tabId);
 
 	const history = [...tab.fkNavigationHistory];
 	const entry = history.pop()!;
@@ -1403,6 +1413,7 @@ export const gridStore = {
 	navigateToFkTarget,
 	navigateToTableWithFilters,
 	navigateBack,
+	onBeforeFkNavigation,
 
 	// Saved views
 	setActiveView,

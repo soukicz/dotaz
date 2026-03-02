@@ -33,6 +33,22 @@ let beforeCloseHook: ((tab: TabInfo) => boolean) | null = null;
 /** Callbacks invoked after a tab is closed, for state cleanup. */
 const afterCloseCallbacks: ((tabId: string) => void)[] = [];
 
+/** Callbacks invoked before the active tab changes (for navigation history). */
+const beforeTabChangeCallbacks: (() => void)[] = [];
+
+function onBeforeTabChange(cb: () => void) {
+	beforeTabChangeCallbacks.push(cb);
+}
+
+/** Central helper for changing the active tab. Fires beforeTabChange callbacks unless silent. */
+function changeActiveTab(id: string | null, silent = false) {
+	if (id === state.activeTabId) return;
+	if (!silent && state.activeTabId !== null && id !== null) {
+		for (const cb of beforeTabChangeCallbacks) cb();
+	}
+	setState("activeTabId", id);
+}
+
 function setBeforeCloseHook(hook: ((tab: TabInfo) => boolean) | null) {
 	beforeCloseHook = hook;
 }
@@ -57,7 +73,7 @@ function openTab(config: OpenTabConfig): string {
 		primaryKeys: config.primaryKeys,
 	};
 	setState("openTabs", (tabs) => [...tabs, tab]);
-	setState("activeTabId", id);
+	changeActiveTab(id);
 	scheduleWorkspaceSave();
 	return id;
 }
@@ -70,7 +86,7 @@ function restoreTab(tab: TabInfo): void {
 function setActiveTab(id: string) {
 	const exists = state.openTabs.some((t) => t.id === id);
 	if (exists) {
-		setState("activeTabId", id);
+		changeActiveTab(id);
 		scheduleWorkspaceSave();
 	}
 }
@@ -98,7 +114,7 @@ function closeTab(id: string) {
 		const remaining = state.openTabs;
 		// Prefer the tab to the right, then to the left, then null
 		const nextTab = remaining[idx] ?? remaining[idx - 1] ?? null;
-		setState("activeTabId", nextTab?.id ?? null);
+		changeActiveTab(nextTab?.id ?? null, true);
 	}
 
 	for (const cb of afterCloseCallbacks) cb(id);
@@ -120,7 +136,7 @@ function closeOtherTabs(id: string) {
 	const kept = state.openTabs.find((t) => t.id === id);
 	if (kept) {
 		setState("openTabs", [kept]);
-		setState("activeTabId", id);
+		changeActiveTab(id, true);
 	}
 	for (const closedId of closedIds) {
 		for (const cb of afterCloseCallbacks) cb(closedId);
@@ -139,7 +155,7 @@ function closeAllTabs() {
 
 	const closedIds = state.openTabs.map((t) => t.id);
 	setState("openTabs", []);
-	setState("activeTabId", null);
+	changeActiveTab(null, true);
 	for (const id of closedIds) {
 		for (const cb of afterCloseCallbacks) cb(id);
 	}
@@ -178,7 +194,7 @@ function activateNextTab() {
 	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
 	if (idx === -1) return;
 	const next = (idx + 1) % tabs.length;
-	setState("activeTabId", tabs[next].id);
+	changeActiveTab(tabs[next].id);
 }
 
 function activatePrevTab() {
@@ -187,7 +203,7 @@ function activatePrevTab() {
 	const idx = tabs.findIndex((t) => t.id === state.activeTabId);
 	if (idx === -1) return;
 	const prev = (idx - 1 + tabs.length) % tabs.length;
-	setState("activeTabId", tabs[prev].id);
+	changeActiveTab(tabs[prev].id);
 }
 
 /** Find an open default (no viewId) data-grid tab for the given table and focus it. Returns tab ID or null. */
@@ -196,7 +212,7 @@ function findDefaultTab(connectionId: string, schema: string, table: string, dat
 		(t) => t.type === "data-grid" && t.connectionId === connectionId && t.schema === schema && t.table === table && t.database === database && !t.viewId,
 	);
 	if (found) {
-		setState("activeTabId", found.id);
+		changeActiveTab(found.id);
 		return found.id;
 	}
 	return null;
@@ -206,7 +222,7 @@ function findDefaultTab(connectionId: string, schema: string, table: string, dat
 function findViewTab(viewId: string): string | null {
 	const found = state.openTabs.find((t) => t.viewId === viewId);
 	if (found) {
-		setState("activeTabId", found.id);
+		changeActiveTab(found.id);
 		return found.id;
 	}
 	return null;
@@ -268,4 +284,5 @@ export const tabsStore = {
 	setViewModified,
 	setBeforeCloseHook,
 	onTabClosed,
+	onBeforeTabChange,
 };

@@ -43,16 +43,18 @@ import { setComparisonParams, getComparisonParams, removeComparisonParams } from
 import { commandRegistry } from "../../lib/commands";
 import { keyboardManager } from "../../lib/keyboard";
 import type { ShortcutContext } from "../../lib/keyboard";
+import { navigationStore } from "../../stores/navigation";
 import { setWorkspaceStateCollector, scheduleWorkspaceSave, loadWorkspace, saveWorkspaceNow } from "../../lib/workspace";
 import type { WorkspaceState, WorkspaceTab } from "../../../shared/types/workspace";
 import "./AppShell.css";
 
-// Clean up grid/editor/comparison/session state when tabs are closed to prevent memory leaks
+// Clean up grid/editor/comparison/session/navigation state when tabs are closed
 tabsStore.onTabClosed((tabId) => {
 	gridStore.removeTab(tabId);
 	editorStore.removeTab(tabId);
 	removeComparisonParams(tabId);
 	sessionStore.handleTabClosed(tabId);
+	navigationStore.handleTabClosed(tabId);
 });
 
 const MIN_WIDTH = 150;
@@ -482,6 +484,22 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "navigate-back",
+			label: "Navigate Back",
+			shortcut: "Alt+ArrowLeft",
+			category: "Navigation",
+			handler: () => navigationStore.goBack(),
+		});
+
+		commandRegistry.register({
+			id: "navigate-forward",
+			label: "Navigate Forward",
+			shortcut: "Alt+ArrowRight",
+			category: "Navigation",
+			handler: () => navigationStore.goForward(),
+		});
+
+		commandRegistry.register({
 			id: "connect",
 			label: "Connect",
 			category: "Connection",
@@ -857,6 +875,8 @@ export default function AppShell() {
 		keyboardManager.register("Ctrl+Shift+Tab", "prev-tab");
 		keyboardManager.register("Ctrl+B", "toggle-sidebar");
 		keyboardManager.register("Ctrl+Shift+L", "focus-navigator-filter");
+		keyboardManager.register("Alt+ArrowLeft", "navigate-back");
+		keyboardManager.register("Alt+ArrowRight", "navigate-forward");
 
 		// SQL console context
 		keyboardManager.register("Ctrl+Enter", "run-query", "sql-console");
