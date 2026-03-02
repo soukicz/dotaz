@@ -37,11 +37,6 @@ import { isNumericType } from "../../lib/column-types";
 import { HEADER_HEIGHT } from "../../lib/layout-constants";
 import "./DataGrid.css";
 
-// ── Shared stale-data timer ──────────────────────────────
-// Single module-level signal ticking every 30s instead of one per DataGrid tab.
-const [staleNow, setStaleNow] = createSignal(Date.now());
-setInterval(() => setStaleNow(Date.now()), 30_000);
-
 interface DataGridProps {
 	tabId: string;
 	connectionId: string;
@@ -114,20 +109,6 @@ export default function DataGrid(props: DataGridProps) {
 		if (!config) return false;
 		return gridStore.isViewModified(props.tabId, config);
 	};
-
-	const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
-
-	/** Returns a human-readable "ago" string if data is stale (>5 min), otherwise null. */
-	const staleLabel = createMemo(() => {
-		const t = tab();
-		if (!t?.lastLoadedAt) return null;
-		const elapsed = staleNow() - t.lastLoadedAt;
-		if (elapsed < STALE_THRESHOLD_MS) return null;
-		const minutes = Math.floor(elapsed / 60_000);
-		if (minutes < 60) return `Data loaded ${minutes}m ago`;
-		const hours = Math.floor(minutes / 60);
-		return `Data loaded ${hours}h ago`;
-	});
 
 	// Listen for import dialog open events from context menu
 	function handleOpenImport(e: Event) {
@@ -1294,14 +1275,11 @@ export default function DataGrid(props: DataGridProps) {
 								pageSize={tabState().pageSize}
 								totalCount={tabState().totalCount}
 								loading={tabState().loading}
+								lastLoadedAt={tabState().lastLoadedAt}
+								fetchDuration={tabState().fetchDuration}
 								onPageChange={(page) => gridStore.setPage(props.tabId, page)}
 								onPageSizeChange={(size) => gridStore.setPageSize(props.tabId, size)}
 							/>
-							<Show when={staleLabel()}>
-								{(label) => (
-									<span class="data-grid__stale-indicator" title="Press F5 to refresh">{label()}</span>
-								)}
-							</Show>
 							<Show when={gridStore.hasPendingChanges(props.tabId)}>
 								<button
 									class="data-grid__pending-badge"

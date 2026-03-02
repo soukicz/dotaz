@@ -106,6 +106,7 @@ export interface TabGridState {
 	columnOrder: string[];
 	loading: boolean;
 	lastLoadedAt: number | null;
+	fetchDuration: number | null;
 	activeViewId: string | null;
 	activeViewName: string | null;
 	fkNavigationHistory: FkNavigationEntry[];
@@ -150,6 +151,7 @@ function createDefaultTabState(
 		columnOrder: [],
 		loading: false,
 		lastLoadedAt: null,
+		fetchDuration: null,
 		activeViewId: null,
 		activeViewName: null,
 		fkNavigationHistory: [],
@@ -178,11 +180,14 @@ let fetchSequence = 0;
 
 const { getTab, ensureTab } = createTabHelpers(() => state.tabs, "Grid");
 
+const MIN_LOADING_MS = 200;
+
 async function fetchData(tabId: string) {
 	const tab = ensureTab(tabId);
 	const requestId = ++fetchSequence;
 	latestFetchId.set(tabId, requestId);
 
+	const fetchStart = Date.now();
 	setState("tabs", tabId, "loading", true);
 	try {
 		const dialect = connectionsStore.getDialect(tab.connectionId);
@@ -231,6 +236,16 @@ async function fetchData(tabId: string) {
 		const rows = dataResults[0]?.rows ?? [];
 		const totalRows = Number(countResults[0]?.rows[0]?.count ?? 0);
 
+		const fetchDuration = Date.now() - fetchStart;
+
+		// Ensure minimum visible loading duration for fast queries (e.g. demo mode)
+		if (fetchDuration < MIN_LOADING_MS) {
+			await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - fetchDuration));
+		}
+
+		// Ignore stale responses — a newer request may have been issued during the delay
+		if (latestFetchId.get(tabId) !== requestId) return;
+
 		setState("tabs", tabId, {
 			columns: gridColumns,
 			rows,
@@ -238,6 +253,7 @@ async function fetchData(tabId: string) {
 			currentPage: tab.currentPage,
 			loading: false,
 			lastLoadedAt: Date.now(),
+			fetchDuration,
 			selectedRows: new Set<number>(),
 			focusedCell: null,
 			editingCell: null,

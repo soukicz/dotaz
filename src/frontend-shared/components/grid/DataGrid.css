@@ -240,13 +240,6 @@
 	font-size: var(--font-size-xs);
 }
 
-.data-grid__stale-indicator {
-	margin-left: var(--spacing-md);
-	font-size: var(--font-size-xs);
-	color: var(--ink-muted);
-	font-style: italic;
-}
-
 .data-grid__pending-badge {
 	margin-left: auto;
 	padding: 2px var(--spacing-sm);

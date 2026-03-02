@@ -53,6 +53,10 @@
 	color: var(--accent-fg);
 }
 
+.pagination__fetch-info {
+	color: var(--ink-muted);
+}
+
 .pagination__size {
 	display: flex;
 	align-items: center;
