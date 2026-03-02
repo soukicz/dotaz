@@ -143,7 +143,7 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 						<Show when={hasPinnedTabs()}>
 							<For each={pinnedResults()}>
 								{(pinned, idx) => (
-									<button
+									<div
 										class="sql-result-panel__result-tab"
 										classList={{
 											"sql-result-panel__result-tab--active": activeResultView() === pinned.id,
@@ -164,7 +164,7 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 										>
 											<X size={10} />
 										</button>
-									</button>
+									</div>
 								)}
 							</For>
 							<button
