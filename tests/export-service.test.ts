@@ -1,6 +1,6 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
-import { exportToFile, exportPreview } from "../src/backend-shared/services/export-service";
-import type { ExportParams } from "../src/backend-shared/services/export-service";
+import { exportToFile, exportToStream, exportPreview, buildExportSelectQuery } from "../src/backend-shared/services/export-service";
+import type { ExportParams, ExportWriter } from "../src/backend-shared/services/export-service";
 import type { DatabaseDriver } from "../src/backend-shared/db/driver";
 import type { QueryResult } from "../src/shared/types/query";
 import { existsSync, unlinkSync, mkdtempSync, rmdirSync } from "fs";
@@ -14,6 +14,10 @@ function makeResult(rows: Record<string, unknown>[]): QueryResult {
 	return { columns, rows, rowCount: rows.length, durationMs: 0 };
 }
 
+/**
+ * Create a mock driver that uses iterate() to yield rows in a single batch.
+ * Also supports execute() for preview queries.
+ */
 function mockDriver(
 	rows: Record<string, unknown>[],
 	type: "postgresql" | "sqlite" = "postgresql",
@@ -21,6 +25,9 @@ function mockDriver(
 	const quoteIdentifier = (name: string) => `"${name.replace(/"/g, '""')}"`;
 	return {
 		execute: mock(async () => makeResult(rows)),
+		iterate: mock(async function* (_sql: string, _params?: unknown[], _batchSize?: number, _signal?: AbortSignal) {
+			if (rows.length > 0) yield rows;
+		}),
 		quoteIdentifier,
 		getDriverType: () => type,
 		qualifyTable: (schema: string, table: string) => {
@@ -33,20 +40,19 @@ function mockDriver(
 }
 
 /**
- * Mock driver that returns rows in batches, simulating paginated reads.
- * First call returns `allRows`, second call returns empty (end of data).
+ * Create a mock driver that yields rows across multiple batches via iterate().
  */
-function mockDriverBatched(
-	allRows: Record<string, unknown>[],
+function mockDriverMultiBatch(
+	batches: Record<string, unknown>[][],
 	type: "postgresql" | "sqlite" = "postgresql",
 ): DatabaseDriver {
-	let callCount = 0;
 	const quoteIdentifier = (name: string) => `"${name.replace(/"/g, '""')}"`;
 	return {
-		execute: mock(async () => {
-			callCount++;
-			if (callCount === 1) return makeResult(allRows);
-			return makeResult([]);
+		execute: mock(async () => makeResult(batches.flat())),
+		iterate: mock(async function* (_sql: string, _params?: unknown[], _batchSize?: number, _signal?: AbortSignal) {
+			for (const batch of batches) {
+				yield batch;
+			}
 		}),
 		quoteIdentifier,
 		getDriverType: () => type,
@@ -57,6 +63,23 @@ function mockDriverBatched(
 		emptyInsertSql: (qualifiedTable: string) => `INSERT INTO ${qualifiedTable} DEFAULT VALUES`,
 		placeholder: (index: number) => `$${index}`,
 	} as unknown as DatabaseDriver;
+}
+
+/** Collect all written chunks into a buffer for testing exportToStream(). */
+function createBufferWriter(): ExportWriter & { chunks: (string | Uint8Array)[] } {
+	const chunks: (string | Uint8Array)[] = [];
+	return {
+		chunks,
+		write(chunk: string | Uint8Array) { chunks.push(chunk); },
+		async end() {},
+	};
+}
+
+/** Concatenate buffer writer chunks into a string. */
+function collectString(writer: { chunks: (string | Uint8Array)[] }): string {
+	return writer.chunks.map((c) =>
+		typeof c === "string" ? c : new TextDecoder().decode(c),
+	).join("");
 }
 
 const sampleRows = [
@@ -88,11 +111,175 @@ afterEach(() => {
 	} catch { /* ignore cleanup errors */ }
 });
 
-// ── CSV Export ─────────────────────────────────────────────
+// ── buildExportSelectQuery ─────────────────────────────────
+
+describe("buildExportSelectQuery", () => {
+	test("generates SELECT without LIMIT/OFFSET", () => {
+		const driver = mockDriver(sampleRows);
+		const { sql, params } = buildExportSelectQuery(baseParams, driver);
+
+		expect(sql).toBe('SELECT * FROM "public"."users"');
+		expect(sql).not.toContain("LIMIT");
+		expect(sql).not.toContain("OFFSET");
+		expect(params).toEqual([]);
+	});
+
+	test("includes columns when specified", () => {
+		const driver = mockDriver(sampleRows);
+		const { sql } = buildExportSelectQuery({ ...baseParams, columns: ["id", "name"] }, driver);
+
+		expect(sql).toContain('"id", "name"');
+		expect(sql).not.toContain("*");
+	});
+
+	test("includes WHERE clause for filters", () => {
+		const driver = mockDriver(sampleRows);
+		const { sql, params } = buildExportSelectQuery({
+			...baseParams,
+			filters: [{ column: "age", operator: "gt", value: 20 }],
+		}, driver);
+
+		expect(sql).toContain("WHERE");
+		expect(sql).toContain('"age" > $1');
+		expect(params).toEqual([20]);
+	});
+
+	test("includes ORDER BY for sort", () => {
+		const driver = mockDriver(sampleRows);
+		const { sql } = buildExportSelectQuery({
+			...baseParams,
+			sort: [{ column: "name", direction: "asc" }],
+		}, driver);
+
+		expect(sql).toContain('ORDER BY "name" ASC');
+	});
+});
+
+// ── exportToStream ─────────────────────────────────────────
+
+describe("exportToStream", () => {
+	test("uses driver.iterate() instead of execute()", async () => {
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		await exportToStream(driver, { ...baseParams, format: "csv" }, writer);
+
+		expect(driver.iterate).toHaveBeenCalledTimes(1);
+		expect(driver.execute).not.toHaveBeenCalled();
+	});
+
+	test("passes signal to driver.iterate()", async () => {
+		const controller = new AbortController();
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		await exportToStream(driver, { ...baseParams, format: "csv" }, writer, controller.signal);
+
+		const callArgs = (driver.iterate as any).mock.calls[0];
+		expect(callArgs[3]).toBe(controller.signal);
+	});
+
+	test("reports progress after each batch", async () => {
+		const batch1 = [{ id: 1 }, { id: 2 }];
+		const batch2 = [{ id: 3 }];
+		const driver = mockDriverMultiBatch([batch1, batch2]);
+		const writer = createBufferWriter();
+		const progressCalls: number[] = [];
+
+		await exportToStream(driver, { ...baseParams, format: "csv" }, writer, undefined, (count) => {
+			progressCalls.push(count);
+		});
+
+		expect(progressCalls).toEqual([2, 3]);
+	});
+
+	test("returns cumulative row count", async () => {
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		const result = await exportToStream(driver, { ...baseParams, format: "csv" }, writer);
+
+		expect(result.rowCount).toBe(3);
+	});
+
+	test("respects limit by truncating iteration", async () => {
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		const result = await exportToStream(driver, { ...baseParams, format: "csv", limit: 2 }, writer);
+
+		expect(result.rowCount).toBe(2);
+		const content = collectString(writer);
+		const lines = content.trim().split("\n");
+		// header + 2 data rows
+		expect(lines).toHaveLength(3);
+	});
+
+	test("supports async writer for backpressure", async () => {
+		const driver = mockDriver(sampleRows);
+		const chunks: string[] = [];
+		const writer: ExportWriter = {
+			async write(chunk) {
+				// Simulate async backpressure
+				await new Promise((r) => setTimeout(r, 1));
+				chunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+			},
+			async end() {},
+		};
+
+		const result = await exportToStream(driver, { ...baseParams, format: "csv" }, writer);
+
+		expect(result.rowCount).toBe(3);
+		expect(chunks.length).toBeGreaterThan(0);
+	});
+
+	test("CSV output matches expected format", async () => {
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		await exportToStream(driver, { ...baseParams, format: "csv" }, writer);
+
+		const content = collectString(writer);
+		const lines = content.trim().split("\n");
+		expect(lines[0]).toBe("id,name,age");
+		expect(lines[1]).toBe("1,Alice,30");
+		expect(lines[2]).toBe("2,Bob,25");
+		expect(lines[3]).toBe("3,Charlie,");
+	});
+
+	test("JSON output is valid", async () => {
+		const driver = mockDriver(sampleRows);
+		const writer = createBufferWriter();
+
+		await exportToStream(driver, { ...baseParams, format: "json" }, writer);
+
+		const content = collectString(writer);
+		const parsed = JSON.parse(content);
+		expect(parsed).toHaveLength(3);
+		expect(parsed[0]).toEqual({ id: 1, name: "Alice", age: 30 });
+	});
+
+	test("all export formats work", async () => {
+		const formats = ["csv", "json", "sql", "sql_update", "markdown", "html", "xml"] as const;
+
+		for (const format of formats) {
+			const driver = mockDriver(sampleRows);
+			const writer = createBufferWriter();
+
+			const result = await exportToStream(driver, { ...baseParams, format }, writer);
+			const content = collectString(writer);
+
+			expect(result.rowCount).toBe(3);
+			expect(content.length).toBeGreaterThan(0);
+		}
+	});
+});
+
+// ── CSV Export (file) ──────────────────────────────────────
 
 describe("CSV export", () => {
 	test("generates valid CSV with headers (comma delimiter)", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -109,7 +296,7 @@ describe("CSV export", () => {
 	});
 
 	test("semicolon delimiter", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv", delimiter: ";" }, filePath);
@@ -121,7 +308,7 @@ describe("CSV export", () => {
 	});
 
 	test("tab delimiter", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv", delimiter: "\t" }, filePath);
@@ -133,7 +320,7 @@ describe("CSV export", () => {
 	});
 
 	test("without headers", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv", includeHeaders: false }, filePath);
@@ -146,7 +333,7 @@ describe("CSV export", () => {
 
 	test("escapes fields containing delimiter", async () => {
 		const rows = [{ id: 1, name: "Smith, John", age: 30 }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -158,7 +345,7 @@ describe("CSV export", () => {
 
 	test("escapes fields containing double quotes", async () => {
 		const rows = [{ id: 1, name: 'He said "hello"', age: 30 }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -170,7 +357,7 @@ describe("CSV export", () => {
 
 	test("escapes fields containing newlines", async () => {
 		const rows = [{ id: 1, name: "Line1\nLine2", age: 30 }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -181,7 +368,7 @@ describe("CSV export", () => {
 
 	test("null values exported as empty string", async () => {
 		const rows = [{ id: 1, name: null }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -197,7 +384,7 @@ describe("CSV export", () => {
 describe("CSV encoding", () => {
 	test("default encoding is UTF-8", async () => {
 		const rows = [{ id: 1, name: "Ñoño" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -210,7 +397,7 @@ describe("CSV encoding", () => {
 
 	test("UTF-8 with BOM", async () => {
 		const rows = [{ id: 1, name: "Alice" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -226,7 +413,7 @@ describe("CSV encoding", () => {
 
 	test("UTF-8 without BOM by default", async () => {
 		const rows = [{ id: 1, name: "Alice" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -240,7 +427,7 @@ describe("CSV encoding", () => {
 
 	test("ISO-8859-1 encoding for Latin characters", async () => {
 		const rows = [{ id: 1, name: "café" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -258,7 +445,7 @@ describe("CSV encoding", () => {
 	test("Windows-1252 encoding with special characters", async () => {
 		// € is U+20AC, which maps to 0x80 in Windows-1252
 		const rows = [{ id: 1, price: "€100" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -273,7 +460,7 @@ describe("CSV encoding", () => {
 	test("ISO-8859-1 replaces unmappable characters with ?", async () => {
 		// € (U+20AC) cannot be represented in ISO-8859-1
 		const rows = [{ id: 1, price: "€50" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -287,7 +474,7 @@ describe("CSV encoding", () => {
 
 	test("BOM is not included for non-UTF-8 encodings", async () => {
 		const rows = [{ id: 1, name: "test" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -304,7 +491,7 @@ describe("CSV encoding", () => {
 
 describe("JSON export", () => {
 	test("generates valid JSON array", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.json");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "json" }, filePath);
@@ -319,7 +506,7 @@ describe("JSON export", () => {
 	});
 
 	test("generates valid JSON for empty result", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.json");
 
 		await exportToFile(driver, { ...baseParams, format: "json" }, filePath);
@@ -331,7 +518,7 @@ describe("JSON export", () => {
 
 	test("pretty prints with indentation", async () => {
 		const rows = [{ id: 1 }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.json");
 
 		await exportToFile(driver, { ...baseParams, format: "json" }, filePath);
@@ -346,7 +533,7 @@ describe("JSON export", () => {
 
 describe("SQL INSERT export", () => {
 	test("generates valid INSERT statements", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.sql");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "sql" }, filePath);
@@ -361,7 +548,7 @@ describe("SQL INSERT export", () => {
 
 	test("batches INSERT statements according to batchSize", async () => {
 		const rows = Array.from({ length: 5 }, (_, i) => ({ id: i + 1, name: `User${i + 1}` }));
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql", batchSize: 2 }, filePath);
@@ -373,7 +560,7 @@ describe("SQL INSERT export", () => {
 
 	test("escapes single quotes in values", async () => {
 		const rows = [{ id: 1, name: "O'Brien" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql" }, filePath);
@@ -384,7 +571,7 @@ describe("SQL INSERT export", () => {
 
 	test("handles boolean values", async () => {
 		const rows = [{ id: 1, active: true }, { id: 2, active: false }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql" }, filePath);
@@ -395,7 +582,7 @@ describe("SQL INSERT export", () => {
 	});
 
 	test("SQLite main schema omits schema qualification", async () => {
-		const driver = mockDriverBatched(sampleRows, "sqlite");
+		const driver = mockDriver(sampleRows, "sqlite");
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql", schema: "main" }, filePath);
@@ -437,19 +624,27 @@ describe("exportPreview", () => {
 		const driver = mockDriver(sampleRows);
 		await exportPreview(driver, { ...baseParams, format: "csv", limit: 5 });
 
-		// Verify the query was called with the limit
+		// Preview uses execute() not iterate()
 		expect(driver.execute).toHaveBeenCalledTimes(1);
 		const callArgs = (driver.execute as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain("LIMIT");
+	});
+
+	test("preview uses execute() not iterate()", async () => {
+		const driver = mockDriver(sampleRows);
+		await exportPreview(driver, { ...baseParams, format: "csv", limit: 10 });
+
+		expect(driver.execute).toHaveBeenCalledTimes(1);
+		expect(driver.iterate).not.toHaveBeenCalled();
 	});
 });
 
 // ── Filters and Sort ───────────────────────────────────────
 
 describe("filters and sort", () => {
-	test("passes filters to query", async () => {
-		const driver = mockDriverBatched(sampleRows);
+	test("passes filters to iterate query", async () => {
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -458,14 +653,14 @@ describe("filters and sort", () => {
 			filters: [{ column: "age", operator: "gt", value: 20 }],
 		}, filePath);
 
-		const callArgs = (driver.execute as any).mock.calls[0];
+		const callArgs = (driver.iterate as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain("WHERE");
 		expect(sql).toContain('"age" > $1');
 	});
 
-	test("passes sort to query", async () => {
-		const driver = mockDriverBatched(sampleRows);
+	test("passes sort to iterate query", async () => {
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -474,13 +669,13 @@ describe("filters and sort", () => {
 			sort: [{ column: "name", direction: "asc" }],
 		}, filePath);
 
-		const callArgs = (driver.execute as any).mock.calls[0];
+		const callArgs = (driver.iterate as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain('ORDER BY "name" ASC');
 	});
 
 	test("passes both filters and sort", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -490,7 +685,7 @@ describe("filters and sort", () => {
 			sort: [{ column: "id", direction: "desc" }],
 		}, filePath);
 
-		const callArgs = (driver.execute as any).mock.calls[0];
+		const callArgs = (driver.iterate as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain("WHERE");
 		expect(sql).toContain("ORDER BY");
@@ -502,7 +697,7 @@ describe("filters and sort", () => {
 describe("column selection", () => {
 	test("exports only selected columns in query", async () => {
 		const rows = [{ id: 1, name: "Alice" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, {
@@ -511,19 +706,19 @@ describe("column selection", () => {
 			columns: ["id", "name"],
 		}, filePath);
 
-		const callArgs = (driver.execute as any).mock.calls[0];
+		const callArgs = (driver.iterate as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain('"id", "name"');
 		expect(sql).not.toContain("*");
 	});
 
 	test("uses SELECT * when no columns specified", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.csv");
 
 		await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
 
-		const callArgs = (driver.execute as any).mock.calls[0];
+		const callArgs = (driver.iterate as any).mock.calls[0];
 		const sql = callArgs[0] as string;
 		expect(sql).toContain("SELECT *");
 	});
@@ -532,21 +727,22 @@ describe("column selection", () => {
 // ── Row Limit ──────────────────────────────────────────────
 
 describe("row limit", () => {
-	test("respects limit option in export", async () => {
-		const driver = mockDriverBatched(sampleRows);
+	test("respects limit option by truncating iteration", async () => {
+		const rows = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `User${i + 1}` }));
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.csv");
 
 		const result = await exportToFile(driver, {
 			...baseParams,
 			format: "csv",
-			limit: 2,
+			limit: 3,
 		}, filePath);
 
-		// The query fetches batchLimit = min(1000, 2) = 2
-		const callArgs = (driver.execute as any).mock.calls[0];
-		const params = callArgs[1] as unknown[];
-		// limit param is the second to last
-		expect(params).toContain(2);
+		expect(result.rowCount).toBe(3);
+		const content = await Bun.file(filePath).text();
+		const lines = content.trim().split("\n");
+		// header + 3 data rows
+		expect(lines).toHaveLength(4);
 	});
 });
 
@@ -554,7 +750,7 @@ describe("row limit", () => {
 
 describe("empty dataset", () => {
 	test("CSV export produces only header for empty data", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.csv");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "csv" }, filePath);
@@ -563,7 +759,7 @@ describe("empty dataset", () => {
 	});
 
 	test("JSON export produces empty array for empty data", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.json");
 
 		await exportToFile(driver, { ...baseParams, format: "json" }, filePath);
@@ -578,7 +774,7 @@ describe("empty dataset", () => {
 
 describe("Markdown export", () => {
 	test("generates valid Markdown table with header and separator", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.md");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "markdown" }, filePath);
@@ -595,7 +791,7 @@ describe("Markdown export", () => {
 
 	test("escapes pipe characters in values", async () => {
 		const rows = [{ id: 1, name: "foo|bar" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.md");
 
 		await exportToFile(driver, { ...baseParams, format: "markdown" }, filePath);
@@ -606,7 +802,7 @@ describe("Markdown export", () => {
 
 	test("replaces newlines with spaces in values", async () => {
 		const rows = [{ id: 1, name: "Line1\nLine2" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.md");
 
 		await exportToFile(driver, { ...baseParams, format: "markdown" }, filePath);
@@ -616,7 +812,7 @@ describe("Markdown export", () => {
 	});
 
 	test("handles empty dataset", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.md");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "markdown" }, filePath);
@@ -637,7 +833,7 @@ describe("Markdown export", () => {
 
 describe("SQL UPDATE export", () => {
 	test("generates UPDATE statements with first column as PK", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.sql");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "sql_update" }, filePath);
@@ -651,7 +847,7 @@ describe("SQL UPDATE export", () => {
 
 	test("escapes single quotes in values", async () => {
 		const rows = [{ id: 1, name: "O'Brien" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql_update" }, filePath);
@@ -661,7 +857,7 @@ describe("SQL UPDATE export", () => {
 	});
 
 	test("SQLite main schema omits schema qualification", async () => {
-		const driver = mockDriverBatched(sampleRows, "sqlite");
+		const driver = mockDriver(sampleRows, "sqlite");
 		const filePath = join(tmpDir, "test.sql");
 
 		await exportToFile(driver, { ...baseParams, format: "sql_update", schema: "main" }, filePath);
@@ -685,7 +881,7 @@ describe("SQL UPDATE export", () => {
 
 describe("HTML export", () => {
 	test("generates valid HTML table", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.html");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "html" }, filePath);
@@ -706,7 +902,7 @@ describe("HTML export", () => {
 
 	test("escapes HTML special characters", async () => {
 		const rows = [{ id: 1, name: '<script>alert("xss")</script>' }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.html");
 
 		await exportToFile(driver, { ...baseParams, format: "html" }, filePath);
@@ -718,7 +914,7 @@ describe("HTML export", () => {
 	});
 
 	test("handles empty dataset", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.html");
 
 		await exportToFile(driver, { ...baseParams, format: "html" }, filePath);
@@ -742,7 +938,7 @@ describe("HTML export", () => {
 
 describe("XML export", () => {
 	test("generates valid XML", async () => {
-		const driver = mockDriverBatched(sampleRows);
+		const driver = mockDriver(sampleRows);
 		const filePath = join(tmpDir, "test.xml");
 
 		const result = await exportToFile(driver, { ...baseParams, format: "xml" }, filePath);
@@ -761,7 +957,7 @@ describe("XML export", () => {
 
 	test("escapes XML special characters", async () => {
 		const rows = [{ id: 1, name: "Tom & Jerry <3>" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.xml");
 
 		await exportToFile(driver, { ...baseParams, format: "xml" }, filePath);
@@ -772,7 +968,7 @@ describe("XML export", () => {
 
 	test("sanitizes column names for XML tags", async () => {
 		const rows = [{ "123bad": "val", "good_name": "ok" }];
-		const driver = mockDriverBatched(rows);
+		const driver = mockDriver(rows);
 		const filePath = join(tmpDir, "test.xml");
 
 		await exportToFile(driver, { ...baseParams, format: "xml" }, filePath);
@@ -784,7 +980,7 @@ describe("XML export", () => {
 	});
 
 	test("handles empty dataset", async () => {
-		const driver = mockDriverBatched([]);
+		const driver = mockDriver([]);
 		const filePath = join(tmpDir, "test.xml");
 
 		await exportToFile(driver, { ...baseParams, format: "xml" }, filePath);

@@ -20,77 +20,104 @@ export interface ExportParams {
 	limit?: number;
 }
 
+export interface ExportStreamResult {
+	rowCount: number;
+}
+
 export interface ExportFileResult {
 	rowCount: number;
 	sizeBytes: number;
 }
 
+export interface ExportWriter {
+	write(chunk: string | Uint8Array): void | Promise<void>;
+	end(): Promise<void>;
+}
+
 /**
- * Export data from a table to a file in CSV, JSON, or SQL INSERT format.
- * Uses batched fetching to avoid OOM on large datasets.
+ * Stream data from a table through a writer in the specified export format.
+ * Uses driver.iterate() for efficient batched reading — no LIMIT/OFFSET in service.
+ */
+export async function exportToStream(
+	driver: DatabaseDriver,
+	params: ExportParams,
+	writer: ExportWriter,
+	signal?: AbortSignal,
+	onProgress?: (rowCount: number) => void,
+): Promise<ExportStreamResult> {
+	const encode = createEncoder(params.format === "csv" ? params.encoding : undefined);
+	const formatter = createFormatter(params, driver);
+	let totalRows = 0;
+
+	// Write UTF-8 BOM if requested
+	if (params.format === "csv" && params.utf8Bom && (params.encoding ?? "utf-8") === "utf-8") {
+		await writer.write(new Uint8Array([0xEF, 0xBB, 0xBF]));
+	}
+
+	// Write header/preamble
+	const preamble = formatter.preamble();
+	if (preamble) await writer.write(encode(preamble));
+
+	const { sql, params: queryParams } = buildExportSelectQuery(params, driver);
+	const batchSize = params.batchSize ?? BATCH_SIZE;
+	const iterator = driver.iterate(sql, queryParams, batchSize, signal);
+	let isFirst = true;
+
+	for await (const batch of iterator) {
+		let rows = batch;
+
+		// If a limit is set, truncate the batch if we'd exceed it
+		if (params.limit !== undefined) {
+			const remaining = params.limit - totalRows;
+			if (remaining <= 0) break;
+			if (rows.length > remaining) {
+				rows = rows.slice(0, remaining);
+			}
+		}
+
+		const chunk = formatter.formatBatch(rows, isFirst);
+		await writer.write(encode(chunk));
+
+		totalRows += rows.length;
+		onProgress?.(totalRows);
+		isFirst = false;
+
+		if (params.limit !== undefined && totalRows >= params.limit) break;
+	}
+
+	// Write footer/epilogue
+	const epilogue = formatter.epilogue();
+	if (epilogue) await writer.write(encode(epilogue));
+
+	await writer.end();
+
+	return { rowCount: totalRows };
+}
+
+/**
+ * Convenience wrapper: export data to a file on disk.
+ * Wraps exportToStream() with Bun.file().writer().
  */
 export async function exportToFile(
 	driver: DatabaseDriver,
 	params: ExportParams,
 	filePath: string,
+	signal?: AbortSignal,
+	onProgress?: (rowCount: number) => void,
 ): Promise<ExportFileResult> {
 	const file = Bun.file(filePath);
-	const writer = file.writer();
-	let totalRows = 0;
-	const encode = createEncoder(params.format === "csv" ? params.encoding : undefined);
+	const bunWriter = file.writer();
+	const writer: ExportWriter = {
+		write(chunk) { bunWriter.write(chunk); },
+		async end() { await bunWriter.end(); },
+	};
 
 	try {
-		const formatter = createFormatter(params, driver);
-
-		// Write UTF-8 BOM if requested
-		if (params.format === "csv" && params.utf8Bom && (params.encoding ?? "utf-8") === "utf-8") {
-			writer.write(new Uint8Array([0xEF, 0xBB, 0xBF]));
-		}
-
-		// Write header/preamble
-		const preamble = formatter.preamble();
-		if (preamble) writer.write(encode(preamble));
-
-		let offset = 0;
-		let isFirst = true;
-		const fetchLimit = params.limit;
-
-		while (true) {
-			const batchLimit = fetchLimit !== undefined
-				? Math.min(BATCH_SIZE, fetchLimit - offset)
-				: BATCH_SIZE;
-
-			if (batchLimit <= 0) break;
-
-			const { sql, params: queryParams } = buildExportQuery(
-				params.schema, params.table, params.columns,
-				params.filters, params.sort, batchLimit, offset, driver,
-			);
-
-			const result = await driver.execute(sql, queryParams);
-			const rows = result.rows;
-			if (rows.length === 0) break;
-
-			const chunk = formatter.formatBatch(rows, isFirst);
-			writer.write(encode(chunk));
-
-			totalRows += rows.length;
-			offset += rows.length;
-			isFirst = false;
-
-			if (rows.length < batchLimit) break;
-		}
-
-		// Write footer/epilogue
-		const epilogue = formatter.epilogue();
-		if (epilogue) writer.write(encode(epilogue));
-
-		await writer.end();
-
+		const result = await exportToStream(driver, params, writer, signal, onProgress);
 		const stat = await Bun.file(filePath).stat();
-		return { rowCount: totalRows, sizeBytes: stat?.size ?? 0 };
+		return { rowCount: result.rowCount, sizeBytes: stat?.size ?? 0 };
 	} catch (err) {
-		await writer.end();
+		await bunWriter.end();
 		try {
 			const { unlink } = await import("node:fs/promises");
 			await unlink(filePath);
@@ -103,18 +130,22 @@ export async function exportToFile(
 
 /**
  * Generate a preview string of the first N rows in the given format.
+ * Uses a single LIMIT query (not iterate) — suitable for small previews.
  */
 export async function exportPreview(
 	driver: DatabaseDriver,
 	params: ExportParams,
 ): Promise<string> {
 	const limit = params.limit ?? 10;
-	const { sql, params: queryParams } = buildExportQuery(
-		params.schema, params.table, params.columns,
-		params.filters, params.sort, limit, 0, driver,
-	);
+	const { sql: baseSql, params: queryParams } = buildExportSelectQuery(params, driver);
 
-	const result = await driver.execute(sql, queryParams);
+	// Add LIMIT for preview
+	let paramIndex = queryParams.length;
+	paramIndex++;
+	const limitParam = driver.placeholder(paramIndex);
+	const sql = `${baseSql} LIMIT ${limitParam}`;
+
+	const result = await driver.execute(sql, [...queryParams, limit]);
 	const rows = result.rows;
 
 	const formatter = createFormatter(params, driver);
@@ -133,37 +164,27 @@ export async function exportPreview(
 
 // ── Query building ─────────────────────────────────────────
 
-function buildExportQuery(
-	schema: string,
-	table: string,
-	columns: string[] | undefined,
-	filters: ColumnFilter[] | undefined,
-	sort: SortColumn[] | undefined,
-	limit: number,
-	offset: number,
+/**
+ * Build a SELECT query without LIMIT/OFFSET — columns, FROM, WHERE, ORDER BY only.
+ */
+export function buildExportSelectQuery(
+	params: ExportParams,
 	driver: DatabaseDriver,
 ): { sql: string; params: unknown[] } {
-	const from = driver.qualifyTable(schema, table);
-	const columnList = columns && columns.length > 0
-		? columns.map((c) => driver.quoteIdentifier(c)).join(", ")
+	const from = driver.qualifyTable(params.schema, params.table);
+	const columnList = params.columns && params.columns.length > 0
+		? params.columns.map((c) => driver.quoteIdentifier(c)).join(", ")
 		: "*";
-	const where = buildWhereClause(filters, driver);
-	const orderBy = buildOrderByClause(sort, driver);
-
-	let paramIndex = where.params.length;
-	paramIndex++;
-	const limitParam = driver.placeholder(paramIndex);
-	paramIndex++;
-	const offsetParam = driver.placeholder(paramIndex);
+	const where = buildWhereClause(params.filters, driver);
+	const orderBy = buildOrderByClause(params.sort, driver);
 
 	const parts = [`SELECT ${columnList} FROM ${from}`];
 	if (where.sql) parts.push(where.sql);
 	if (orderBy) parts.push(orderBy);
-	parts.push(`LIMIT ${limitParam} OFFSET ${offsetParam}`);
 
 	return {
 		sql: parts.join(" "),
-		params: [...where.params, limit, offset],
+		params: [...where.params],
 	};
 }
 
