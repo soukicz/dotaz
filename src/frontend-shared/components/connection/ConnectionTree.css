@@ -174,15 +174,18 @@
 /* ── Hover action buttons ─────────────────────────────── */
 
 .tree-item__actions {
-	display: none;
+	display: flex;
 	align-items: center;
 	gap: 2px;
 	margin-left: auto;
 	padding-right: var(--spacing-xs);
+	visibility: hidden;
+	opacity: 0;
 }
 
 .tree-item:hover .tree-item__actions {
-	display: flex;
+	visibility: visible;
+	opacity: 1;
 }
 
 .tree-item__action {
