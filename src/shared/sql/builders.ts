@@ -211,6 +211,24 @@ function combineWhereClauses(
 }
 
 /**
+ * Append a raw custom WHERE filter expression to an existing WHERE clause result.
+ * The custom filter has no parameterized values — it's user-typed raw SQL.
+ */
+function appendCustomFilter(
+	where: WhereClauseResult,
+	customFilter: string | undefined,
+): WhereClauseResult {
+	if (!customFilter) return where;
+
+	if (where.sql) {
+		const conditions = where.sql.replace(/^WHERE /, "");
+		return { sql: `WHERE ${conditions} AND (${customFilter})`, params: where.params };
+	}
+
+	return { sql: `WHERE (${customFilter})`, params: where.params };
+}
+
+/**
  * Build a complete SELECT query with pagination, sorting, and filtering.
  * Returns the SQL string and parameter values.
  */
@@ -223,10 +241,11 @@ export function buildSelectQuery(
 	filters: ColumnFilter[] | undefined,
 	dialect: SqlDialect,
 	quickSearch?: WhereClauseResult,
+	customFilter?: string,
 ): { sql: string; params: unknown[] } {
 	const from = dialect.qualifyTable(schema, table);
 	const filterWhere = buildWhereClause(filters, dialect);
-	const where = combineWhereClauses(filterWhere, quickSearch);
+	const where = appendCustomFilter(combineWhereClauses(filterWhere, quickSearch), customFilter);
 	const orderBy = buildOrderByClause(sort, dialect);
 
 	const offset = (page - 1) * pageSize;
@@ -258,10 +277,11 @@ export function buildCountQuery(
 	filters: ColumnFilter[] | undefined,
 	dialect: SqlDialect,
 	quickSearch?: WhereClauseResult,
+	customFilter?: string,
 ): { sql: string; params: unknown[] } {
 	const from = dialect.qualifyTable(schema, table);
 	const filterWhere = buildWhereClause(filters, dialect);
-	const where = combineWhereClauses(filterWhere, quickSearch);
+	const where = appendCustomFilter(combineWhereClauses(filterWhere, quickSearch), customFilter);
 
 	const parts = [`SELECT COUNT(*) AS count FROM ${from}`];
 	if (where.sql) parts.push(where.sql);

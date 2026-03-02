@@ -1031,8 +1031,10 @@ export default function DataGrid(props: DataGridProps) {
 							<FilterBar
 								columns={tabState().columns}
 								filters={tabState().filters}
+								customFilter={tabState().customFilter}
 								onAddFilter={handleAddFilter}
 								onRemoveFilter={handleRemoveFilter}
+								onSetCustomFilter={(v) => gridStore.setCustomFilter(props.tabId, v)}
 								onClearAll={handleClearFilters}
 							/>
 							<ColumnManager

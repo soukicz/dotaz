@@ -171,3 +171,36 @@
 	color: var(--ink);
 	background: var(--surface-hover);
 }
+
+/* Custom filter chip */
+.filter-bar__chip--custom {
+	cursor: pointer;
+}
+
+.filter-bar__chip--custom:hover {
+	border-color: var(--accent);
+}
+
+.filter-bar__chip-val--custom {
+	max-width: 240px;
+	font-family: var(--font-mono);
+}
+
+/* Custom filter input (wider) */
+.filter-bar__input--custom {
+	min-width: 280px;
+}
+
+/* Custom filter WHERE label */
+.filter-bar__custom-label {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	color: var(--ink-secondary);
+}
+
+/* Actions wrapper */
+.filter-bar__actions {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+}

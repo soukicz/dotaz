@@ -97,6 +97,7 @@ export interface TabGridState {
 	pageSize: number;
 	sort: SortColumn[];
 	filters: ColumnFilter[];
+	customFilter: string;
 	quickSearch: string;
 	selectedRows: Set<number>;
 	focusedCell: FocusedCell | null;
@@ -142,6 +143,7 @@ function createDefaultTabState(
 		pageSize: 100,
 		sort: [],
 		filters: [],
+		customFilter: "",
 		quickSearch: "",
 		selectedRows: new Set(),
 		focusedCell: null,
@@ -214,11 +216,12 @@ async function fetchData(tabId: string) {
 			: undefined;
 
 		// Build and execute data query
+		const customFilter = tab.customFilter || undefined;
 		const selectQuery = buildSelectQuery(
 			tab.schema, tab.table, tab.currentPage, tab.pageSize,
-			sort, filters, dialect, quickSearchClause,
+			sort, filters, dialect, quickSearchClause, customFilter,
 		);
-		const countQuery = buildCountQuery(tab.schema, tab.table, filters, dialect, quickSearchClause);
+		const countQuery = buildCountQuery(tab.schema, tab.table, filters, dialect, quickSearchClause, customFilter);
 
 		// Execute both queries
 		const queryId = `grid-${tabId}-${requestId}`;
@@ -362,9 +365,18 @@ async function setQuickSearch(tabId: string, search: string) {
 	await fetchData(tabId);
 }
 
+async function setCustomFilter(tabId: string, filter: string) {
+	ensureTab(tabId);
+	setState("tabs", tabId, "customFilter", filter);
+	setState("tabs", tabId, "currentPage", 1);
+	setState("tabs", tabId, "selectedRows", new Set());
+	await fetchData(tabId);
+}
+
 async function clearFilters(tabId: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "filters", []);
+	setState("tabs", tabId, "customFilter", "");
 	setState("tabs", tabId, "currentPage", 1);
 	setState("tabs", tabId, "selectedRows", new Set());
 	await fetchData(tabId);
@@ -1050,6 +1062,7 @@ async function applyViewConfig(tabId: string, config: SavedViewConfig) {
 	setState("tabs", tabId, "sort", config.sort ?? []);
 
 	setState("tabs", tabId, "filters", config.filters ?? []);
+	setState("tabs", tabId, "customFilter", config.customFilter ?? "");
 
 	if (config.columns) {
 		const visibleSet = new Set(config.columns);
@@ -1074,6 +1087,7 @@ async function resetToDefault(tabId: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "sort", []);
 	setState("tabs", tabId, "filters", []);
+	setState("tabs", tabId, "customFilter", "");
 	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "columnConfig", {});
 	setState("tabs", tabId, "columnOrder", []);
@@ -1099,6 +1113,9 @@ function isViewModified(tabId: string, savedConfig: SavedViewConfig): boolean {
 	const savedFilters = (savedConfig.filters ?? []).map(f => `${f.column}:${f.operator}:${f.value}`).join(",");
 	if (currentFilters !== savedFilters) return true;
 
+	// Compare custom filter
+	if ((tab.customFilter || "") !== (savedConfig.customFilter || "")) return true;
+
 	// Compare visible columns (order matters)
 	if (savedConfig.columns) {
 		const visibleCols = getVisibleColumns(tab).map(c => c.name);
@@ -1123,6 +1140,7 @@ function captureViewConfig(tabId: string): SavedViewConfig {
 		sort: [...tab.sort],
 		filters: [...tab.filters],
 		columnWidths: Object.keys(columnWidths).length > 0 ? columnWidths : undefined,
+		customFilter: tab.customFilter || undefined,
 	};
 }
 
@@ -1156,6 +1174,7 @@ async function navigateToFkTarget(
 		{ column: targetColumn, operator: "eq", value: String(value) },
 	]);
 	setState("tabs", tabId, "sort", []);
+	setState("tabs", tabId, "customFilter", "");
 	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "columnConfig", {});
 	setState("tabs", tabId, "columnOrder", []);
@@ -1193,6 +1212,7 @@ async function navigateToTableWithFilters(
 	setState("tabs", tabId, "table", targetTable);
 	setState("tabs", tabId, "filters", filters);
 	setState("tabs", tabId, "sort", []);
+	setState("tabs", tabId, "customFilter", "");
 	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "columnConfig", {});
 	setState("tabs", tabId, "columnOrder", []);
@@ -1223,6 +1243,7 @@ async function navigateBack(tabId: string) {
 	setState("tabs", tabId, "sort", entry.sort);
 	setState("tabs", tabId, "columnConfig", entry.columnConfig);
 	setState("tabs", tabId, "columnOrder", entry.columnOrder);
+	setState("tabs", tabId, "customFilter", "");
 	setState("tabs", tabId, "quickSearch", "");
 	setState("tabs", tabId, "currentPage", 1);
 	setState("tabs", tabId, "selectedRows", new Set());
@@ -1344,6 +1365,7 @@ export const gridStore = {
 	setFilter,
 	removeFilter,
 	clearFilters,
+	setCustomFilter,
 	setQuickSearch,
 	selectRow,
 	toggleRowInSelection,

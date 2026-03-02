@@ -14,8 +14,10 @@ import "./FilterBar.css";
 interface FilterBarProps {
 	columns: GridColumnDef[];
 	filters: ColumnFilter[];
+	customFilter: string;
 	onAddFilter: (filter: ColumnFilter) => void;
 	onRemoveFilter: (column: string) => void;
+	onSetCustomFilter: (value: string) => void;
 	onClearAll: () => void;
 }
 
@@ -74,6 +76,8 @@ export default function FilterBar(props: FilterBarProps) {
 	const [selectedColumn, setSelectedColumn] = createSignal("");
 	const [selectedOperator, setSelectedOperator] = createSignal<FilterOperator>("eq");
 	const [inputValue, setInputValue] = createSignal("");
+	const [editingCustom, setEditingCustom] = createSignal(false);
+	const [customInput, setCustomInput] = createSignal("");
 
 	function availableColumns() {
 		const filtered = new Set(props.filters.map((f) => f.column));
@@ -137,6 +141,31 @@ export default function FilterBar(props: FilterBarProps) {
 		}
 	}
 
+	function startEditingCustom() {
+		setCustomInput(props.customFilter);
+		setEditingCustom(true);
+	}
+
+	function applyCustomFilter() {
+		const val = customInput().trim();
+		props.onSetCustomFilter(val);
+		setEditingCustom(false);
+	}
+
+	function cancelCustomEdit() {
+		setEditingCustom(false);
+	}
+
+	function handleCustomKeyDown(e: KeyboardEvent) {
+		if (e.key === "Enter") {
+			applyCustomFilter();
+		} else if (e.key === "Escape") {
+			cancelCustomEdit();
+		}
+	}
+
+	const hasAnyFilter = () => props.filters.length > 0 || !!props.customFilter;
+
 	return (
 		<div class="filter-bar">
 			<div class="filter-bar__chips">
@@ -159,67 +188,118 @@ export default function FilterBar(props: FilterBarProps) {
 					)}
 				</For>
 
-				<Show when={props.filters.length > 1}>
+				<Show when={props.customFilter && !editingCustom()}>
+					<span class="filter-bar__chip filter-bar__chip--custom" onClick={startEditingCustom}>
+						<span class="filter-bar__chip-op">WHERE</span>
+						<span class="filter-bar__chip-val filter-bar__chip-val--custom">{props.customFilter}</span>
+						<button
+							class="filter-bar__chip-remove"
+							onClick={(e) => {
+								e.stopPropagation();
+								props.onSetCustomFilter("");
+							}}
+							title="Remove custom filter"
+						>
+							<X size={12} />
+						</button>
+					</span>
+				</Show>
+
+				<Show when={hasAnyFilter() && (props.filters.length + (props.customFilter ? 1 : 0)) > 1}>
 					<button class="filter-bar__clear-all" onClick={props.onClearAll}>
 						<FilterX size={12} /> Clear All
 					</button>
 				</Show>
 			</div>
 
-			<Show
-				when={adding()}
-				fallback={
-					<Show when={availableColumns().length > 0}>
-						<button class="filter-bar__add-btn" onClick={() => setAdding(true)}>
-							<Plus size={12} /> Add Filter
-						</button>
-					</Show>
-				}
-			>
+			<Show when={editingCustom()}>
 				<div class="filter-bar__form">
-					<select
-						class="filter-bar__select"
-						value={selectedColumn()}
-						onChange={(e) => handleColumnChange(e.currentTarget.value)}
-					>
-						<option value="">Column...</option>
-						<For each={availableColumns()}>
-							{(col) => <option value={col.name}>{col.name}</option>}
-						</For>
-					</select>
-
-					<select
-						class="filter-bar__select"
-						value={selectedOperator()}
-						onChange={(e) => setSelectedOperator(e.currentTarget.value as FilterOperator)}
-					>
-						<For each={currentOperators()}>
-							{(op) => <option value={op.value}>{op.label}</option>}
-						</For>
-					</select>
-
-					<Show when={operatorNeedsValue(selectedOperator())}>
-						<input
-							class="filter-bar__input"
-							type="text"
-							placeholder={selectedOperator() === "in" ? "val1, val2, ..." : "Value..."}
-							value={inputValue()}
-							onInput={(e) => setInputValue(e.currentTarget.value)}
-							onKeyDown={handleKeyDown}
-						/>
-					</Show>
-
+					<span class="filter-bar__custom-label">WHERE</span>
+					<input
+						class="filter-bar__input filter-bar__input--custom"
+						type="text"
+						placeholder="e.g. age > 18 AND name LIKE 'J%'"
+						value={customInput()}
+						onInput={(e) => setCustomInput(e.currentTarget.value)}
+						onKeyDown={handleCustomKeyDown}
+						ref={(el) => setTimeout(() => el.focus())}
+					/>
 					<button
 						class="filter-bar__apply-btn"
-						onClick={handleApply}
-						disabled={!selectedColumn() || (operatorNeedsValue(selectedOperator()) && !inputValue().trim())}
+						onClick={applyCustomFilter}
+						disabled={!customInput().trim()}
 					>
 						Apply
 					</button>
-					<button class="filter-bar__cancel-btn" onClick={resetForm}>
+					<button class="filter-bar__cancel-btn" onClick={cancelCustomEdit}>
 						Cancel
 					</button>
 				</div>
+			</Show>
+
+			<Show when={!editingCustom()}>
+				<Show
+					when={adding()}
+					fallback={
+						<div class="filter-bar__actions">
+							<Show when={availableColumns().length > 0}>
+								<button class="filter-bar__add-btn" onClick={() => setAdding(true)}>
+									<Plus size={12} /> Add Filter
+								</button>
+							</Show>
+							<Show when={!props.customFilter}>
+								<button class="filter-bar__add-btn" onClick={startEditingCustom}>
+									<Plus size={12} /> WHERE
+								</button>
+							</Show>
+						</div>
+					}
+				>
+					<div class="filter-bar__form">
+						<select
+							class="filter-bar__select"
+							value={selectedColumn()}
+							onChange={(e) => handleColumnChange(e.currentTarget.value)}
+						>
+							<option value="">Column...</option>
+							<For each={availableColumns()}>
+								{(col) => <option value={col.name}>{col.name}</option>}
+							</For>
+						</select>
+
+						<select
+							class="filter-bar__select"
+							value={selectedOperator()}
+							onChange={(e) => setSelectedOperator(e.currentTarget.value as FilterOperator)}
+						>
+							<For each={currentOperators()}>
+								{(op) => <option value={op.value}>{op.label}</option>}
+							</For>
+						</select>
+
+						<Show when={operatorNeedsValue(selectedOperator())}>
+							<input
+								class="filter-bar__input"
+								type="text"
+								placeholder={selectedOperator() === "in" ? "val1, val2, ..." : "Value..."}
+								value={inputValue()}
+								onInput={(e) => setInputValue(e.currentTarget.value)}
+								onKeyDown={handleKeyDown}
+							/>
+						</Show>
+
+						<button
+							class="filter-bar__apply-btn"
+							onClick={handleApply}
+							disabled={!selectedColumn() || (operatorNeedsValue(selectedOperator()) && !inputValue().trim())}
+						>
+							Apply
+						</button>
+						<button class="filter-bar__cancel-btn" onClick={resetForm}>
+							Cancel
+						</button>
+					</div>
+				</Show>
 			</Show>
 		</div>
 	);

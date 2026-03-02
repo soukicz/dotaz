@@ -56,6 +56,7 @@ export interface SavedViewConfig {
 	sort?: SortColumn[];
 	filters?: ColumnFilter[];
 	columnWidths?: Record<string, number>;
+	customFilter?: string;
 }
 
 export interface SavedView {
