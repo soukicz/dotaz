@@ -77,7 +77,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-072 | JOIN autocompletion with FK awareness | done | Custom CompletionSource: parses FROM/JOIN tables, looks up FK data, suggests tables with ON clause; supports all JOIN types, aliases, multi-FK |
 | DOTAZ-073 | Pin result tabs in SQL console | done | PinnedResultSet type, pin/unpin/setActiveResultView actions, pinned tab UI with pin icon and close button, visual distinction via accent color |
 | DOTAZ-074 | SQL query bookmarks | done | QueryBookmark type, migration v4, bookmarks.* RPC endpoints, BookmarksDialog with search/create/edit/delete, Ctrl+D shortcut, toolbar button, context menu entry |
-| DOTAZ-075 | Full-text search across database tables | not started | Search text in all tables |
+| DOTAZ-075 | Full-text search across database tables | done | SearchService with sequential LIKE queries, DatabaseSearchDialog with scope selection, grouped results, click-to-navigate with quickSearch, command palette + context menu |
 | DOTAZ-076 | Grid heatmaps for numeric columns | not started | Color scales for data visualization |
 | DOTAZ-077 | Multiple cursors in SQL editor | not started | Multi-cursor via CodeMirror |
 | DOTAZ-078 | Connection color coding | not started | Color connections by environment |
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-02 — DOTAZ-074 done*
+*Last updated: 2026-03-02 — DOTAZ-075 done*
 

@@ -7,6 +7,7 @@ import type {
 	SavedViewConfig,
 	OpenDialogParams,
 	SaveDialogParams,
+	SearchDatabaseParams,
 } from "../../shared/types/rpc";
 export function createHandlers(adapter: RpcAdapter) {
 	return {
@@ -85,6 +86,11 @@ export function createHandlers(adapter: RpcAdapter) {
 		},
 		"tx.rollback": async ({ connectionId, database }: { connectionId: string; database?: string }) => {
 			await adapter.rollbackTransaction(connectionId, database);
+		},
+
+		// ── Search ───────────────────────────────────────
+		"search.searchDatabase": async (params: SearchDatabaseParams) => {
+			return adapter.searchDatabase(params);
 		},
 
 		// ── Export ────────────────────────────────────────

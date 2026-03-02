@@ -20,8 +20,10 @@ import DestructiveQueryDialog from "../editor/DestructiveQueryDialog";
 import SchemaViewer from "../schema/SchemaViewer";
 import ComparisonView from "../comparison/ComparisonView";
 import ComparisonDialog from "../comparison/ComparisonDialog";
+import DatabaseSearchDialog from "../search/DatabaseSearchDialog";
 import type { ComparisonSource, ComparisonColumnMapping } from "../../../shared/types/comparison";
 import type { ConnectionInfo } from "../../../shared/types/connection";
+import type { SearchScope } from "../../../shared/types/rpc";
 import { tabsStore } from "../../stores/tabs";
 import { connectionsStore } from "../../stores/connections";
 import { editorStore } from "../../stores/editor";
@@ -59,6 +61,12 @@ export default function AppShell() {
 	const [paletteOpen, setPaletteOpen] = createSignal(false);
 	const [compareOpen, setCompareOpen] = createSignal(false);
 	const [compareInitialLeft, setCompareInitialLeft] = createSignal<{ connectionId: string; schema: string; table: string; database?: string } | undefined>(undefined);
+	const [searchOpen, setSearchOpen] = createSignal(false);
+	const [searchInitialConn, setSearchInitialConn] = createSignal<string | undefined>(undefined);
+	const [searchInitialScope, setSearchInitialScope] = createSignal<SearchScope | undefined>(undefined);
+	const [searchInitialSchema, setSearchInitialSchema] = createSignal<string | undefined>(undefined);
+	const [searchInitialTable, setSearchInitialTable] = createSignal<string | undefined>(undefined);
+	const [searchInitialDatabase, setSearchInitialDatabase] = createSignal<string | undefined>(undefined);
 
 	function handleResize(deltaX: number) {
 		setSidebarWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + deltaX)));
@@ -102,6 +110,18 @@ export default function AppShell() {
 			setCompareInitialLeft(undefined);
 		}
 		setCompareOpen(true);
+	}
+
+	function handleOpenSearch(e: Event) {
+		const detail = (e as CustomEvent).detail as {
+			connectionId?: string; scope?: SearchScope; schema?: string; table?: string; database?: string;
+		} | undefined;
+		setSearchInitialConn(detail?.connectionId);
+		setSearchInitialScope(detail?.scope);
+		setSearchInitialSchema(detail?.schema);
+		setSearchInitialTable(detail?.table);
+		setSearchInitialDatabase(detail?.database);
+		setSearchOpen(true);
 	}
 
 	let removeMenuListener: (() => void) | undefined;
@@ -176,6 +196,7 @@ export default function AppShell() {
 		window.addEventListener("error", handleUnhandledError);
 		window.addEventListener("unhandledrejection", handleUnhandledRejection);
 		window.addEventListener("dotaz:open-compare", handleOpenCompare);
+		window.addEventListener("dotaz:open-search", handleOpenSearch);
 
 		// Responsive: auto-collapse sidebar under 600px
 		const mediaQuery = window.matchMedia("(max-width: 600px)");
@@ -235,6 +256,7 @@ export default function AppShell() {
 		window.removeEventListener("error", handleUnhandledError);
 		window.removeEventListener("unhandledrejection", handleUnhandledRejection);
 		window.removeEventListener("dotaz:open-compare", handleOpenCompare);
+		window.removeEventListener("dotaz:open-search", handleOpenSearch);
 	});
 
 	// ── Command registration ──────────────────────────────
@@ -535,6 +557,21 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "search-database",
+			label: "Search Database",
+			category: "Connection",
+			handler: () => {
+				const conn = connectionsStore.activeConnection;
+				setSearchInitialConn(conn?.id);
+				setSearchInitialScope(undefined);
+				setSearchInitialSchema(undefined);
+				setSearchInitialTable(undefined);
+				setSearchInitialDatabase(undefined);
+				setSearchOpen(true);
+			},
+		});
+
+		commandRegistry.register({
 			id: "new-connection",
 			label: "New Connection",
 			category: "Connection",
@@ -810,6 +847,16 @@ export default function AppShell() {
 				onClose={() => setCompareOpen(false)}
 				onCompare={handleCompare}
 				initialLeft={compareInitialLeft()}
+			/>
+
+			<DatabaseSearchDialog
+				open={searchOpen()}
+				onClose={() => setSearchOpen(false)}
+				initialConnectionId={searchInitialConn()}
+				initialScope={searchInitialScope()}
+				initialSchema={searchInitialSchema()}
+				initialTable={searchInitialTable()}
+				initialDatabase={searchInitialDatabase()}
 			/>
 
 			<ToastContainer />

@@ -12,10 +12,13 @@ import type {
 	SavedViewConfig,
 	HistoryListParams,
 	QueryBookmark,
+	SearchDatabaseParams,
+	SearchDatabaseResult,
 } from "../shared/types/rpc";
 import { splitStatements } from "../shared/sql/statements";
 import { exportPreview as generateExportPreview } from "../backend-shared/services/export-service";
 import { parseImportPreview, importData as importDataService } from "../backend-shared/services/import-service";
+import { searchDatabase } from "../backend-shared/services/search-service";
 import { formatSql } from "../backend-shared/services/sql-formatter";
 
 type EmitMessage = (channel: string, payload: any) => void;
@@ -278,6 +281,19 @@ export class DemoAdapter implements RpcAdapter {
 
 	deleteBookmark(id: string): void {
 		this.state.deleteBookmark(id);
+	}
+
+	// ── Search ────────────────────────────────────────────
+
+	async searchDatabase(params: SearchDatabaseParams): Promise<SearchDatabaseResult> {
+		const d = this.getConnectedDriver(params.connectionId);
+		return searchDatabase(d, {
+			searchTerm: params.searchTerm,
+			scope: params.scope,
+			schemaName: params.schemaName,
+			tableNames: params.tableNames,
+			resultsPerTable: params.resultsPerTable ?? 50,
+		}, () => {}, () => false);
 	}
 
 	// ── Export ────────────────────────────────────────────

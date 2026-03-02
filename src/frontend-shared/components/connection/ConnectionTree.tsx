@@ -271,6 +271,16 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			});
 		}
 
+		items.push("separator", {
+			label: "Search Database...",
+			action: () => {
+				window.dispatchEvent(new CustomEvent("dotaz:open-search", {
+					detail: { connectionId: conn.id },
+				}));
+			},
+			disabled: !isConnected,
+		});
+
 		items.push(
 			"separator",
 			{
@@ -388,6 +398,15 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 				},
 			},
 		];
+
+		items.push("separator", {
+			label: "Search in Table...",
+			action: () => {
+				window.dispatchEvent(new CustomEvent("dotaz:open-search", {
+					detail: { connectionId, scope: "tables", table: tableName, schema: schemaName, database },
+				}));
+			},
+		});
 
 		if (!conn?.readOnly) {
 			items.push("separator", {

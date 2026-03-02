@@ -14,11 +14,14 @@ import type {
 	HistoryListParams,
 	OpenDialogParams,
 	SaveDialogParams,
+	SearchDatabaseParams,
+	SearchDatabaseResult,
 } from "../../shared/types/rpc";
 import type { DatabaseDriver } from "../db/driver";
 import { TransactionManager } from "../services/transaction-manager";
 import { exportToFile, exportPreview } from "../services/export-service";
 import { parseImportPreview, importData as importDataService } from "../services/import-service";
+import { searchDatabase } from "../services/search-service";
 import { formatSql } from "../services/sql-formatter";
 
 
@@ -213,6 +216,19 @@ export class BackendAdapter implements RpcAdapter {
 
 	deleteBookmark(id: string) {
 		this.appDb.deleteBookmark(id);
+	}
+
+	// ── Search ────────────────────────────────────────────
+
+	async searchDatabase(params: SearchDatabaseParams): Promise<SearchDatabaseResult> {
+		const driver = this.cm.getDriver(params.connectionId, params.database);
+		return searchDatabase(driver, {
+			searchTerm: params.searchTerm,
+			scope: params.scope,
+			schemaName: params.schemaName,
+			tableNames: params.tableNames,
+			resultsPerTable: params.resultsPerTable ?? 50,
+		}, () => {}, () => false);
 	}
 
 	// ── Export ────────────────────────────────────────────

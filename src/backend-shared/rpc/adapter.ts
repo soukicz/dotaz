@@ -11,6 +11,8 @@ import type {
 	QueryBookmark,
 	OpenDialogParams,
 	SaveDialogParams,
+	SearchDatabaseParams,
+	SearchDatabaseResult,
 } from "../../shared/types/rpc";
 
 export interface RpcAdapter {
@@ -61,6 +63,9 @@ export interface RpcAdapter {
 	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark;
 	updateBookmark(params: { id: string; name: string; description?: string; sql: string }): QueryBookmark;
 	deleteBookmark(id: string): void;
+
+	// ── Search ────────────────────────────────────────────
+	searchDatabase(params: SearchDatabaseParams): Promise<SearchDatabaseResult>;
 
 	// ── Export ────────────────────────────────────────────
 	exportData(opts: ExportOptions): Promise<ExportResult>;

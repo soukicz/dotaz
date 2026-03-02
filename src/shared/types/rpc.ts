@@ -68,6 +68,35 @@ export interface QueryBookmark {
 	updatedAt: string;
 }
 
+// ---- Database search types ----
+
+export type SearchScope = "database" | "schema" | "tables";
+
+export interface SearchDatabaseParams {
+	connectionId: string;
+	database?: string;
+	searchTerm: string;
+	scope: SearchScope;
+	schemaName?: string;
+	tableNames?: string[];
+	resultsPerTable?: number;
+}
+
+export interface SearchMatch {
+	schema: string;
+	table: string;
+	column: string;
+	row: Record<string, unknown>;
+}
+
+export interface SearchDatabaseResult {
+	matches: SearchMatch[];
+	searchedTables: number;
+	totalMatches: number;
+	cancelled: boolean;
+	elapsedMs: number;
+}
+
 export interface OpenDialogParams {
 	title?: string;
 	filters?: { name: string; extensions: string[] }[];
