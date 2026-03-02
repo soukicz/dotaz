@@ -7,7 +7,7 @@ Solid.js UI running in system webview (desktop) or browser (web/demo mode).
 ```
 App.tsx                          ← Root component
 ├── components/
-│   ├── layout/                  ← AppShell, Sidebar, TabBar, StatusBar, Resizer
+│   ├── layout/                  ← AppShell, Sidebar, TabBar, Resizer
 │   ├── connection/              ← ConnectionDialog, ConnectionTree, DatabasePicker, PasswordDialog
 │   ├── grid/                    ← DataGrid, GridHeader, GridRow, GridCell, VirtualScroller, Pagination, FilterBar, ColumnManager
 │   ├── editor/                  ← SqlEditor (CodeMirror), SqlResultPanel, QueryToolbar

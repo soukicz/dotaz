@@ -41,6 +41,10 @@
 	border-bottom: 2px solid var(--accent);
 }
 
+.tab-bar__tab--colored {
+	border-bottom: 2px solid;
+}
+
 .tab-bar__tab-icon {
 	flex-shrink: 0;
 	opacity: 0.7;
@@ -138,4 +142,24 @@
 	width: 100px;
 	outline: none;
 	border-radius: var(--radius-sm);
+}
+
+.tab-bar__tab-badge {
+	font-size: 9px;
+	font-weight: 700;
+	padding: 0 4px;
+	border-radius: 3px;
+	line-height: 16px;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+}
+
+.tab-bar__tab-badge--tx {
+	background: var(--warning);
+	color: var(--ink-inverse);
+}
+
+.tab-bar__tab-badge--ro {
+	background: var(--ink-muted);
+	color: var(--ink-inverse);
 }

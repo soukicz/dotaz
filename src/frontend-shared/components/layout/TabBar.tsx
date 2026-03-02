@@ -5,10 +5,17 @@ import type { ContextMenuEntry } from "../common/ContextMenu";
 import Icon, { type IconName } from "../common/Icon";
 import "./TabBar.css";
 
+export interface TabStatus {
+	color?: string;
+	readOnly?: boolean;
+	inTransaction?: boolean;
+}
+
 interface TabBarProps {
 	tabs: TabInfo[];
 	activeTabId: string | null;
 	pinnedTabIds?: Set<string>;
+	tabStatuses?: Map<string, TabStatus>;
 	onSelectTab: (id: string) => void;
 	onCloseTab: (id: string) => void;
 	onCloseOtherTabs?: (id: string) => void;
@@ -116,14 +123,18 @@ export default function TabBar(props: TabBarProps) {
 		<div class="tab-bar">
 			<div class="tab-bar__tabs">
 				<For each={props.tabs}>
-					{(tab) => (
+					{(tab) => {
+					const status = () => props.tabStatuses?.get(tab.id);
+					return (
 						<div
 							class="tab-bar__tab"
 							classList={{
 								"tab-bar__tab--active": tab.id === props.activeTabId,
 								"tab-bar__tab--dirty": tab.dirty,
 								"tab-bar__tab--pinned": props.pinnedTabIds?.has(tab.id),
+								"tab-bar__tab--colored": !!status()?.color,
 							}}
+							style={{ "border-bottom-color": status()?.color || undefined }}
 							onClick={() => props.onSelectTab(tab.id)}
 							onMouseDown={(e) => {
 								if (e.button === 1) {
@@ -168,6 +179,12 @@ export default function TabBar(props: TabBarProps) {
 							<Show when={props.pinnedTabIds?.has(tab.id)}>
 								<Icon name="pin" size={10} class="tab-bar__tab-pin" />
 							</Show>
+							<Show when={status()?.readOnly}>
+								<span class="tab-bar__tab-badge tab-bar__tab-badge--ro" title="Read-only connection">RO</span>
+							</Show>
+							<Show when={status()?.inTransaction}>
+								<span class="tab-bar__tab-badge tab-bar__tab-badge--tx" title="Active transaction">TX</span>
+							</Show>
 							<button
 								class="tab-bar__tab-close"
 								onClick={(e) => {
@@ -179,7 +196,8 @@ export default function TabBar(props: TabBarProps) {
 								<Icon name="close" size={10} />
 							</button>
 						</div>
-					)}
+					);
+				}}
 				</For>
 			</div>
 

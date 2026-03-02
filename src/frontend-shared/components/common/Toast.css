@@ -1,6 +1,6 @@
 .toast-container {
 	position: fixed;
-	bottom: calc(var(--statusbar-height) + var(--spacing-sm));
+	bottom: var(--spacing-sm);
 	right: var(--spacing-md);
 	z-index: 1200;
 	display: flex;

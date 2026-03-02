@@ -2,7 +2,7 @@ import { createSignal, Show, Switch, Match, onMount, onCleanup } from "solid-js"
 import Sidebar, { SidebarExpandButton } from "./Sidebar";
 import Resizer from "./Resizer";
 import TabBar from "./TabBar";
-import StatusBar from "./StatusBar";
+import type { TabStatus } from "./TabBar";
 import Icon from "../common/Icon";
 import ConnectionTree from "../connection/ConnectionTree";
 import ConnectionDialog from "../connection/ConnectionDialog";
@@ -949,6 +949,28 @@ export default function AppShell() {
 								.filter(([, sid]) => sid != null)
 								.map(([tabId]) => tabId),
 						)}
+						tabStatuses={(() => {
+							const map = new Map<string, TabStatus>();
+							// Pre-compute which connections have active transactions
+							const connTx = new Set<string>();
+							for (const tab of tabsStore.openTabs) {
+								if (tab.type === "sql-console") {
+									const et = editorStore.getTab(tab.id);
+									if (et?.inTransaction) connTx.add(tab.connectionId);
+								}
+							}
+							for (const tab of tabsStore.openTabs) {
+								const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
+								const status: TabStatus = {};
+								if (conn?.color) status.color = conn.color;
+								if (connectionsStore.isReadOnly(tab.connectionId)) status.readOnly = true;
+								if (connTx.has(tab.connectionId)) status.inTransaction = true;
+								if (status.color || status.readOnly || status.inTransaction) {
+									map.set(tab.id, status);
+								}
+							}
+							return map;
+						})()}
 						onSelectTab={tabsStore.setActiveTab}
 						onCloseTab={tabsStore.closeTab}
 						onCloseOtherTabs={tabsStore.closeOtherTabs}
@@ -1048,52 +1070,7 @@ export default function AppShell() {
 				</div>
 			</div>
 
-			<StatusBar
-			connectionName={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return undefined;
-				const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
-				if (!conn) return undefined;
-				return tab.database ? `${conn.name} / ${tab.database}` : conn.name;
-			})()}
-			connectionStatus={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return undefined;
-				const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
-				return conn?.state as any;
-			})()}
-			connectionColor={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return undefined;
-				const conn = connectionsStore.connections.find(c => c.id === tab.connectionId);
-				return conn?.color;
-			})()}
-			readOnly={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return false;
-				return connectionsStore.isReadOnly(tab.connectionId);
-			})()}
-		inTransaction={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return false;
-				// Check if any SQL console tab on this connection has an active transaction
-				for (const openTab of tabsStore.openTabs) {
-					if (openTab.connectionId === tab.connectionId && openTab.type === "sql-console") {
-						const editorTab = editorStore.getTab(openTab.id);
-						if (editorTab?.inTransaction) return true;
-					}
-				}
-				return false;
-			})()}
-			pendingStatementCount={editorStore.txLogState.pendingStatementCount}
-			sessionLabel={(() => {
-				const tab = tabsStore.activeTab;
-				if (!tab) return undefined;
-				return sessionStore.getSessionLabelForTab(tab.id);
-			})()}
-		/>
-
-			<ConnectionDialog
+				<ConnectionDialog
 				open={dialogOpen()}
 				connection={connectionToEdit()}
 				onClose={() => setDialogOpen(false)}
