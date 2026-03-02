@@ -5,13 +5,11 @@ export interface StatementAtCursor {
 }
 
 /**
- * Find the SQL statement at the given cursor position.
+ * Find positions of all semicolons that are NOT inside strings/comments.
  * Handles single-quoted strings, double-quoted identifiers,
  * dollar-quoted strings, line comments, and block comments.
- * Returns the statement text and its range, or null if none found.
  */
-export function getStatementAtCursor(sql: string, cursorPos: number): StatementAtCursor | null {
-	// Find semicolon positions that are NOT inside strings/comments
+function findSemicolons(sql: string): number[] {
 	const semicolons: number[] = [];
 	let i = 0;
 
@@ -88,6 +86,16 @@ export function getStatementAtCursor(sql: string, cursorPos: number): StatementA
 		i++;
 	}
 
+	return semicolons;
+}
+
+/**
+ * Find the SQL statement at the given cursor position.
+ * Returns the statement text and its range, or null if none found.
+ */
+export function getStatementAtCursor(sql: string, cursorPos: number): StatementAtCursor | null {
+	const semicolons = findSemicolons(sql);
+
 	// Find the statement boundaries around the cursor
 	let start = 0;
 	let end = sql.length;
@@ -109,4 +117,60 @@ export function getStatementAtCursor(sql: string, cursorPos: number): StatementA
 	const trimEnd = end - (sql.slice(start, end).length - sql.slice(start, end).trimEnd().length);
 
 	return { text, from: trimStart, to: trimEnd };
+}
+
+/**
+ * Find the first non-whitespace position of the next SQL statement after the cursor.
+ * Returns null if the cursor is already in the last statement.
+ */
+export function getNextStatementStart(sql: string, cursorPos: number): number | null {
+	const semicolons = findSemicolons(sql);
+
+	// Find the first semicolon at or after the cursor position
+	let nextSemicolon = -1;
+	for (const pos of semicolons) {
+		if (pos >= cursorPos) {
+			nextSemicolon = pos;
+			break;
+		}
+	}
+
+	// No semicolon at/after cursor — we're in the last statement
+	if (nextSemicolon === -1) return null;
+
+	// Find first non-whitespace after the semicolon
+	let pos = nextSemicolon + 1;
+	while (pos < sql.length && /\s/.test(sql[pos])) pos++;
+
+	return pos < sql.length ? pos : null;
+}
+
+/**
+ * Find the first non-whitespace position of the previous SQL statement before the cursor.
+ * Returns null if the cursor is already in the first statement.
+ */
+export function getPreviousStatementStart(sql: string, cursorPos: number): number | null {
+	const semicolons = findSemicolons(sql);
+
+	// Collect all semicolons before the cursor
+	const prevSemicolons: number[] = [];
+	for (const pos of semicolons) {
+		if (pos < cursorPos) prevSemicolons.push(pos);
+		else break;
+	}
+
+	// No semicolons before cursor — we're in the first statement
+	if (prevSemicolons.length === 0) return null;
+
+	// The previous statement starts after the second-to-last semicolon, or at 0
+	let prevStart = 0;
+	if (prevSemicolons.length >= 2) {
+		prevStart = prevSemicolons[prevSemicolons.length - 2] + 1;
+	}
+
+	// Find first non-whitespace
+	let pos = prevStart;
+	while (pos < sql.length && /\s/.test(sql[pos])) pos++;
+
+	return pos < sql.length ? pos : null;
 }

@@ -1,6 +1,6 @@
 import { onMount, onCleanup, createSignal, createEffect, Show } from "solid-js";
 import { EditorView, keymap, placeholder, Decoration, type DecorationSet } from "@codemirror/view";
-import { Compartment, EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, Prec, StateEffect, StateField } from "@codemirror/state";
 import { sql, PostgreSQL, SQLite, MySQL } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
@@ -13,6 +13,7 @@ import { commandRegistry } from "../../lib/commands";
 import ContextMenu from "../common/ContextMenu";
 import type { ContextMenuEntry } from "../common/ContextMenu";
 import { MIN_EDITOR_HEIGHT } from "../../lib/layout-constants";
+import { getNextStatementStart, getPreviousStatementStart } from "../../lib/sql-utils";
 import { createJoinCompletionSource } from "../../lib/join-completion";
 import "./SqlEditor.css";
 
@@ -274,6 +275,37 @@ export default function SqlEditor(props: SqlEditorProps) {
 			},
 		]);
 
+		const navigationKeymap = Prec.highest(keymap.of([
+			{
+				key: "Alt-ArrowDown",
+				run: (view) => {
+					const text = view.state.doc.toString();
+					const cursor = view.state.selection.main.head;
+					const nextPos = getNextStatementStart(text, cursor);
+					if (nextPos == null) return true;
+					view.dispatch({
+						selection: { anchor: nextPos },
+						scrollIntoView: true,
+					});
+					return true;
+				},
+			},
+			{
+				key: "Alt-ArrowUp",
+				run: (view) => {
+					const text = view.state.doc.toString();
+					const cursor = view.state.selection.main.head;
+					const prevPos = getPreviousStatementStart(text, cursor);
+					if (prevPos == null) return true;
+					view.dispatch({
+						selection: { anchor: prevPos },
+						scrollIntoView: true,
+					});
+					return true;
+				},
+			},
+		]));
+
 		const updateListener = EditorView.updateListener.of((update) => {
 			if (update.docChanged) {
 				const content = update.state.doc.toString();
@@ -323,6 +355,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 				createDarkTheme(),
 				syntaxHighlighting(darkHighlightStyle),
 				altClickCursor,
+				navigationKeymap,
 				executeKeymap,
 				updateListener,
 				executedHighlightField,

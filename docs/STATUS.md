@@ -93,7 +93,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 | DOTAZ-088 | Navigator search/filter in connection tree | done | Filter input above tree, debounced 150ms, case-insensitive substring match, auto-expand on filter, Ctrl+Shift+L global shortcut, Ctrl+F when sidebar focused |
 | DOTAZ-089 | Advanced Copy with configurable format | done | Ctrl+Shift+C dialog with delimiter/headers/row numbers/value format/NULL repr options, live preview, session memory, context menu entry |
 | DOTAZ-090 | Transaction log and pending transaction viewer | done | SessionLog in-memory per-connection, RPC endpoints, TransactionLog panel, TX warning dialog with Commit/Rollback/Cancel, pending count in status bar |
-| DOTAZ-091 | Query navigation in SQL editor | not started | Alt+Up/Down between SQL statements |
+| DOTAZ-091 | Query navigation in SQL editor | done | Alt+Up/Down navigate between SQL statements, extracted findSemicolons helper, Prec.highest to override default line-move bindings |
 | DOTAZ-092 | Data format profiles | not started | Global date/number/NULL display settings |
 | DOTAZ-093 | Advanced Paste into data grid | not started | Multi-row paste with delimiter detection |
 | DOTAZ-094 | AI SQL generation from natural language | not started | LLM-powered SQL with schema context |
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-02 — DOTAZ-090 done*
+*Last updated: 2026-03-02 — DOTAZ-091 done*
 
