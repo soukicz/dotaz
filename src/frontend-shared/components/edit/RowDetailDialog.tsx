@@ -302,24 +302,6 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 					<span style={{ "font-size": "var(--font-size-sm)", color: "var(--ink-secondary)" }}>
 						{isDef ? "DEFAULT" : isNull ? "NULL" : value ? "true" : "false"}
 					</span>
-					<Show when={col.nullable && !readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setNull(col.name)}
-							title="Set NULL (Ctrl+N)"
-						>
-							NULL
-						</button>
-					</Show>
-					<Show when={!readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setDefault(col.name)}
-							title="Set DEFAULT (Ctrl+D)"
-						>
-							DEF
-						</button>
-					</Show>
 				</div>
 			);
 		}
@@ -348,24 +330,6 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 							}
 						}}
 					/>
-					<Show when={col.nullable && !readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setNull(col.name)}
-							title="Set NULL (Ctrl+N)"
-						>
-							NULL
-						</button>
-					</Show>
-					<Show when={!readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setDefault(col.name)}
-							title="Set DEFAULT (Ctrl+D)"
-						>
-							DEF
-						</button>
-					</Show>
 				</div>
 			);
 		}
@@ -397,24 +361,6 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 							}}
 						/>
 					</Show>
-					<Show when={col.nullable && !readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setNull(col.name)}
-							title="Set NULL (Ctrl+N)"
-						>
-							NULL
-						</button>
-					</Show>
-					<Show when={!readOnly}>
-						<button
-							class="row-detail__null-btn"
-							onClick={() => setDefault(col.name)}
-							title="Set DEFAULT (Ctrl+D)"
-						>
-							DEF
-						</button>
-					</Show>
 				</div>
 			);
 		}
@@ -438,24 +384,6 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 						setFieldValue(col.name, parseValue(e.target.value, col));
 					}}
 				/>
-				<Show when={col.nullable && !readOnly}>
-					<button
-						class="row-detail__null-btn"
-						onClick={() => setNull(col.name)}
-						title="Set NULL (Ctrl+N)"
-					>
-						NULL
-					</button>
-				</Show>
-				<Show when={!readOnly}>
-					<button
-						class="row-detail__null-btn"
-						onClick={() => setDefault(col.name)}
-						title="Set DEFAULT (Ctrl+D)"
-					>
-						DEF
-					</button>
-				</Show>
 			</div>
 		);
 	}
@@ -507,6 +435,28 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 										</Show>
 										<Show when={fk()}>
 											<span class="row-detail__label-badge row-detail__label-badge--fk">FK</span>
+										</Show>
+										<Show when={!pkColumns().has(col.name)}>
+											<div class="row-detail__label-actions">
+												<Show when={col.nullable}>
+													<button
+														class="row-detail__set-btn"
+														classList={{ "row-detail__set-btn--active": isFieldNull(col.name) }}
+														onClick={() => setNull(col.name)}
+														title="Set NULL (Ctrl+N)"
+													>
+														NULL
+													</button>
+												</Show>
+												<button
+													class="row-detail__set-btn"
+													classList={{ "row-detail__set-btn--active": isFieldDefault(col.name) }}
+													onClick={() => setDefault(col.name)}
+													title="Set DEFAULT (Ctrl+D)"
+												>
+													DEF
+												</button>
+											</div>
 										</Show>
 									</div>
 									<Show when={fk()}>

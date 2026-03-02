@@ -24,6 +24,9 @@
 }
 
 .row-detail__nav-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
 	background: var(--surface-inset);
 	border: 1px solid var(--edge);
 	border-radius: 3px;
@@ -180,27 +183,34 @@
 	cursor: default;
 }
 
-.row-detail__null-btn {
-	background: var(--surface-active);
+.row-detail__label-actions {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+}
+
+.row-detail__set-btn {
+	background: none;
 	color: var(--ink-muted);
-	border: 1px solid var(--edge);
+	border: none;
 	border-radius: 3px;
-	padding: var(--spacing-sm) var(--spacing-sm);
-	font-size: var(--font-size-xs);
+	padding: 1px 5px;
+	font-size: 10px;
 	font-family: var(--font-mono);
 	cursor: pointer;
 	white-space: nowrap;
-	line-height: 1;
+	line-height: 14px;
+	letter-spacing: 0.03em;
 }
 
-.row-detail__null-btn:hover {
+.row-detail__set-btn:hover {
 	color: var(--ink);
 	background: var(--surface-hover);
 }
 
-.row-detail__null-btn:disabled {
-	opacity: 0.4;
-	cursor: default;
+.row-detail__set-btn--active {
+	color: var(--ink-secondary);
+	background: var(--surface-active);
 }
 
 /* Referenced By */
