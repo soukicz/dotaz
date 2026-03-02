@@ -2,6 +2,41 @@
 
 import { commandRegistry } from "./commands";
 
+// ── Shortcut mode ────────────────────────────────────────
+
+type ShortcutMode = "desktop" | "browser";
+let shortcutMode: ShortcutMode = "desktop";
+
+/** Called by entry points to set the shortcut mode (default: "desktop"). */
+export function setShortcutMode(mode: ShortcutMode) {
+	shortcutMode = mode;
+}
+
+/** Map of command IDs that differ between desktop and browser mode. */
+const PLATFORM_SHORTCUTS: Record<string, { desktop: string; browser: string }> = {
+	"new-sql-console": { desktop: "Ctrl+N", browser: "Alt+N" },
+	"close-tab": { desktop: "Ctrl+W", browser: "Alt+W" },
+	"next-tab": { desktop: "Ctrl+Tab", browser: "Alt+PageDown" },
+	"prev-tab": { desktop: "Ctrl+Shift+Tab", browser: "Alt+PageUp" },
+};
+
+/** Returns the correct shortcut combo for a platform-aware command ID. */
+export function platformShortcut(commandId: string): string {
+	const entry = PLATFORM_SHORTCUTS[commandId];
+	if (!entry) throw new Error(`No platform shortcut for command: ${commandId}`);
+	return shortcutMode === "browser" ? entry.browser : entry.desktop;
+}
+
+/** Returns true if the quick-value modifier key is pressed (Alt in browser, Ctrl/Cmd in desktop). */
+export function isQuickValueModifier(e: KeyboardEvent): boolean {
+	return shortcutMode === "browser" ? e.altKey : (e.ctrlKey || e.metaKey);
+}
+
+/** Returns the label for the quick-value modifier ("Alt" in browser, "Ctrl" in desktop). */
+export function quickValueModifierLabel(): string {
+	return shortcutMode === "browser" ? "Alt" : "Ctrl";
+}
+
 // ── Per-element key handler ──────────────────────────────
 
 export interface KeyBinding {

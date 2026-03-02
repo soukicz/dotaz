@@ -41,7 +41,7 @@ import { sessionStore } from "../../stores/session";
 import { friendlyErrorMessage, messages } from "../../lib/rpc";
 import { setComparisonParams, getComparisonParams, removeComparisonParams } from "../../stores/comparison";
 import { commandRegistry } from "../../lib/commands";
-import { keyboardManager } from "../../lib/keyboard";
+import { keyboardManager, platformShortcut } from "../../lib/keyboard";
 import type { ShortcutContext } from "../../lib/keyboard";
 import { navigationStore } from "../../stores/navigation";
 import { setWorkspaceStateCollector, scheduleWorkspaceSave, loadWorkspace, saveWorkspaceNow } from "../../lib/workspace";
@@ -435,7 +435,7 @@ export default function AppShell() {
 		commandRegistry.register({
 			id: "new-sql-console",
 			label: "New SQL Console",
-			shortcut: "Ctrl+N",
+			shortcut: platformShortcut("new-sql-console"),
 			category: "Query",
 			handler: () => {
 				const conn = connectionsStore.activeConnection;
@@ -452,7 +452,7 @@ export default function AppShell() {
 		commandRegistry.register({
 			id: "close-tab",
 			label: "Close Tab",
-			shortcut: "Ctrl+W",
+			shortcut: platformShortcut("close-tab"),
 			category: "Navigation",
 			handler: () => {
 				const tab = tabsStore.activeTab;
@@ -470,7 +470,7 @@ export default function AppShell() {
 		commandRegistry.register({
 			id: "next-tab",
 			label: "Next Tab",
-			shortcut: "Ctrl+Tab",
+			shortcut: platformShortcut("next-tab"),
 			category: "Navigation",
 			handler: () => tabsStore.activateNextTab(),
 		});
@@ -478,7 +478,7 @@ export default function AppShell() {
 		commandRegistry.register({
 			id: "prev-tab",
 			label: "Previous Tab",
-			shortcut: "Ctrl+Shift+Tab",
+			shortcut: platformShortcut("prev-tab"),
 			category: "Navigation",
 			handler: () => tabsStore.activatePrevTab(),
 		});
@@ -869,11 +869,12 @@ export default function AppShell() {
 	function registerShortcuts() {
 		// Global shortcuts
 		keyboardManager.register("Ctrl+Shift+P", "command-palette");
-		keyboardManager.register("Ctrl+N", "new-sql-console");
-		keyboardManager.register("Ctrl+W", "close-tab");
-		keyboardManager.register("Ctrl+Tab", "next-tab");
-		keyboardManager.register("Ctrl+Shift+Tab", "prev-tab");
 		keyboardManager.register("Ctrl+B", "toggle-sidebar");
+
+		// Platform-aware shortcuts (Ctrl-based in desktop, Alt-based in browser)
+		for (const cmdId of ["new-sql-console", "close-tab", "next-tab", "prev-tab"] as const) {
+			keyboardManager.register(platformShortcut(cmdId), cmdId);
+		}
 		keyboardManager.register("Ctrl+Shift+L", "focus-navigator-filter");
 		keyboardManager.register("Alt+ArrowLeft", "navigate-back");
 		keyboardManager.register("Alt+ArrowRight", "navigate-forward");

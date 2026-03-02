@@ -2,6 +2,7 @@ import { createSignal, onMount } from "solid-js";
 import type { GridColumnDef } from "../../../shared/types/grid";
 import { DatabaseDataType, SQL_DEFAULT, isSqlDefault } from "../../../shared/types/database";
 import { isNumericType, isBooleanType, isDateType, isTextType } from "../../lib/column-types";
+import { isQuickValueModifier } from "../../lib/keyboard";
 import "./InlineEditor.css";
 
 interface InlineEditorProps {
@@ -55,7 +56,7 @@ function tryQuickValueShortcut(
 	onSave: (value: unknown) => void,
 ): boolean {
 	const key = e.key.toLowerCase();
-	const isCtrl = e.ctrlKey || e.metaKey;
+	const isCtrl = isQuickValueModifier(e);
 
 	// Ctrl+N or 'n' when empty (non-text) → NULL
 	if (key === "n" && column.nullable && (isCtrl || (inputEmpty && !isTextColumn))) {

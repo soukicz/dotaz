@@ -9,6 +9,7 @@ import { connectionsStore } from "../../stores/connections";
 import { tabsStore } from "../../stores/tabs";
 import { gridStore } from "../../stores/grid";
 import { isNumericType, isBooleanType, isDateType, isTextType } from "../../lib/column-types";
+import { isQuickValueModifier, quickValueModifierLabel } from "../../lib/keyboard";
 import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Save from "lucide-solid/icons/save";
 import "./RowDetailTab.css";
@@ -246,7 +247,8 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 	}
 
 	function handleFieldKeyDown(e: KeyboardEvent, col: ColumnInfo) {
-		if (!(e.ctrlKey || e.metaKey)) return;
+		const modifierActive = isQuickValueModifier(e);
+		if (!modifierActive) return;
 		const key = e.key.toLowerCase();
 		const isPk = pkColumns().has(col.name);
 		if (isPk) return;
@@ -487,7 +489,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 															class="row-detail__set-btn"
 															classList={{ "row-detail__set-btn--active": isFieldNull(col.name) }}
 															onClick={() => setNull(col.name)}
-															title="Set NULL (Ctrl+N)"
+															title={`Set NULL (${quickValueModifierLabel()}+N)`}
 														>
 															NULL
 														</button>
@@ -496,7 +498,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 														class="row-detail__set-btn"
 														classList={{ "row-detail__set-btn--active": isFieldDefault(col.name) }}
 														onClick={() => setDefault(col.name)}
-														title="Set DEFAULT (Ctrl+D)"
+														title={`Set DEFAULT (${quickValueModifierLabel()}+D)`}
 													>
 														DEF
 													</button>

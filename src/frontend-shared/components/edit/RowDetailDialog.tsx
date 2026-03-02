@@ -10,6 +10,7 @@ import { rpc } from "../../lib/rpc";
 import { connectionsStore } from "../../stores/connections";
 import { tabsStore } from "../../stores/tabs";
 import { isNumericType, isBooleanType, isDateType, isTextType } from "../../lib/column-types";
+import { isQuickValueModifier, quickValueModifierLabel } from "../../lib/keyboard";
 import Dialog from "../common/Dialog";
 import "./RowDetailDialog.css";
 
@@ -189,9 +190,10 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 		setFieldValue(column, SQL_DEFAULT);
 	}
 
-	/** Handle Ctrl+key quick value shortcuts on field inputs. */
+	/** Handle Ctrl+key (or Alt+key in browser mode) quick value shortcuts on field inputs. */
 	function handleFieldKeyDown(e: KeyboardEvent, col: GridColumnDef) {
-		if (!(e.ctrlKey || e.metaKey)) return;
+		const modifierActive = isQuickValueModifier(e);
+		if (!modifierActive) return;
 		const key = e.key.toLowerCase();
 		const isPk = pkColumns().has(col.name);
 		if (isPk) return;
@@ -486,7 +488,7 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 														class="row-detail__set-btn"
 														classList={{ "row-detail__set-btn--active": isFieldNull(col.name) }}
 														onClick={() => setNull(col.name)}
-														title="Set NULL (Ctrl+N)"
+														title={`Set NULL (${quickValueModifierLabel()}+N)`}
 													>
 														NULL
 													</button>
@@ -495,7 +497,7 @@ export default function RowDetailDialog(props: RowDetailDialogProps) {
 													class="row-detail__set-btn"
 													classList={{ "row-detail__set-btn--active": isFieldDefault(col.name) }}
 													onClick={() => setDefault(col.name)}
-													title="Set DEFAULT (Ctrl+D)"
+													title={`Set DEFAULT (${quickValueModifierLabel()}+D)`}
 												>
 													DEF
 												</button>
