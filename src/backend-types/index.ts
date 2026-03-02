@@ -68,6 +68,7 @@ export type DotazRPC = {
 				connectionId: string;
 				state: ConnectionState;
 				error?: string;
+				transactionLost?: boolean;
 			};
 			"menu.action": {
 				action: string;

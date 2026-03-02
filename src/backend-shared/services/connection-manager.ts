@@ -24,6 +24,7 @@ export interface StatusChangeEvent {
 	state: ConnectionState;
 	error?: string;
 	errorCode?: DatabaseErrorCode;
+	transactionLost?: boolean;
 }
 
 export type StatusChangeListener = (event: StatusChangeEvent) => void;
@@ -49,6 +50,7 @@ interface ReconnectState {
 	attempt: number;
 	timer: ReturnType<typeof setTimeout> | null;
 	cancelled: boolean;
+	hadTransaction: boolean;
 }
 
 export class ConnectionManager {
@@ -434,19 +436,28 @@ export class ConnectionManager {
 		try {
 			await driver.execute("SELECT 1");
 		} catch {
+			// Check if any driver had an active transaction before disconnecting
+			let hadTransaction = false;
+			for (const d of driverMap.values()) {
+				if (d.inTransaction()) {
+					hadTransaction = true;
+					break;
+				}
+			}
+
 			// Connection lost — stop health checks and begin auto-reconnect
 			this.stopHealthCheck(connectionId);
 			await this.disconnectAllDrivers(connectionId);
 			this.setConnectionState(connectionId, "disconnected", "Connection lost");
-			this.startAutoReconnect(connectionId);
+			this.startAutoReconnect(connectionId, hadTransaction);
 		}
 	}
 
 	// ── Auto-reconnect with exponential backoff ─────────────
 
-	private startAutoReconnect(connectionId: string): void {
+	private startAutoReconnect(connectionId: string, hadTransaction = false): void {
 		this.cancelAutoReconnect(connectionId);
-		const rs: ReconnectState = { attempt: 0, timer: null, cancelled: false };
+		const rs: ReconnectState = { attempt: 0, timer: null, cancelled: false, hadTransaction };
 		this.reconnectStates.set(connectionId, rs);
 		this.scheduleReconnectAttempt(connectionId, rs);
 	}
@@ -530,8 +541,9 @@ export class ConnectionManager {
 				await Promise.allSettled(activations);
 			}
 
+			const hadTransaction = rs.hadTransaction;
 			this.reconnectStates.delete(connectionId);
-			this.setConnectionState(connectionId, "connected");
+			this.setConnectionState(connectionId, "connected", undefined, undefined, hadTransaction);
 			this.startHealthCheck(connectionId);
 		} catch {
 			if (rs.cancelled) return;
@@ -653,10 +665,11 @@ export class ConnectionManager {
 		state: ConnectionState,
 		error?: string,
 		errorCode?: DatabaseErrorCode,
+		transactionLost?: boolean,
 	): void {
 		this.states.set(connectionId, { state, error });
 		for (const listener of this.listeners) {
-			listener({ connectionId, state, error, errorCode });
+			listener({ connectionId, state, error, errorCode, transactionLost: transactionLost || undefined });
 		}
 	}
 }

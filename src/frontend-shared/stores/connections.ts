@@ -16,6 +16,7 @@ import { PostgresDialect, SqliteDialect, MysqlDialect } from "../../shared/sql";
 import { rpc, messages, friendlyErrorMessage } from "../lib/rpc";
 import { storage } from "../lib/storage";
 import { uiStore } from "./ui";
+import { editorStore } from "./editor";
 
 export interface SchemaTree {
 	schemas: SchemaInfo[];
@@ -281,6 +282,10 @@ export function initConnectionsListener(): () => void {
 			} else {
 				loadSchemaTree(event.connectionId);
 			}
+		}
+		if (event.state === "connected" && event.transactionLost) {
+			editorStore.resetTransactionStateForConnection(event.connectionId);
+			uiStore.addToast("warning", "Connection was lost and restored. Active transaction was rolled back by the server.");
 		}
 		if (event.state === "error" && event.error) {
 			const conn = state.connections.find((c) => c.id === event.connectionId);

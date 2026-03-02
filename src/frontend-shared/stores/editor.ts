@@ -485,6 +485,15 @@ function removeTab(tabId: string) {
 	setState("tabs", tabId, undefined!);
 }
 
+/** Reset transaction state for all editor tabs on a given connection. */
+function resetTransactionStateForConnection(connectionId: string) {
+	for (const [tabId, tab] of Object.entries(state.tabs)) {
+		if (tab.connectionId === connectionId && tab.inTransaction) {
+			setState("tabs", tabId, "inTransaction", false);
+		}
+	}
+}
+
 // ── Result editability ────────────────────────────────────
 
 /**
@@ -891,6 +900,7 @@ export const editorStore = {
 	commitTransaction,
 	rollbackTransaction,
 	removeTab,
+	resetTransactionStateForConnection,
 	pinCurrentResult,
 	unpinResult,
 	setActiveResultView,

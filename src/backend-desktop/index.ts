@@ -83,6 +83,7 @@ connectionManager.onStatusChanged((event) => {
 		state: event.state,
 		error: event.error,
 		errorCode: event.errorCode,
+		transactionLost: event.transactionLost,
 	});
 });
 

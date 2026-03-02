@@ -32,7 +32,7 @@ export const rpc: NamespacedRpcClient = new Proxy({} as NamespacedRpcClient, {
 /** Subscribe to backend → frontend notifications */
 export const messages = {
 	onConnectionStatusChanged: (
-		handler: (event: { connectionId: string; state: ConnectionState; error?: string; errorCode?: DatabaseErrorCode }) => void,
+		handler: (event: { connectionId: string; state: ConnectionState; error?: string; errorCode?: DatabaseErrorCode; transactionLost?: boolean }) => void,
 	) => {
 		return transport.addMessageListener("connections.statusChanged", handler);
 	},
