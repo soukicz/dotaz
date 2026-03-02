@@ -426,6 +426,19 @@ export class AppDatabase {
 		const row = this.db.prepare("SELECT * FROM query_bookmarks WHERE id = ?").get(id) as BookmarkRow | null;
 		return row ? rowToBookmark(row) : null;
 	}
+
+	// ── Workspace ────────────────────────────────────────────
+
+	saveWorkspace(data: string): void {
+		this.db.prepare(
+			"INSERT INTO workspace (id, data, updated_at) VALUES ('default', ?, datetime('now')) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')",
+		).run(data);
+	}
+
+	loadWorkspace(): string | null {
+		const row = this.db.prepare("SELECT data FROM workspace WHERE id = 'default'").get() as { data: string } | null;
+		return row?.data ?? null;
+	}
 }
 
 // ── Row types (SQLite column names) ──────────────────────────

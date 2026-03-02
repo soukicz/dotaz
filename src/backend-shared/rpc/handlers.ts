@@ -231,6 +231,14 @@ export function createHandlers(adapter: RpcAdapter) {
 			return adapter.generateSql(params);
 		},
 
+		// ── Workspace ─────────────────────────────────────
+		"workspace.save": ({ data }: { data: string }) => {
+			adapter.saveWorkspace(data);
+		},
+		"workspace.load": () => {
+			return adapter.loadWorkspace();
+		},
+
 		// ── System ────────────────────────────────────────
 		"system.showOpenDialog": async (params: OpenDialogParams) => {
 			if (!adapter.showOpenDialog) {

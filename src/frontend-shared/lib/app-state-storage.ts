@@ -1,6 +1,7 @@
 import type { ConnectionConfig, ConnectionInfo } from "../../shared/types/connection";
 import type { QueryHistoryEntry } from "../../shared/types/query";
 import type { SavedView, SavedViewConfig, HistoryListParams } from "../../shared/types/rpc";
+import type { WorkspaceState } from "../../shared/types/workspace";
 
 export interface AppStateStorage {
 	// Connections
@@ -24,4 +25,8 @@ export interface AppStateStorage {
 	readonly passConfigOnConnect: boolean;
 	getEncryptedConfig(id: string): Promise<string | undefined>;
 	getRememberPassword(id: string): Promise<boolean>;
+
+	// Workspace persistence
+	saveWorkspace(state: WorkspaceState): Promise<void>;
+	loadWorkspace(): Promise<WorkspaceState | null>;
 }

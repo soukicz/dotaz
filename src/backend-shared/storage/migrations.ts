@@ -105,6 +105,19 @@ const migrations: Migration[] = [
 			db.run("ALTER TABLE connections ADD COLUMN color TEXT DEFAULT NULL");
 		},
 	},
+	{
+		version: 6,
+		description: "Create workspace table for session persistence",
+		up: (db) => {
+			db.run(`
+				CREATE TABLE workspace (
+					id TEXT PRIMARY KEY DEFAULT 'default',
+					data TEXT NOT NULL,
+					updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+				)
+			`);
+		},
+	},
 ];
 
 /**

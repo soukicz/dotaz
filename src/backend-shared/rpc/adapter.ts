@@ -99,4 +99,8 @@ export interface RpcAdapter {
 
 	// ── AI SQL generation ────────────────────────────────
 	generateSql(params: AiGenerateSqlParams): Promise<AiGenerateSqlResult>;
+
+	// ── Workspace persistence ─────────────────────────────
+	saveWorkspace(data: string): void;
+	loadWorkspace(): string | null;
 }

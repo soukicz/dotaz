@@ -440,6 +440,16 @@ export class DemoAdapter implements RpcAdapter {
 		return { sql };
 	}
 
+	// ── Workspace persistence ─────────────────────────────
+
+	saveWorkspace(_data: string): void {
+		// Demo mode is ephemeral — no workspace persistence
+	}
+
+	loadWorkspace(): string | null {
+		return null;
+	}
+
 	// ── Private ──────────────────────────────────────────
 
 	private logHistory(connectionId: string, sql: string, results: QueryResult[]): void {

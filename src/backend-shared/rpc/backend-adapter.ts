@@ -400,4 +400,14 @@ export class BackendAdapter implements RpcAdapter {
 		});
 		return { sql };
 	}
+
+	// ── Workspace persistence ─────────────────────────────
+
+	saveWorkspace(data: string): void {
+		this.appDb.saveWorkspace(data);
+	}
+
+	loadWorkspace(): string | null {
+		return this.appDb.loadWorkspace();
+	}
 }

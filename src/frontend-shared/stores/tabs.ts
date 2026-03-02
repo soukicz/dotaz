@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store";
 import type { TabInfo, TabType } from "../../shared/types/tab";
+import { scheduleWorkspaceSave } from "../lib/workspace";
 
 export interface TabState {
 	openTabs: TabInfo[];
@@ -55,13 +56,20 @@ function openTab(config: OpenTabConfig): string {
 	};
 	setState("openTabs", (tabs) => [...tabs, tab]);
 	setState("activeTabId", id);
+	scheduleWorkspaceSave();
 	return id;
+}
+
+/** Restore a tab from persisted workspace state (preserving its original ID). */
+function restoreTab(tab: TabInfo): void {
+	setState("openTabs", (tabs) => [...tabs, { ...tab, dirty: false }]);
 }
 
 function setActiveTab(id: string) {
 	const exists = state.openTabs.some((t) => t.id === id);
 	if (exists) {
 		setState("activeTabId", id);
+		scheduleWorkspaceSave();
 	}
 }
 
@@ -92,6 +100,7 @@ function closeTab(id: string) {
 	}
 
 	for (const cb of afterCloseCallbacks) cb(id);
+	scheduleWorkspaceSave();
 }
 
 function closeOtherTabs(id: string) {
@@ -114,6 +123,7 @@ function closeOtherTabs(id: string) {
 	for (const closedId of closedIds) {
 		for (const cb of afterCloseCallbacks) cb(closedId);
 	}
+	scheduleWorkspaceSave();
 }
 
 function closeAllTabs() {
@@ -131,6 +141,7 @@ function closeAllTabs() {
 	for (const id of closedIds) {
 		for (const cb of afterCloseCallbacks) cb(id);
 	}
+	scheduleWorkspaceSave();
 }
 
 function reorderTabs(fromIndex: number, toIndex: number) {
@@ -142,6 +153,7 @@ function reorderTabs(fromIndex: number, toIndex: number) {
 	const [moved] = tabs.splice(fromIndex, 1);
 	tabs.splice(toIndex, 0, moved);
 	setState("openTabs", tabs);
+	scheduleWorkspaceSave();
 }
 
 function renameTab(id: string, title: string) {
@@ -237,6 +249,7 @@ export const tabsStore = {
 		return state.openTabs.find((t) => t.id === state.activeTabId) ?? null;
 	},
 	openTab,
+	restoreTab,
 	setActiveTab,
 	closeTab,
 	closeOtherTabs,

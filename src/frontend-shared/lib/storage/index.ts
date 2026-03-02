@@ -54,4 +54,10 @@ export const storage: AppStateStorage = {
 	getRememberPassword(id) {
 		return getStorage().getRememberPassword(id);
 	},
+	saveWorkspace(state) {
+		return getStorage().saveWorkspace(state);
+	},
+	loadWorkspace() {
+		return getStorage().loadWorkspace();
+	},
 };

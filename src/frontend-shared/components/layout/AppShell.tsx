@@ -40,6 +40,8 @@ import { setComparisonParams, getComparisonParams, removeComparisonParams } from
 import { commandRegistry } from "../../lib/commands";
 import { keyboardManager } from "../../lib/keyboard";
 import type { ShortcutContext } from "../../lib/keyboard";
+import { setWorkspaceStateCollector, scheduleWorkspaceSave, loadWorkspace, saveWorkspaceNow } from "../../lib/workspace";
+import type { WorkspaceState, WorkspaceTab } from "../../../shared/types/workspace";
 import "./AppShell.css";
 
 // Clean up grid/editor/comparison state when tabs are closed to prevent memory leaks
@@ -83,10 +85,12 @@ export default function AppShell() {
 
 	function handleResize(deltaX: number) {
 		setSidebarWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + deltaX)));
+		scheduleWorkspaceSave();
 	}
 
 	function toggleCollapse() {
 		setSidebarCollapsed((c) => !c);
+		scheduleWorkspaceSave();
 	}
 
 	function openAddConnectionDialog() {
@@ -201,6 +205,11 @@ export default function AppShell() {
 		});
 		keyboardManager.init();
 
+		// ── Workspace persistence ────────────────────────
+		setWorkspaceStateCollector(collectWorkspaceState);
+		restoreWorkspace();
+		window.addEventListener("beforeunload", handleBeforeUnload);
+
 		// Listen for menu actions from backend
 		removeMenuListener = messages.onMenuAction(({ action }) => {
 			commandRegistry.execute(action);
@@ -267,7 +276,110 @@ export default function AppShell() {
 		window.removeEventListener("unhandledrejection", handleUnhandledRejection);
 		window.removeEventListener("dotaz:open-compare", handleOpenCompare);
 		window.removeEventListener("dotaz:open-search", handleOpenSearch);
+		window.removeEventListener("beforeunload", handleBeforeUnload);
 	});
+
+	// ── Workspace persistence ──────────────────────────────
+
+	function collectWorkspaceState(): WorkspaceState {
+		const tabs: WorkspaceTab[] = tabsStore.openTabs.map((tab) => {
+			const wsTab: WorkspaceTab = {
+				id: tab.id,
+				type: tab.type,
+				title: tab.title,
+				connectionId: tab.connectionId,
+				schema: tab.schema,
+				table: tab.table,
+				database: tab.database,
+				viewId: tab.viewId,
+				viewName: tab.viewName,
+			};
+			if (tab.type === "sql-console") {
+				const editor = editorStore.getTab(tab.id);
+				if (editor) {
+					wsTab.editorContent = editor.content;
+					wsTab.editorCursorPosition = editor.cursorPosition;
+					wsTab.editorTxMode = editor.txMode;
+				}
+			}
+			if (tab.type === "data-grid") {
+				const grid = gridStore.getTab(tab.id);
+				if (grid) {
+					wsTab.gridPage = grid.currentPage;
+					wsTab.gridPageSize = grid.pageSize;
+					wsTab.gridSort = grid.sort.length > 0 ? [...grid.sort] : undefined;
+					wsTab.gridFilters = grid.filters.length > 0 ? [...grid.filters] : undefined;
+				}
+			}
+			return wsTab;
+		});
+		return {
+			tabs,
+			activeTabId: tabsStore.activeTabId,
+			layout: {
+				sidebarWidth: sidebarWidth(),
+				sidebarCollapsed: sidebarCollapsed(),
+			},
+		};
+	}
+
+	async function restoreWorkspace() {
+		const workspace = await loadWorkspace();
+		if (!workspace || workspace.tabs.length === 0) return;
+
+		const connectionIds = new Set(connectionsStore.connections.map((c) => c.id));
+
+		for (const wsTab of workspace.tabs) {
+			// Skip tabs referencing deleted connections
+			if (!connectionIds.has(wsTab.connectionId)) continue;
+
+			tabsStore.restoreTab({
+				id: wsTab.id,
+				type: wsTab.type,
+				title: wsTab.title,
+				connectionId: wsTab.connectionId,
+				schema: wsTab.schema,
+				table: wsTab.table,
+				database: wsTab.database,
+				viewId: wsTab.viewId,
+				viewName: wsTab.viewName,
+			});
+
+			// Restore editor state for SQL console tabs
+			if (wsTab.type === "sql-console") {
+				editorStore.initTab(wsTab.id, wsTab.connectionId, wsTab.database);
+				if (wsTab.editorContent) {
+					editorStore.setContent(wsTab.id, wsTab.editorContent);
+				}
+				if (wsTab.editorCursorPosition != null) {
+					editorStore.setCursorPosition(wsTab.id, wsTab.editorCursorPosition);
+				}
+				if (wsTab.editorTxMode === "manual") {
+					editorStore.setTxMode(wsTab.id, "manual");
+				}
+			}
+		}
+
+		// Restore active tab
+		if (workspace.activeTabId) {
+			const exists = tabsStore.openTabs.some((t) => t.id === workspace.activeTabId);
+			if (exists) {
+				tabsStore.setActiveTab(workspace.activeTabId);
+			}
+		}
+
+		// Restore layout
+		if (workspace.layout) {
+			if (workspace.layout.sidebarWidth > 0) {
+				setSidebarWidth(workspace.layout.sidebarWidth);
+			}
+			setSidebarCollapsed(workspace.layout.sidebarCollapsed);
+		}
+	}
+
+	function handleBeforeUnload() {
+		saveWorkspaceNow();
+	}
 
 	// ── Command registration ──────────────────────────────
 	function registerCommands() {

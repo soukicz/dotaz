@@ -2,18 +2,20 @@ import type { AppStateStorage } from "../app-state-storage";
 import type { ConnectionConfig, ConnectionInfo } from "../../../shared/types/connection";
 import type { QueryHistoryEntry } from "../../../shared/types/query";
 import type { SavedView, SavedViewConfig, HistoryListParams } from "../../../shared/types/rpc";
+import type { WorkspaceState } from "../../../shared/types/workspace";
 import { isServerConfig } from "../../../shared/types/connection";
 import { rpc } from "../rpc";
 
 // ── IndexedDB helpers ────────────────────────────────────
 
 const DB_NAME = "dotaz";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
 	connections: "connections",
 	history: "history",
 	views: "views",
+	workspace: "workspace",
 } as const;
 
 interface StoredConnectionRecord {
@@ -49,6 +51,9 @@ function openDb(): Promise<IDBDatabase> {
 			if (!db.objectStoreNames.contains(STORES.views)) {
 				const store = db.createObjectStore(STORES.views, { keyPath: "id" });
 				store.createIndex("connectionId", "connectionId", { unique: false });
+			}
+			if (!db.objectStoreNames.contains(STORES.workspace)) {
+				db.createObjectStore(STORES.workspace, { keyPath: "id" });
 			}
 		};
 
@@ -318,6 +323,17 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 	async getRememberPassword(id: string): Promise<boolean> {
 		const record = await txOp<StoredConnectionRecord | undefined>(STORES.connections, "readonly", (s) => s.get(id));
 		return record?.rememberPassword ?? true;
+	}
+
+	// ── Workspace ────────────────────────────────────────
+
+	async saveWorkspace(state: WorkspaceState): Promise<void> {
+		await txOp(STORES.workspace, "readwrite", (s) => s.put({ id: "default", state }));
+	}
+
+	async loadWorkspace(): Promise<WorkspaceState | null> {
+		const record = await txOp<{ id: string; state: WorkspaceState } | undefined>(STORES.workspace, "readonly", (s) => s.get("default"));
+		return record?.state ?? null;
 	}
 
 	// ── Private helpers ──────────────────────────────────

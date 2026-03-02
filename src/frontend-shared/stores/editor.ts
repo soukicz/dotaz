@@ -12,6 +12,7 @@ import { analyzeSelectSource } from "../../shared/sql/editability";
 import { generateChangeSql, generateChangesPreview } from "../../shared/sql/builders";
 import { connectionsStore } from "./connections";
 import { uiStore } from "./ui";
+import { scheduleWorkspaceSave } from "../lib/workspace";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -167,6 +168,7 @@ function initTab(tabId: string, connectionId: string, database?: string) {
 function setContent(tabId: string, content: string) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "content", content);
+	scheduleWorkspaceSave();
 }
 
 function setSelectedText(tabId: string, selectedText: string) {
@@ -362,6 +364,7 @@ async function formatSql(tabId: string) {
 function setTxMode(tabId: string, mode: TxMode) {
 	ensureTab(tabId);
 	setState("tabs", tabId, "txMode", mode);
+	scheduleWorkspaceSave();
 }
 
 async function beginTransaction(tabId: string) {

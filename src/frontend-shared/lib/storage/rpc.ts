@@ -2,6 +2,7 @@ import type { AppStateStorage } from "../app-state-storage";
 import type { ConnectionConfig, ConnectionInfo } from "../../../shared/types/connection";
 import type { QueryHistoryEntry } from "../../../shared/types/query";
 import type { SavedView, SavedViewConfig, HistoryListParams } from "../../../shared/types/rpc";
+import type { WorkspaceState } from "../../../shared/types/workspace";
 import { rpc } from "../rpc";
 
 export class RpcAppStateStorage implements AppStateStorage {
@@ -57,5 +58,19 @@ export class RpcAppStateStorage implements AppStateStorage {
 
 	async getRememberPassword(_id: string): Promise<boolean> {
 		return true;
+	}
+
+	async saveWorkspace(state: WorkspaceState): Promise<void> {
+		await rpc.workspace.save({ data: JSON.stringify(state) });
+	}
+
+	async loadWorkspace(): Promise<WorkspaceState | null> {
+		const data = await rpc.workspace.load();
+		if (!data) return null;
+		try {
+			return JSON.parse(data) as WorkspaceState;
+		} catch {
+			return null;
+		}
 	}
 }

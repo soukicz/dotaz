@@ -29,12 +29,12 @@ describe("AppDatabase", () => {
 
 	test("migrations run automatically on initialization", () => {
 		const version = getSchemaVersion(appDb.db);
-		expect(version).toBe(5);
+		expect(version).toBe(6);
 	});
 
 	test("schema_version table tracks current version", () => {
 		const rows = appDb.db.prepare("SELECT version FROM schema_version ORDER BY version").all() as { version: number }[];
-		expect(rows.map(r => r.version)).toEqual([1, 2, 3, 4, 5]);
+		expect(rows.map(r => r.version)).toEqual([1, 2, 3, 4, 5, 6]);
 	});
 
 	test("migration 002 converts boolean SSL to SSLMode string", () => {
@@ -981,6 +981,38 @@ describe("AppDatabase", () => {
 			});
 			appDb.deleteConnection(connectionId);
 			expect(appDb.listBookmarks(connectionId)).toHaveLength(0);
+		});
+	});
+
+	// ── Workspace persistence ────────────────────────────────
+
+	describe("workspace", () => {
+		test("loadWorkspace returns null when no workspace saved", () => {
+			expect(appDb.loadWorkspace()).toBeNull();
+		});
+
+		test("saveWorkspace and loadWorkspace round-trip", () => {
+			const data = JSON.stringify({
+				tabs: [{ id: "tab-1", type: "sql-console", title: "SQL", connectionId: "conn-1" }],
+				activeTabId: "tab-1",
+				layout: { sidebarWidth: 250, sidebarCollapsed: false },
+			});
+			appDb.saveWorkspace(data);
+			expect(appDb.loadWorkspace()).toBe(data);
+		});
+
+		test("saveWorkspace overwrites previous workspace", () => {
+			appDb.saveWorkspace('{"tabs":[],"activeTabId":null,"layout":{"sidebarWidth":200,"sidebarCollapsed":false}}');
+			const updated = '{"tabs":[{"id":"t1","type":"data-grid","title":"Users","connectionId":"c1"}],"activeTabId":"t1","layout":{"sidebarWidth":300,"sidebarCollapsed":true}}';
+			appDb.saveWorkspace(updated);
+			expect(appDb.loadWorkspace()).toBe(updated);
+		});
+
+		test("workspace table is created by migration v6", () => {
+			const tables = appDb.db.prepare(
+				"SELECT name FROM sqlite_master WHERE type='table' AND name='workspace'",
+			).all() as { name: string }[];
+			expect(tables).toHaveLength(1);
 		});
 	});
 });
