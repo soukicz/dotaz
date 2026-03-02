@@ -4,6 +4,7 @@ import type {
 	SavedView,
 	SavedViewConfig,
 	HistoryListParams,
+	QueryBookmark,
 } from "../shared/types/rpc";
 
 const DEMO_CONNECTION_ID = "demo-bookstore";
@@ -17,6 +18,7 @@ export class DemoAppState {
 	private connections = new Map<string, ConnectionInfo>();
 	private settings = new Map<string, string>();
 	private views = new Map<string, SavedView>();
+	private bookmarks = new Map<string, QueryBookmark>();
 	private history: QueryHistoryEntry[] = [];
 	private historyIdCounter = 0;
 
@@ -171,6 +173,53 @@ export class DemoAppState {
 
 	getSavedViewById(id: string): SavedView | null {
 		return this.views.get(id) ?? null;
+	}
+
+	// ── Bookmarks ────────────────────────────────────────────
+
+	listBookmarks(connectionId: string, search?: string): QueryBookmark[] {
+		let result = Array.from(this.bookmarks.values())
+			.filter((b) => b.connectionId === connectionId);
+		if (search) {
+			const s = search.toLowerCase();
+			result = result.filter((b) => b.name.toLowerCase().includes(s) || b.sql.toLowerCase().includes(s));
+		}
+		return result.sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark {
+		const id = crypto.randomUUID();
+		const now = new Date().toISOString();
+		const bookmark: QueryBookmark = {
+			id,
+			connectionId: params.connectionId,
+			name: params.name,
+			description: params.description ?? "",
+			sql: params.sql,
+			createdAt: now,
+			updatedAt: now,
+		};
+		this.bookmarks.set(id, bookmark);
+		return bookmark;
+	}
+
+	updateBookmark(params: { id: string; name: string; description?: string; sql: string }): QueryBookmark {
+		const existing = this.bookmarks.get(params.id);
+		if (!existing) throw new Error(`Bookmark not found: ${params.id}`);
+		const now = new Date().toISOString();
+		const updated: QueryBookmark = {
+			...existing,
+			name: params.name,
+			description: params.description ?? "",
+			sql: params.sql,
+			updatedAt: now,
+		};
+		this.bookmarks.set(params.id, updated);
+		return updated;
+	}
+
+	deleteBookmark(id: string): void {
+		this.bookmarks.delete(id);
 	}
 
 	// ── History ───────────────────────────────────────────────

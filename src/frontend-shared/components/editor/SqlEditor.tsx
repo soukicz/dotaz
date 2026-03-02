@@ -9,6 +9,7 @@ import type { ConnectionType } from "../../../shared/types/connection";
 import { CONNECTION_TYPE_META } from "../../../shared/types/connection";
 import { editorStore } from "../../stores/editor";
 import { connectionsStore } from "../../stores/connections";
+import { commandRegistry } from "../../lib/commands";
 import ContextMenu from "../common/ContextMenu";
 import type { ContextMenuEntry } from "../common/ContextMenu";
 import { MIN_EDITOR_HEIGHT } from "../../lib/layout-constants";
@@ -443,6 +444,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 	const contextMenuItems = (): ContextMenuEntry[] => {
 		const hasSelection = ctxSelection.from !== ctxSelection.to;
 		const tab = editorStore.getTab(props.tabId);
+		const hasContent = (tab?.content.trim().length ?? 0) > 0;
 		const hasResults = (tab?.results.length ?? 0) > 0 && (tab?.results[0]?.rows.length ?? 0) > 0;
 
 		return [
@@ -501,6 +503,11 @@ export default function SqlEditor(props: SqlEditorProps) {
 			{
 				label: "Format SQL",
 				action: () => editorStore.formatSql(props.tabId),
+			},
+			{
+				label: "Bookmark Query",
+				action: () => commandRegistry.execute("bookmark-query"),
+				disabled: !hasContent,
 			},
 			"separator",
 			{

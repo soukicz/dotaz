@@ -29,12 +29,12 @@ describe("AppDatabase", () => {
 
 	test("migrations run automatically on initialization", () => {
 		const version = getSchemaVersion(appDb.db);
-		expect(version).toBe(3);
+		expect(version).toBe(4);
 	});
 
 	test("schema_version table tracks current version", () => {
 		const rows = appDb.db.prepare("SELECT version FROM schema_version ORDER BY version").all() as { version: number }[];
-		expect(rows.map(r => r.version)).toEqual([1, 2, 3]);
+		expect(rows.map(r => r.version)).toEqual([1, 2, 3, 4]);
 	});
 
 	test("migration 002 converts boolean SSL to SSLMode string", () => {
@@ -62,13 +62,14 @@ describe("AppDatabase", () => {
 		expect((connFalse.config as any).ssl).toBe("disable");
 	});
 
-	test("all tables are created by migration 001", () => {
+	test("all tables are created by migrations", () => {
 		const tables = appDb.db
 			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
 			.all() as { name: string }[];
 		const names = tables.map((t) => t.name);
 		expect(names).toContain("connections");
 		expect(names).toContain("query_history");
+		expect(names).toContain("query_bookmarks");
 		expect(names).toContain("saved_views");
 		expect(names).toContain("settings");
 		expect(names).toContain("schema_version");
@@ -803,6 +804,157 @@ describe("AppDatabase", () => {
 
 			const entries = appDb.listHistory({});
 			expect(entries).toHaveLength(5);
+		});
+	});
+
+	// ── Bookmarks CRUD ──────────────────────────────────────
+
+	describe("bookmarks", () => {
+		let connectionId: string;
+
+		beforeEach(() => {
+			const conn = appDb.createConnection({
+				name: "Test",
+				config: { type: "sqlite", path: ":memory:" },
+			});
+			connectionId = conn.id;
+		});
+
+		test("create and list bookmarks", () => {
+			appDb.createBookmark({
+				connectionId,
+				name: "Active Users",
+				sql: "SELECT * FROM users WHERE active = true",
+			});
+			appDb.createBookmark({
+				connectionId,
+				name: "Recent Orders",
+				sql: "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10",
+			});
+
+			const list = appDb.listBookmarks(connectionId);
+			expect(list).toHaveLength(2);
+			// Ordered by name
+			expect(list[0].name).toBe("Active Users");
+			expect(list[1].name).toBe("Recent Orders");
+		});
+
+		test("create returns bookmark with id and timestamps", () => {
+			const bookmark = appDb.createBookmark({
+				connectionId,
+				name: "Test Query",
+				description: "A test bookmark",
+				sql: "SELECT 1",
+			});
+			expect(bookmark.id).toBeTruthy();
+			expect(bookmark.connectionId).toBe(connectionId);
+			expect(bookmark.name).toBe("Test Query");
+			expect(bookmark.description).toBe("A test bookmark");
+			expect(bookmark.sql).toBe("SELECT 1");
+			expect(bookmark.createdAt).toBeTruthy();
+			expect(bookmark.updatedAt).toBeTruthy();
+		});
+
+		test("create with no description defaults to empty string", () => {
+			const bookmark = appDb.createBookmark({
+				connectionId,
+				name: "No Desc",
+				sql: "SELECT 1",
+			});
+			expect(bookmark.description).toBe("");
+		});
+
+		test("getBookmarkById returns the correct bookmark", () => {
+			const created = appDb.createBookmark({
+				connectionId,
+				name: "Lookup",
+				sql: "SELECT * FROM products",
+			});
+			const found = appDb.getBookmarkById(created.id);
+			expect(found).not.toBeNull();
+			expect(found!.id).toBe(created.id);
+			expect(found!.name).toBe("Lookup");
+		});
+
+		test("getBookmarkById returns null for non-existent id", () => {
+			const found = appDb.getBookmarkById("nonexistent");
+			expect(found).toBeNull();
+		});
+
+		test("update modifies name, description, and sql", () => {
+			const created = appDb.createBookmark({
+				connectionId,
+				name: "Original",
+				sql: "SELECT 1",
+			});
+			const updated = appDb.updateBookmark({
+				id: created.id,
+				name: "Updated",
+				description: "Updated description",
+				sql: "SELECT 2",
+			});
+			expect(updated.name).toBe("Updated");
+			expect(updated.description).toBe("Updated description");
+			expect(updated.sql).toBe("SELECT 2");
+			expect(updated.updatedAt).toBeTruthy();
+		});
+
+		test("update throws for non-existent id", () => {
+			expect(() =>
+				appDb.updateBookmark({ id: "nonexistent", name: "X", sql: "SELECT 1" }),
+			).toThrow("Bookmark not found");
+		});
+
+		test("delete removes the bookmark", () => {
+			const created = appDb.createBookmark({
+				connectionId,
+				name: "ToDelete",
+				sql: "SELECT 1",
+			});
+			appDb.deleteBookmark(created.id);
+			expect(appDb.listBookmarks(connectionId)).toHaveLength(0);
+		});
+
+		test("list filters by connectionId", () => {
+			const conn2 = appDb.createConnection({
+				name: "Other",
+				config: { type: "sqlite", path: "/tmp/other.db" },
+			});
+			appDb.createBookmark({ connectionId, name: "BM1", sql: "SELECT 1" });
+			appDb.createBookmark({ connectionId: conn2.id, name: "BM2", sql: "SELECT 2" });
+
+			expect(appDb.listBookmarks(connectionId)).toHaveLength(1);
+			expect(appDb.listBookmarks(conn2.id)).toHaveLength(1);
+		});
+
+		test("list supports search by name and sql", () => {
+			appDb.createBookmark({ connectionId, name: "Active Users", sql: "SELECT * FROM users" });
+			appDb.createBookmark({ connectionId, name: "Recent Orders", sql: "SELECT * FROM orders" });
+			appDb.createBookmark({ connectionId, name: "Products", sql: "SELECT * FROM products" });
+
+			// Search by name
+			const byName = appDb.listBookmarks(connectionId, "active");
+			expect(byName).toHaveLength(1);
+			expect(byName[0].name).toBe("Active Users");
+
+			// Search by SQL
+			const bySql = appDb.listBookmarks(connectionId, "orders");
+			expect(bySql).toHaveLength(1);
+			expect(bySql[0].name).toBe("Recent Orders");
+
+			// No match
+			const noMatch = appDb.listBookmarks(connectionId, "nonexistent");
+			expect(noMatch).toHaveLength(0);
+		});
+
+		test("cascade delete removes bookmarks when connection is deleted", () => {
+			appDb.createBookmark({
+				connectionId,
+				name: "Cascade Test",
+				sql: "SELECT 1",
+			});
+			appDb.deleteConnection(connectionId);
+			expect(appDb.listBookmarks(connectionId)).toHaveLength(0);
 		});
 	});
 });

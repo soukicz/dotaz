@@ -80,6 +80,24 @@ const migrations: Migration[] = [
 			db.run("ALTER TABLE connections ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0");
 		},
 	},
+	{
+		version: 4,
+		description: "Create query_bookmarks table",
+		up: (db) => {
+			db.run(`
+				CREATE TABLE query_bookmarks (
+					id TEXT PRIMARY KEY,
+					connection_id TEXT NOT NULL,
+					name TEXT NOT NULL,
+					description TEXT NOT NULL DEFAULT '',
+					sql TEXT NOT NULL,
+					created_at TEXT NOT NULL DEFAULT (datetime('now')),
+					updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+					FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
+				)
+			`);
+		},
+	},
 ];
 
 /**

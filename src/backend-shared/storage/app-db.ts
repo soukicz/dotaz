@@ -7,6 +7,7 @@ import type {
 	SavedView,
 	SavedViewConfig,
 	HistoryListParams,
+	QueryBookmark,
 } from "../../shared/types/rpc";
 import { encryptLocalPassword, decryptLocalPassword, isEncryptedPassword } from "../services/encryption";
 
@@ -342,6 +343,49 @@ export class AppDatabase {
 			this.db.prepare("DELETE FROM query_history").run();
 		}
 	}
+
+	// ── Bookmarks ────────────────────────────────────────────
+
+	listBookmarks(connectionId: string, search?: string): QueryBookmark[] {
+		if (search) {
+			const rows = this.db.prepare(
+				"SELECT * FROM query_bookmarks WHERE connection_id = ? AND (name LIKE ? OR sql LIKE ?) ORDER BY name",
+			).all(connectionId, `%${search}%`, `%${search}%`) as BookmarkRow[];
+			return rows.map(rowToBookmark);
+		}
+		const rows = this.db.prepare(
+			"SELECT * FROM query_bookmarks WHERE connection_id = ? ORDER BY name",
+		).all(connectionId) as BookmarkRow[];
+		return rows.map(rowToBookmark);
+	}
+
+	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark {
+		const id = crypto.randomUUID();
+		const now = new Date().toISOString();
+		this.db.prepare(
+			"INSERT INTO query_bookmarks (id, connection_id, name, description, sql, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		).run(id, params.connectionId, params.name, params.description ?? "", params.sql, now, now);
+		return this.getBookmarkById(id)!;
+	}
+
+	updateBookmark(params: { id: string; name: string; description?: string; sql: string }): QueryBookmark {
+		const now = new Date().toISOString();
+		this.db.prepare(
+			"UPDATE query_bookmarks SET name = ?, description = ?, sql = ?, updated_at = ? WHERE id = ?",
+		).run(params.name, params.description ?? "", params.sql, now, params.id);
+		const result = this.getBookmarkById(params.id);
+		if (!result) throw new Error(`Bookmark not found: ${params.id}`);
+		return result;
+	}
+
+	deleteBookmark(id: string): void {
+		this.db.prepare("DELETE FROM query_bookmarks WHERE id = ?").run(id);
+	}
+
+	getBookmarkById(id: string): QueryBookmark | null {
+		const row = this.db.prepare("SELECT * FROM query_bookmarks WHERE id = ?").get(id) as BookmarkRow | null;
+		return row ? rowToBookmark(row) : null;
+	}
 }
 
 // ── Row types (SQLite column names) ──────────────────────────
@@ -378,6 +422,16 @@ interface HistoryRow {
 	executed_at: string;
 }
 
+interface BookmarkRow {
+	id: string;
+	connection_id: string;
+	name: string;
+	description: string;
+	sql: string;
+	created_at: string;
+	updated_at: string;
+}
+
 // ── Row-to-domain mappers ────────────────────────────────────
 
 function safeJsonParse<T>(json: string, context: string): T {
@@ -396,6 +450,18 @@ function rowToSavedView(row: SavedViewRow): SavedView {
 		tableName: row.table_name,
 		name: row.name,
 		config: safeJsonParse<SavedViewConfig>(row.config, `saved view "${row.name}"`),
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+}
+
+function rowToBookmark(row: BookmarkRow): QueryBookmark {
+	return {
+		id: row.id,
+		connectionId: row.connection_id,
+		name: row.name,
+		description: row.description,
+		sql: row.sql,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 	};

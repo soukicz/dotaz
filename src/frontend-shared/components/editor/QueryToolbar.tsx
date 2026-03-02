@@ -15,6 +15,7 @@ interface QueryToolbarProps {
 	connectionId: string;
 	database?: string;
 	onOpenHistory?: () => void;
+	onOpenBookmarks?: () => void;
 }
 
 export default function QueryToolbar(props: QueryToolbarProps) {
@@ -146,6 +147,17 @@ export default function QueryToolbar(props: QueryToolbarProps) {
 					title="Query History"
 				>
 					<Icon name="history" size={12} /> History
+				</button>
+			</Show>
+
+			{/* Bookmarks */}
+			<Show when={props.onOpenBookmarks}>
+				<button
+					class="query-toolbar__btn"
+					onClick={props.onOpenBookmarks}
+					title="SQL Bookmarks (Ctrl+D)"
+				>
+					<Icon name="bookmark" size={12} /> Bookmarks
 				</button>
 			</Show>
 

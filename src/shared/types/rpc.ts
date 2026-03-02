@@ -58,6 +58,16 @@ export interface SavedView {
 	updatedAt: string;
 }
 
+export interface QueryBookmark {
+	id: string;
+	connectionId: string;
+	name: string;
+	description: string;
+	sql: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface OpenDialogParams {
 	title?: string;
 	filters?: { name: string; extensions: string[] }[];

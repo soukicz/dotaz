@@ -9,6 +9,7 @@ import ConnectionDialog from "../connection/ConnectionDialog";
 import DatabasePicker from "../connection/DatabasePicker";
 import PasswordDialog from "../connection/PasswordDialog";
 import QueryHistory from "../history/QueryHistory";
+import BookmarksDialog from "../bookmarks/BookmarksDialog";
 import CommandPalette from "../common/CommandPalette";
 import ToastContainer from "../common/Toast";
 import DataGrid from "../grid/DataGrid";
@@ -52,6 +53,9 @@ export default function AppShell() {
 	const [dbPickerOpen, setDbPickerOpen] = createSignal(false);
 	const [dbPickerConnection, setDbPickerConnection] = createSignal<ConnectionInfo | null>(null);
 	const [historyOpen, setHistoryOpen] = createSignal(false);
+	const [bookmarksOpen, setBookmarksOpen] = createSignal(false);
+	const [bookmarksInitialSql, setBookmarksInitialSql] = createSignal<string | undefined>(undefined);
+	const [bookmarksInitialConn, setBookmarksInitialConn] = createSignal<string | undefined>(undefined);
 	const [paletteOpen, setPaletteOpen] = createSignal(false);
 	const [compareOpen, setCompareOpen] = createSignal(false);
 	const [compareInitialLeft, setCompareInitialLeft] = createSignal<{ connectionId: string; schema: string; table: string; database?: string } | undefined>(undefined);
@@ -332,6 +336,35 @@ export default function AppShell() {
 		});
 
 		commandRegistry.register({
+			id: "bookmark-query",
+			label: "Bookmark Query",
+			shortcut: "Ctrl+D",
+			category: "Query",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				if (tab?.type === "sql-console") {
+					const editorTab = editorStore.getTab(tab.id);
+					const sql = editorTab?.content.trim();
+					setBookmarksInitialSql(sql || undefined);
+					setBookmarksInitialConn(tab.connectionId);
+					setBookmarksOpen(true);
+				}
+			},
+		});
+
+		commandRegistry.register({
+			id: "open-bookmarks",
+			label: "Open Bookmarks",
+			category: "Query",
+			handler: () => {
+				const tab = tabsStore.activeTab;
+				setBookmarksInitialSql(undefined);
+				setBookmarksInitialConn(tab?.connectionId);
+				setBookmarksOpen(true);
+			},
+		});
+
+		commandRegistry.register({
 			id: "run-query",
 			label: "Run Query",
 			shortcut: "Ctrl+Enter",
@@ -586,6 +619,7 @@ export default function AppShell() {
 		// SQL console context
 		keyboardManager.register("Ctrl+Enter", "run-query", "sql-console");
 		keyboardManager.register("Ctrl+Shift+F", "format-sql", "sql-console");
+		keyboardManager.register("Ctrl+D", "bookmark-query", "sql-console");
 		keyboardManager.register("Ctrl+Shift+Enter", "commit-transaction", "sql-console");
 		keyboardManager.register("Ctrl+Shift+R", "rollback-transaction", "sql-console");
 
@@ -661,6 +695,11 @@ export default function AppShell() {
 												connectionId={tab.connectionId}
 												database={tab.database}
 												onOpenHistory={() => setHistoryOpen(true)}
+												onOpenBookmarks={() => {
+													setBookmarksInitialSql(undefined);
+													setBookmarksInitialConn(tab.connectionId);
+													setBookmarksOpen(true);
+												}}
 											/>
 											<SqlEditor
 												tabId={tab.id}
@@ -745,6 +784,13 @@ export default function AppShell() {
 			<QueryHistory
 				open={historyOpen()}
 				onClose={() => setHistoryOpen(false)}
+			/>
+
+			<BookmarksDialog
+				open={bookmarksOpen()}
+				onClose={() => setBookmarksOpen(false)}
+				initialSql={bookmarksInitialSql()}
+				initialConnectionId={bookmarksInitialConn()}
 			/>
 
 			<CommandPalette
