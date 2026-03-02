@@ -11,15 +11,16 @@ export interface ColumnMapping {
 	tableColumn: string | null;
 }
 
-export interface ImportPreviewRequest {
+/** Exactly one of fileContent or filePath must be provided. */
+export type ImportSource =
+	| { fileContent: string; filePath?: undefined }
+	| { filePath: string; fileContent?: undefined };
+
+export type ImportPreviewRequest = ImportSource & {
 	connectionId: string;
 	schema: string;
 	table: string;
 	database?: string;
-	/** Raw file content (text) — used in web/demo mode */
-	fileContent?: string;
-	/** Absolute file path — used in desktop mode */
-	filePath?: string;
 	format: ImportFormat;
 	/** CSV delimiter (default: comma) */
 	delimiter?: CsvDelimiter;
@@ -27,7 +28,7 @@ export interface ImportPreviewRequest {
 	hasHeader?: boolean;
 	/** Max rows to preview */
 	limit?: number;
-}
+};
 
 export interface ImportPreviewResult {
 	/** Column names detected from the file */
@@ -40,15 +41,11 @@ export interface ImportPreviewResult {
 	fileSizeBytes?: number;
 }
 
-export interface ImportOptions {
+export type ImportOptions = ImportSource & {
 	connectionId: string;
 	schema: string;
 	table: string;
 	database?: string;
-	/** Raw file content (text) — used in web/demo mode */
-	fileContent?: string;
-	/** Absolute file path — used in desktop mode */
-	filePath?: string;
 	format: ImportFormat;
 	/** CSV delimiter (default: comma) */
 	delimiter?: CsvDelimiter;
@@ -58,7 +55,7 @@ export interface ImportOptions {
 	mappings: ColumnMapping[];
 	/** Batch size for INSERT statements (default: 100) */
 	batchSize?: number;
-}
+};
 
 export interface ImportResult {
 	rowCount: number;

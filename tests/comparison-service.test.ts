@@ -137,6 +137,51 @@ describe("compareData", () => {
 
 	// ── Null handling ────────────────────────────────────────
 
+	test("null key values do not collide with string values", () => {
+		// A value that would collide with the old "\0NULL" sentinel
+		const leftRows = [
+			{ id: 1, key: null, val: "left-null" },
+			{ id: 2, key: "\0NULL", val: "left-string" },
+		];
+		const rightRows = [
+			{ id: 1, key: null, val: "right-null" },
+			{ id: 2, key: "\0NULL", val: "right-string" },
+		];
+
+		const result = compareData(
+			{ columns: ["id", "key", "val"], rows: leftRows },
+			{ columns: ["id", "key", "val"], rows: rightRows },
+			[{ leftColumn: "id", rightColumn: "id" }, { leftColumn: "key", rightColumn: "key" }],
+		);
+
+		// Both rows should match on their composite key — null and "\0NULL" are distinct keys
+		expect(result.stats.matched).toBe(0);
+		expect(result.stats.changed).toBe(2);
+		expect(result.stats.total).toBe(2);
+	});
+
+	test("composite key with nulls stays distinct from non-null", () => {
+		// Two rows: one has (null, "B"), the other has ("A", null)
+		// These must not collide.
+		const leftRows = [
+			{ a: null, b: "B", val: "row1" },
+			{ a: "A", b: null, val: "row2" },
+		];
+		const rightRows = [
+			{ a: null, b: "B", val: "row1" },
+			{ a: "A", b: null, val: "row2" },
+		];
+
+		const result = compareData(
+			{ columns: ["a", "b", "val"], rows: leftRows },
+			{ columns: ["a", "b", "val"], rows: rightRows },
+			[{ leftColumn: "a", rightColumn: "a" }, { leftColumn: "b", rightColumn: "b" }],
+		);
+
+		expect(result.stats.matched).toBe(2);
+		expect(result.stats.total).toBe(2);
+	});
+
 	test("null values — treats null/undefined as equal", () => {
 		const leftRows = [{ id: 1, val: null }];
 		const rightRows = [{ id: 1, val: null }];

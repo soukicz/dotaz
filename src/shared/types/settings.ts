@@ -68,11 +68,20 @@ export function aiConfigToSettings(config: AiConfig): Record<string, string> {
 	};
 }
 
+// ---- Type guards for union types ----
+
+const AI_PROVIDERS: readonly AiProvider[] = ["anthropic", "openai", "custom"];
+
+function isAiProvider(v: string | undefined): v is AiProvider {
+	return AI_PROVIDERS.includes(v as AiProvider);
+}
+
 /** Reconstruct an AiConfig from stored settings, falling back to defaults. */
 export function settingsToAiConfig(settings: Record<string, string>): AiConfig {
 	const get = (key: string): string | undefined => settings[`${AI_PREFIX}${key}`];
+	const provider = get("provider");
 	return {
-		provider: (get("provider") as AiProvider) ?? DEFAULT_AI_CONFIG.provider,
+		provider: isAiProvider(provider) ? provider : DEFAULT_AI_CONFIG.provider,
 		apiKey: get("apiKey") ?? DEFAULT_AI_CONFIG.apiKey,
 		model: get("model") ?? DEFAULT_AI_CONFIG.model,
 		endpoint: get("endpoint") ?? DEFAULT_AI_CONFIG.endpoint,
@@ -95,16 +104,59 @@ export function formatProfileToSettings(profile: FormatProfile): Record<string, 
 	};
 }
 
+// ---- Type guards for format profile union types ----
+
+const DATE_FORMATS: readonly DateFormat[] = [
+	"YYYY-MM-DD HH:mm:ss",
+	"DD.MM.YYYY HH:mm:ss",
+	"MM/DD/YYYY HH:mm:ss",
+	"YYYY-MM-DD",
+	"ISO 8601",
+];
+
+const DECIMAL_SEPARATORS: readonly DecimalSeparator[] = [".", ","];
+
+const THOUSANDS_SEPARATORS: readonly ThousandsSeparator[] = ["", ",", ".", " "];
+
+const BOOLEAN_DISPLAYS: readonly BooleanDisplay[] = ["true/false", "1/0", "yes/no", "\u2713/\u2717"];
+
+const BINARY_DISPLAYS: readonly BinaryDisplay[] = ["hex", "base64", "size"];
+
+function isDateFormat(v: string | undefined): v is DateFormat {
+	return DATE_FORMATS.includes(v as DateFormat);
+}
+
+function isDecimalSeparator(v: string | undefined): v is DecimalSeparator {
+	return DECIMAL_SEPARATORS.includes(v as DecimalSeparator);
+}
+
+function isThousandsSeparator(v: string | undefined): v is ThousandsSeparator {
+	return THOUSANDS_SEPARATORS.includes(v as ThousandsSeparator);
+}
+
+function isBooleanDisplay(v: string | undefined): v is BooleanDisplay {
+	return BOOLEAN_DISPLAYS.includes(v as BooleanDisplay);
+}
+
+function isBinaryDisplay(v: string | undefined): v is BinaryDisplay {
+	return BINARY_DISPLAYS.includes(v as BinaryDisplay);
+}
+
 /** Reconstruct a FormatProfile from stored settings, falling back to defaults. */
 export function settingsToFormatProfile(settings: Record<string, string>): FormatProfile {
 	const get = (key: string): string | undefined => settings[`${FORMAT_PREFIX}${key}`];
+	const dateFormat = get("dateFormat");
+	const decimalSeparator = get("decimalSeparator");
+	const thousandsSeparator = get("thousandsSeparator");
+	const booleanDisplay = get("booleanDisplay");
+	const binaryDisplay = get("binaryDisplay");
 	return {
-		dateFormat: (get("dateFormat") as DateFormat) ?? DEFAULT_FORMAT_PROFILE.dateFormat,
-		decimalSeparator: (get("decimalSeparator") as DecimalSeparator) ?? DEFAULT_FORMAT_PROFILE.decimalSeparator,
-		thousandsSeparator: (get("thousandsSeparator") as ThousandsSeparator) ?? DEFAULT_FORMAT_PROFILE.thousandsSeparator,
+		dateFormat: isDateFormat(dateFormat) ? dateFormat : DEFAULT_FORMAT_PROFILE.dateFormat,
+		decimalSeparator: isDecimalSeparator(decimalSeparator) ? decimalSeparator : DEFAULT_FORMAT_PROFILE.decimalSeparator,
+		thousandsSeparator: isThousandsSeparator(thousandsSeparator) ? thousandsSeparator : DEFAULT_FORMAT_PROFILE.thousandsSeparator,
 		decimalPlaces: get("decimalPlaces") !== undefined ? Number(get("decimalPlaces")) : DEFAULT_FORMAT_PROFILE.decimalPlaces,
 		nullDisplay: get("nullDisplay") ?? DEFAULT_FORMAT_PROFILE.nullDisplay,
-		booleanDisplay: (get("booleanDisplay") as BooleanDisplay) ?? DEFAULT_FORMAT_PROFILE.booleanDisplay,
-		binaryDisplay: (get("binaryDisplay") as BinaryDisplay) ?? DEFAULT_FORMAT_PROFILE.binaryDisplay,
+		booleanDisplay: isBooleanDisplay(booleanDisplay) ? booleanDisplay : DEFAULT_FORMAT_PROFILE.booleanDisplay,
+		binaryDisplay: isBinaryDisplay(binaryDisplay) ? binaryDisplay : DEFAULT_FORMAT_PROFILE.binaryDisplay,
 	};
 }

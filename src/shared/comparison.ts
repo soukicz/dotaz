@@ -30,12 +30,13 @@ export function autoMapColumns(leftColumns: string[], rightColumns: string[]): C
 
 /**
  * Build a composite key string from row values for the given key column mappings.
+ * Uses type-tagged encoding (N\0 for null, V\0 for values) to prevent collisions.
  */
 function buildRowKey(row: Record<string, unknown>, columns: string[]): string {
 	return columns.map((col) => {
 		const val = row[col];
-		if (val === null || val === undefined) return "\0NULL";
-		return String(val);
+		if (val === null || val === undefined) return "N\0";
+		return "V\0" + String(val);
 	}).join("\0");
 }
 
