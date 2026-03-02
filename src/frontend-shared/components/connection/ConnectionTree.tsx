@@ -19,9 +19,11 @@ import FolderOpen from "lucide-solid/icons/folder-open";
 import Plus from "lucide-solid/icons/plus";
 import Lock from "lucide-solid/icons/lock";
 import Database from "lucide-solid/icons/database";
+import SquareTerminal from "lucide-solid/icons/square-terminal";
 import Icon from "../common/Icon";
 import ContextMenu, { type ContextMenuEntry } from "../common/ContextMenu";
 import ConnectionTreeItem from "./ConnectionTreeItem";
+import type { TreeItemAction } from "./ConnectionTreeItem";
 import "./ConnectionTree.css";
 
 interface ConnectionTreeProps {
@@ -338,6 +340,19 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 
 		const items: ContextMenuEntry[] = [
 			{
+				label: "New SQL Console",
+				action: () => {
+					const tabId = tabsStore.openTab({
+						type: "sql-console",
+						title: `SQL — ${conn.name}`,
+						connectionId: conn.id,
+					});
+					editorStore.initTab(tabId, conn.id);
+				},
+				disabled: !isConnected,
+			},
+			"separator",
+			{
 				label: "Connect",
 				action: () => connectionsStore.connectTo(conn.id),
 				disabled: !isDisconnected,
@@ -432,23 +447,6 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		return items;
 	}
 
-	function schemaMenuItems(connectionId: string, schemaName: string, database?: string): ContextMenuEntry[] {
-		return [
-			{
-				label: "New SQL Console",
-				action: () => {
-					const tabId = tabsStore.openTab({
-						type: "sql-console",
-						title: `SQL — ${schemaName}`,
-						connectionId,
-						schema: schemaName,
-						database,
-					});
-					editorStore.initTab(tabId, connectionId, database);
-				},
-			},
-		];
-	}
 
 	function tableMenuItems(connectionId: string, schemaName: string, tableName: string, database?: string): ContextMenuEntry[] {
 		const conn = connectionsStore.connections.find((c) => c.id === connectionId);
@@ -456,20 +454,6 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			{
 				label: "Open Data",
 				action: () => handleTableClick(connectionId, schemaName, tableName, database),
-			},
-			{
-				label: "New SQL Console",
-				action: () => {
-					const tabId = tabsStore.openTab({
-						type: "sql-console",
-						title: `SQL — ${tableName}`,
-						connectionId,
-						schema: schemaName,
-						table: tableName,
-						database,
-					});
-					editorStore.initTab(tabId, connectionId, database);
-				},
 			},
 			{
 				label: "View Schema",
@@ -557,6 +541,24 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		];
 	}
 
+	// ── Hover action builders ────────────────────────────
+
+	function sqlConsoleAction(connectionId: string, label: string, database?: string): TreeItemAction {
+		return {
+			icon: <SquareTerminal size={14} />,
+			title: "New SQL Console",
+			onClick: () => {
+				const tabId = tabsStore.openTab({
+					type: "sql-console",
+					title: `SQL — ${label}`,
+					connectionId,
+					database,
+				});
+				editorStore.initTab(tabId, connectionId, database);
+			},
+		};
+	}
+
 	// ── Table rendering helper with optional views ──────
 
 	function renderTable(conn: ConnectionInfo, schema: SchemaInfo, table: TableInfo, baseLevel: number, database?: string) {
@@ -637,7 +639,6 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 									hasChildren={tables().length > 0}
 									onToggle={() => toggleSchema(sKey())}
 									onClick={() => toggleSchema(sKey())}
-									onContextMenu={(e) => showContextMenu(e, schemaMenuItems(conn.id, schema.name, database))}
 								/>
 
 								<Show when={sExpanded()}>
@@ -749,6 +750,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 									connectionColor={conn.color}
 									loading={loading()}
 									badge={conn.readOnly ? <Lock size={11} class="tree-item__lock" /> : undefined}
+									actions={conn.state === "connected" ? [sqlConsoleAction(conn.id, conn.name)] : undefined}
 									onClick={() => toggleConnection(conn)}
 									onToggle={() => toggleConnection(conn)}
 									onContextMenu={(e) => showContextMenu(e, connectionMenuItems(conn))}
@@ -780,6 +782,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 															icon={<Database size={14} />}
 															expanded={dbExpanded()}
 															hasChildren={dbSchemas().length > 0}
+															actions={[sqlConsoleAction(conn.id, dbName, dbName)]}
 															onToggle={() => toggleDatabase(dbKey())}
 															onClick={() => toggleDatabase(dbKey())}
 															onContextMenu={(e) => showContextMenu(e, databaseMenuItems(conn.id, dbName, isDefault()))}

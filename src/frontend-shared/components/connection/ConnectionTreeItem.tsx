@@ -1,9 +1,15 @@
 import type { JSX } from "solid-js";
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 import Icon from "../common/Icon";
 import "./ConnectionTree.css";
 
 export type TreeItemType = "connection" | "database" | "schema" | "table" | "view";
+
+export interface TreeItemAction {
+	icon: JSX.Element;
+	title: string;
+	onClick: () => void;
+}
 
 interface ConnectionTreeItemProps {
 	label: string;
@@ -16,6 +22,7 @@ interface ConnectionTreeItemProps {
 	connectionColor?: string;
 	loading?: boolean;
 	badge?: JSX.Element;
+	actions?: TreeItemAction[];
 	onClick?: () => void;
 	onToggle?: () => void;
 	onContextMenu?: (e: MouseEvent) => void;
@@ -66,6 +73,25 @@ export default function ConnectionTreeItem(props: ConnectionTreeItemProps) {
 
 			<Show when={props.badge}>
 				{props.badge}
+			</Show>
+
+			<Show when={props.actions && props.actions.length > 0}>
+				<span class="tree-item__actions">
+					<For each={props.actions}>
+						{(action) => (
+							<button
+								class="tree-item__action"
+								title={action.title}
+								onClick={(e) => {
+									e.stopPropagation();
+									action.onClick();
+								}}
+							>
+								{action.icon}
+							</button>
+						)}
+					</For>
+				</span>
 			</Show>
 
 			<Show when={props.statusColor}>

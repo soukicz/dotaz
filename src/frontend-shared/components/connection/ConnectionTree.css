@@ -171,11 +171,50 @@
 	color: var(--ink);
 }
 
+/* ── Hover action buttons ─────────────────────────────── */
+
+.tree-item__actions {
+	display: none;
+	align-items: center;
+	gap: 2px;
+	margin-left: auto;
+	padding-right: var(--spacing-xs);
+}
+
+.tree-item:hover .tree-item__actions {
+	display: flex;
+}
+
+.tree-item__action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border: none;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--ink-muted);
+	cursor: pointer;
+	padding: 0;
+	flex-shrink: 0;
+}
+
+.tree-item__action:hover {
+	background: var(--surface-active);
+	color: var(--ink);
+}
+
 .tree-item__status {
 	flex-shrink: 0;
 	font-size: 8px;
 	margin-left: auto;
 	padding-right: var(--spacing-xs);
+}
+
+/* When actions are present, status dot shouldn't push to right independently */
+.tree-item:hover .tree-item__status {
+	margin-left: 0;
 }
 
 /* ── View items (smaller/muted) ──────────────────────── */
