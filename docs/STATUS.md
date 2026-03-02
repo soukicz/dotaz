@@ -74,7 +74,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-072 | JOIN autocompletion with FK awareness | not started | Auto-complete JOIN ON from FK |
+| DOTAZ-072 | JOIN autocompletion with FK awareness | done | Custom CompletionSource: parses FROM/JOIN tables, looks up FK data, suggests tables with ON clause; supports all JOIN types, aliases, multi-FK |
 | DOTAZ-073 | Pin result tabs in SQL console | not started | Preserve results across queries |
 | DOTAZ-074 | SQL query bookmarks | not started | Save favorite queries |
 | DOTAZ-075 | Full-text search across database tables | not started | Search text in all tables |
@@ -101,5 +101,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-01 — DOTAZ-071 done*
+*Last updated: 2026-03-02 — DOTAZ-072 done*
 

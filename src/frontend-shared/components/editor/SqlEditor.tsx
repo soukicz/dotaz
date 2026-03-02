@@ -12,6 +12,7 @@ import { connectionsStore } from "../../stores/connections";
 import ContextMenu from "../common/ContextMenu";
 import type { ContextMenuEntry } from "../common/ContextMenu";
 import { MIN_EDITOR_HEIGHT } from "../../lib/layout-constants";
+import { createJoinCompletionSource } from "../../lib/join-completion";
 import "./SqlEditor.css";
 
 interface SqlEditorProps {
@@ -285,6 +286,16 @@ export default function SqlEditor(props: SqlEditorProps) {
 			}
 		});
 
+		const sqlite = isSingleSchemaConnection(props.connectionId);
+		const joinCompletionSource = createJoinCompletionSource(
+			props.connectionId,
+			props.database,
+			sqlite,
+		);
+		const joinCompletionExtension = EditorState.languageData.of(() => [
+			{ autocomplete: joinCompletionSource },
+		]);
+
 		const state = EditorState.create({
 			doc: initialContent,
 			extensions: [
@@ -296,6 +307,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 				updateListener,
 				executedHighlightField,
 				errorHighlightField,
+				joinCompletionExtension,
 				placeholder("Write your SQL query here..."),
 				EditorView.lineWrapping,
 			],
