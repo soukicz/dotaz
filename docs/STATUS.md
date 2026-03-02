@@ -105,7 +105,7 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 | Issue | Title | Status | Notes |
 |-------|-------|--------|-------|
-| DOTAZ-096 | Driver `iterate()` and `importBatch()` methods | not started | PG cursors (own reserved conn, REPEATABLE READ), SQLite LIMIT/OFFSET, multi-row VALUES INSERT |
+| DOTAZ-096 | Driver `iterate()` and `importBatch()` methods | done | PG cursors (own reserved conn, REPEATABLE READ), SQLite LIMIT/OFFSET, multi-row VALUES INSERT |
 | DOTAZ-097 | Streaming CSV parser | not started | Async generator, ReadableStream input, RFC 4180, chunk-boundary-safe UTF-8, maxRows for preview |
 | DOTAZ-098 | Export service streaming refactor | not started | `exportToStream()` using `driver.iterate()`, backpressure, no LIMIT/OFFSET in service |
 | DOTAZ-099 | Import service streaming refactor | not started | `importFromStream()` using CSV parser + `driver.importBatch()`, full rollback, filePath/fileContent dispatch |
@@ -114,5 +114,5 @@ All initial implementation phases (DOTAZ-001 through DOTAZ-053) are complete.
 
 ---
 
-*Last updated: 2026-03-02 — DOTAZ-095 done*
+*Last updated: 2026-03-02 — DOTAZ-096 done*
 

@@ -510,6 +510,69 @@ export class PostgresDriver implements DatabaseDriver {
 		return `$${index}`;
 	}
 
+	async *iterate(
+		sql: string,
+		params?: unknown[],
+		batchSize = 1000,
+		signal?: AbortSignal,
+	): AsyncGenerator<Record<string, unknown>[]> {
+		this.ensureConnected();
+		const cursorId = `dotaz_iter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+		const conn = await this.db!.reserve();
+		try {
+			await conn.unsafe("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+			await conn.unsafe(
+				`DECLARE ${cursorId} NO SCROLL CURSOR FOR ${sql}`,
+				params ?? [],
+			);
+			try {
+				while (true) {
+					if (signal?.aborted) {
+						throw new DOMException("Aborted", "AbortError");
+					}
+					const result = await conn.unsafe(
+						`FETCH FORWARD ${batchSize} FROM ${cursorId}`,
+					);
+					const rows = [...result] as Record<string, unknown>[];
+					if (rows.length === 0) break;
+					yield rows;
+					if (rows.length < batchSize) break;
+				}
+			} finally {
+				await conn.unsafe(`CLOSE ${cursorId}`);
+			}
+			await conn.unsafe("COMMIT");
+		} catch (err) {
+			try { await conn.unsafe("ROLLBACK"); } catch { /* ignore rollback errors */ }
+			throw err;
+		} finally {
+			conn.release();
+		}
+	}
+
+	async importBatch(
+		qualifiedTable: string,
+		columns: string[],
+		rows: Record<string, unknown>[],
+	): Promise<number> {
+		this.ensureConnected();
+		if (rows.length === 0) return 0;
+		const quotedCols = columns.map((c) => this.quoteIdentifier(c)).join(", ");
+		const allParams: unknown[] = [];
+		const valueTuples: string[] = [];
+		for (let i = 0; i < rows.length; i++) {
+			const placeholders: string[] = [];
+			for (let j = 0; j < columns.length; j++) {
+				allParams.push(rows[i][columns[j]]);
+				placeholders.push(this.placeholder(allParams.length));
+			}
+			valueTuples.push(`(${placeholders.join(", ")})`);
+		}
+		const sql = `INSERT INTO ${qualifiedTable} (${quotedCols}) VALUES ${valueTuples.join(", ")}`;
+		const result = await this.execute(sql, allParams);
+		return result.affectedRows ?? rows.length;
+	}
+
 	private ensureConnected(): void {
 		if (!this.db || !this.connected) {
 			throw new Error("Not connected. Call connect() first.");

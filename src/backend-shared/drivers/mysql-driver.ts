@@ -395,6 +395,52 @@ export class MysqlDriver implements DatabaseDriver {
 		}));
 	}
 
+	async *iterate(
+		sql: string,
+		params?: unknown[],
+		batchSize = 1000,
+		signal?: AbortSignal,
+	): AsyncGenerator<Record<string, unknown>[]> {
+		this.ensureConnected();
+		let offset = 0;
+		while (true) {
+			if (signal?.aborted) {
+				throw new DOMException("Aborted", "AbortError");
+			}
+			const pagedSql = `${sql} LIMIT ${batchSize} OFFSET ${offset}`;
+			const conn = this.reservedConn ?? this.db!;
+			const result = await conn.unsafe(pagedSql, params ?? []);
+			const rows = [...result] as Record<string, unknown>[];
+			if (rows.length === 0) break;
+			yield rows;
+			if (rows.length < batchSize) break;
+			offset += batchSize;
+		}
+	}
+
+	async importBatch(
+		qualifiedTable: string,
+		columns: string[],
+		rows: Record<string, unknown>[],
+	): Promise<number> {
+		this.ensureConnected();
+		if (rows.length === 0) return 0;
+		const quotedCols = columns.map((c) => this.quoteIdentifier(c)).join(", ");
+		const allParams: unknown[] = [];
+		const valueTuples: string[] = [];
+		for (let i = 0; i < rows.length; i++) {
+			const placeholders: string[] = [];
+			for (let j = 0; j < columns.length; j++) {
+				allParams.push(rows[i][columns[j]]);
+				placeholders.push(this.placeholder(allParams.length));
+			}
+			valueTuples.push(`(${placeholders.join(", ")})`);
+		}
+		const sql = `INSERT INTO ${qualifiedTable} (${quotedCols}) VALUES ${valueTuples.join(", ")}`;
+		const result = await this.execute(sql, allParams);
+		return result.affectedRows ?? rows.length;
+	}
+
 	async beginTransaction(): Promise<void> {
 		this.ensureConnected();
 		const conn = await this.db!.reserve();
