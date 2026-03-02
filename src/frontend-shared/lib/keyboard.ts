@@ -114,6 +114,8 @@ class KeyboardManager {
 
 	/** Core dispatch logic — exported for testing. */
 	handleKeyDown(e: KeyboardEvent) {
+		// Skip if another handler (e.g. CodeMirror keymap) already handled the event
+		if (e.defaultPrevented) return;
 		const combo = comboFromEvent(e);
 		const entry = this.shortcuts.get(combo);
 		if (!entry) return;

@@ -1,6 +1,6 @@
 import { onMount, onCleanup, createSignal, createEffect, Show } from "solid-js";
 import { EditorView, keymap, placeholder, Decoration, type DecorationSet } from "@codemirror/view";
-import { Compartment, EditorState, StateEffect, StateField } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { sql, PostgreSQL, SQLite, MySQL } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
@@ -297,6 +297,24 @@ export default function SqlEditor(props: SqlEditorProps) {
 			{ autocomplete: joinCompletionSource },
 		]);
 
+		// Alt+Click to add cursor at clicked position (multi-cursor support)
+		const altClickCursor = EditorView.domEventHandlers({
+			mousedown(event: MouseEvent, view: EditorView) {
+				if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+					const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+					if (pos != null) {
+						const ranges = [...view.state.selection.ranges, EditorSelection.cursor(pos)];
+						view.dispatch({
+							selection: EditorSelection.create(ranges, ranges.length - 1),
+						});
+						event.preventDefault();
+						return true;
+					}
+				}
+				return false;
+			},
+		});
+
 		const state = EditorState.create({
 			doc: initialContent,
 			extensions: [
@@ -304,6 +322,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 				sqlCompartment.of(sql({ dialect })),
 				createDarkTheme(),
 				syntaxHighlighting(darkHighlightStyle),
+				altClickCursor,
 				executeKeymap,
 				updateListener,
 				executedHighlightField,
