@@ -214,8 +214,9 @@ export function createHandlers(adapter: RpcAdapter) {
 		'bookmarks.list': ({ connectionId, search }: { connectionId: string; search?: string }) => {
 			return adapter.listBookmarks(connectionId, search)
 		},
-		'bookmarks.create': ({ connectionId, name, description, sql }: {
+		'bookmarks.create': ({ connectionId, database, name, description, sql }: {
 			connectionId: string
+			database?: string
 			name: string
 			description?: string
 			sql: string
@@ -223,7 +224,7 @@ export function createHandlers(adapter: RpcAdapter) {
 			if (!name || !name.trim()) {
 				throw new Error('Bookmark name is required')
 			}
-			return adapter.createBookmark({ connectionId, name: name.trim(), description, sql })
+			return adapter.createBookmark({ connectionId, database, name: name.trim(), description, sql })
 		},
 		'bookmarks.update': ({ id, name, description, sql }: {
 			id: string

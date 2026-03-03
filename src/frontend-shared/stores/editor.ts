@@ -166,8 +166,13 @@ const { getTab, ensureTab } = createTabHelpers(() => state.tabs, 'Editor')
 // ── Actions ───────────────────────────────────────────────
 
 function initTab(tabId: string, connectionId: string, database?: string) {
-	if (!getTab(tabId)) {
+	const existing = getTab(tabId)
+	if (!existing) {
 		setState('tabs', tabId, createDefaultEditorState(connectionId, database))
+	} else if (database !== undefined && existing.database !== database) {
+		// Update database if the tab was previously initialized without it
+		// (e.g., SqlEditor.onMount fires before the explicit initTab call)
+		setState('tabs', tabId, 'database', database)
 	}
 }
 
@@ -187,12 +192,13 @@ function setCursorPosition(tabId: string, position: number) {
 	setState('tabs', tabId, 'cursorPosition', position)
 }
 
-function recordHistory(connectionId: string, sql: string, results: QueryResult[]) {
+function recordHistory(connectionId: string, database: string | undefined, sql: string, results: QueryResult[]) {
 	const hasError = results.some((r) => r.error)
 	const totalDuration = results.reduce((sum, r) => sum + (r.durationMs ?? 0), 0)
 	const totalRows = results.reduce((sum, r) => sum + (r.affectedRows ?? r.rowCount ?? 0), 0)
 	storage.addHistoryEntry({
 		connectionId,
+		database,
 		sql,
 		status: hasError ? 'error' : 'success',
 		durationMs: Math.round(totalDuration),
@@ -290,7 +296,7 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0, applyLimit =
 		// Compute editability using original SQL (not the modified one)
 		computeResultEditability(tabId, sql, results)
 
-		recordHistory(tab.connectionId, sql, results)
+		recordHistory(tab.connectionId, tab.database, sql, results)
 		setTxLogVersion((v) => v + 1)
 
 		// Auto-unpin after commit/rollback if configured
@@ -310,7 +316,7 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0, applyLimit =
 			errorOffset: null,
 		})
 
-		recordHistory(tab.connectionId, sql, [{
+		recordHistory(tab.connectionId, tab.database, sql, [{
 			columns: [],
 			rows: [],
 			rowCount: 0,

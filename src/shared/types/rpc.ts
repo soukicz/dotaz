@@ -73,6 +73,7 @@ export interface SavedView {
 export interface QueryBookmark {
 	id: string
 	connectionId: string
+	database?: string
 	name: string
 	description: string
 	sql: string

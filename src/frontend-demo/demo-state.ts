@@ -180,12 +180,13 @@ export class DemoAppState {
 		return result.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
-	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark {
+	createBookmark(params: { connectionId: string; database?: string; name: string; description?: string; sql: string }): QueryBookmark {
 		const id = crypto.randomUUID()
 		const now = new Date().toISOString()
 		const bookmark: QueryBookmark = {
 			id,
 			connectionId: params.connectionId,
+			database: params.database,
 			name: params.name,
 			description: params.description ?? '',
 			sql: params.sql,
@@ -219,6 +220,7 @@ export class DemoAppState {
 
 	addHistory(params: {
 		connectionId: string
+		database?: string
 		sql: string
 		status: QueryHistoryStatus
 		durationMs?: number
@@ -229,6 +231,7 @@ export class DemoAppState {
 		const entry: QueryHistoryEntry = {
 			id: this.historyIdCounter,
 			connectionId: params.connectionId,
+			database: params.database,
 			sql: params.sql,
 			status: params.status,
 			durationMs: params.durationMs,

@@ -233,7 +233,7 @@ export default function SqlEditor(props: SqlEditorProps) {
 	onMount(() => {
 		if (!containerRef) return
 
-		editorStore.initTab(props.tabId, props.connectionId)
+		editorStore.initTab(props.tabId, props.connectionId, props.database)
 		const tab = editorStore.getTab(props.tabId)
 		const initialContent = tab?.content ?? ''
 		const dialect = getDialect(props.connectionId)

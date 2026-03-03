@@ -289,7 +289,7 @@ export class BackendAdapter implements RpcAdapter {
 		return this.appDb.listBookmarks(connectionId, search)
 	}
 
-	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }) {
+	createBookmark(params: { connectionId: string; database?: string; name: string; description?: string; sql: string }) {
 		return this.appDb.createBookmark(params)
 	}
 

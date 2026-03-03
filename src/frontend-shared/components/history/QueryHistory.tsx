@@ -217,12 +217,14 @@ export default function QueryHistory(props: QueryHistoryProps) {
 	}
 
 	function handleRunAgain(entry: QueryHistoryEntry) {
+		const label = entry.database ?? connectionName(entry.connectionId)
 		const tabId = tabsStore.openTab({
 			type: 'sql-console',
-			title: 'SQL Console',
+			title: `SQL — ${label}`,
 			connectionId: entry.connectionId,
+			database: entry.database,
 		})
-		editorStore.initTab(tabId, entry.connectionId)
+		editorStore.initTab(tabId, entry.connectionId, entry.database)
 		editorStore.setContent(tabId, entry.sql)
 		props.onClose()
 	}

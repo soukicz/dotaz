@@ -19,6 +19,8 @@ interface BookmarksDialogProps {
 	initialSql?: string
 	/** Pre-fill connection from the active editor */
 	initialConnectionId?: string
+	/** Pre-fill database from the active editor */
+	initialDatabase?: string
 }
 
 const SQL_TRUNCATE_LENGTH = 100
@@ -37,6 +39,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	const [formName, setFormName] = createSignal('')
 	const [formDescription, setFormDescription] = createSignal('')
 	const [formSql, setFormSql] = createSignal('')
+	const [formDatabase, setFormDatabase] = createSignal<string | undefined>(undefined)
 	const [formError, setFormError] = createSignal<string | null>(null)
 	const [saving, setSaving] = createSignal(false)
 
@@ -55,6 +58,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 			if (props.initialSql && connId) {
 				setCreating(true)
 				setFormSql(props.initialSql)
+				setFormDatabase(props.initialDatabase)
 			}
 
 			loadBookmarks(connId)
@@ -69,6 +73,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 		setFormName('')
 		setFormDescription('')
 		setFormSql('')
+		setFormDatabase(undefined)
 		setFormError(null)
 		setSaving(false)
 	}
@@ -116,13 +121,14 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 		setEditing(null)
 		setCreating(true)
 		resetForm()
-		// Pre-fill SQL from active editor
+		// Pre-fill SQL and database from active editor
 		const activeTab = tabsStore.activeTab
 		if (activeTab?.type === 'sql-console') {
 			const tab = editorStore.getTab(activeTab.id)
 			if (tab?.content.trim()) {
 				setFormSql(tab.content)
 			}
+			setFormDatabase(activeTab.database)
 		}
 	}
 
@@ -175,6 +181,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 				}
 				await rpc.bookmarks.create({
 					connectionId: connId,
+					database: formDatabase(),
 					name,
 					description: formDescription().trim(),
 					sql: sqlText,
@@ -218,8 +225,9 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 			type: 'sql-console',
 			title: bookmark.name,
 			connectionId: bookmark.connectionId,
+			database: bookmark.database,
 		})
-		editorStore.initTab(tabId, bookmark.connectionId)
+		editorStore.initTab(tabId, bookmark.connectionId, bookmark.database)
 		editorStore.setContent(tabId, bookmark.sql)
 		props.onClose()
 	}

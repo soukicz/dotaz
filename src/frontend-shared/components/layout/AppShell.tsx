@@ -72,6 +72,7 @@ export default function AppShell() {
 	const [bookmarksOpen, setBookmarksOpen] = createSignal(false)
 	const [bookmarksInitialSql, setBookmarksInitialSql] = createSignal<string | undefined>(undefined)
 	const [bookmarksInitialConn, setBookmarksInitialConn] = createSignal<string | undefined>(undefined)
+	const [bookmarksInitialDb, setBookmarksInitialDb] = createSignal<string | undefined>(undefined)
 	const [paletteOpen, setPaletteOpen] = createSignal(false)
 	const [tabSwitcherOpen, setTabSwitcherOpen] = createSignal(false)
 	const [compareOpen, setCompareOpen] = createSignal(false)
@@ -472,12 +473,17 @@ export default function AppShell() {
 			handler: () => {
 				const conn = connectionsStore.activeConnection
 				if (!conn) return
+				// Use the active tab's database if it belongs to the same connection
+				const activeTab = tabsStore.activeTab
+				const database = activeTab?.connectionId === conn.id ? activeTab?.database : undefined
+				const label = database ?? conn.name
 				const tabId = tabsStore.openTab({
 					type: 'sql-console',
-					title: `SQL — ${conn.name}`,
+					title: `SQL — ${label}`,
 					connectionId: conn.id,
+					database,
 				})
-				editorStore.initTab(tabId, conn.id)
+				editorStore.initTab(tabId, conn.id, database)
 			},
 		})
 
@@ -580,6 +586,7 @@ export default function AppShell() {
 					const sql = editorTab?.content.trim()
 					setBookmarksInitialSql(sql || undefined)
 					setBookmarksInitialConn(tab.connectionId)
+					setBookmarksInitialDb(tab.database)
 					setBookmarksOpen(true)
 				}
 			},
@@ -593,6 +600,7 @@ export default function AppShell() {
 				const tab = tabsStore.activeTab
 				setBookmarksInitialSql(undefined)
 				setBookmarksInitialConn(tab?.connectionId)
+				setBookmarksInitialDb(tab?.type === 'sql-console' ? tab.database : undefined)
 				setBookmarksOpen(true)
 			},
 		})
@@ -1038,6 +1046,7 @@ export default function AppShell() {
 												onOpenBookmarks={() => {
 													setBookmarksInitialSql(undefined)
 													setBookmarksInitialConn(tab.connectionId)
+													setBookmarksInitialDb(tab.database)
 													setBookmarksOpen(true)
 												}}
 												onToggleTransactionLog={() => setTxLogOpen((v) => !v)}
@@ -1119,6 +1128,7 @@ export default function AppShell() {
 				onClose={() => setBookmarksOpen(false)}
 				initialSql={bookmarksInitialSql()}
 				initialConnectionId={bookmarksInitialConn()}
+				initialDatabase={bookmarksInitialDb()}
 			/>
 
 			<CommandPalette

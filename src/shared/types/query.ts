@@ -68,6 +68,7 @@ export type QueryHistoryStatus = 'success' | 'error'
 export interface QueryHistoryEntry {
 	id: number
 	connectionId: string
+	database?: string
 	sql: string
 	status: QueryHistoryStatus
 	durationMs?: number

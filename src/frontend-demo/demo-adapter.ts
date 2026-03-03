@@ -330,7 +330,7 @@ export class DemoAdapter implements RpcAdapter {
 		return this.state.listBookmarks(connectionId, search)
 	}
 
-	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark {
+	createBookmark(params: { connectionId: string; database?: string; name: string; description?: string; sql: string }): QueryBookmark {
 		return this.state.createBookmark(params)
 	}
 

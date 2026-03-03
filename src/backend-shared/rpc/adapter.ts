@@ -79,7 +79,7 @@ export interface RpcAdapter {
 
 	// ── Bookmarks ────────────────────────────────────────
 	listBookmarks(connectionId: string, search?: string): QueryBookmark[]
-	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark
+	createBookmark(params: { connectionId: string; database?: string; name: string; description?: string; sql: string }): QueryBookmark
 	updateBookmark(params: { id: string; name: string; description?: string; sql: string }): QueryBookmark
 	deleteBookmark(id: string): void
 

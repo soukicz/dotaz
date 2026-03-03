@@ -29,12 +29,12 @@ describe('AppDatabase', () => {
 
 	test('migrations run automatically on initialization', () => {
 		const version = getSchemaVersion(appDb.db)
-		expect(version).toBe(6)
+		expect(version).toBe(7)
 	})
 
 	test('schema_version table tracks current version', () => {
 		const rows = appDb.db.prepare('SELECT version FROM schema_version ORDER BY version').all() as { version: number }[]
-		expect(rows.map(r => r.version)).toEqual([1, 2, 3, 4, 5, 6])
+		expect(rows.map(r => r.version)).toEqual([1, 2, 3, 4, 5, 6, 7])
 	})
 
 	test('migration 002 converts boolean SSL to SSLMode string', () => {

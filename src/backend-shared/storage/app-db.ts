@@ -307,6 +307,7 @@ export class AppDatabase {
 
 	addHistory(params: {
 		connectionId: string
+		database?: string
 		sql: string
 		status: QueryHistoryStatus
 		durationMs?: number
@@ -314,9 +315,10 @@ export class AppDatabase {
 		errorMessage?: string
 	}): QueryHistoryEntry {
 		const result = this.db.prepare(
-			'INSERT INTO query_history (connection_id, sql, status, duration_ms, row_count, error_message) VALUES (?, ?, ?, ?, ?, ?) RETURNING *',
+			'INSERT INTO query_history (connection_id, database, sql, status, duration_ms, row_count, error_message) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *',
 		).get(
 			params.connectionId,
+			params.database ?? null,
 			params.sql,
 			params.status,
 			params.durationMs ?? null,
@@ -398,12 +400,12 @@ export class AppDatabase {
 		return rows.map(rowToBookmark)
 	}
 
-	createBookmark(params: { connectionId: string; name: string; description?: string; sql: string }): QueryBookmark {
+	createBookmark(params: { connectionId: string; database?: string; name: string; description?: string; sql: string }): QueryBookmark {
 		const id = crypto.randomUUID()
 		const now = new Date().toISOString()
 		this.db.prepare(
-			'INSERT INTO query_bookmarks (id, connection_id, name, description, sql, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-		).run(id, params.connectionId, params.name, params.description ?? '', params.sql, now, now)
+			'INSERT INTO query_bookmarks (id, connection_id, database, name, description, sql, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+		).run(id, params.connectionId, params.database ?? null, params.name, params.description ?? '', params.sql, now, now)
 		return this.getBookmarkById(id)!
 	}
 
@@ -467,6 +469,7 @@ interface SavedViewRow {
 interface HistoryRow {
 	id: number
 	connection_id: string
+	database: string | null
 	sql: string
 	status: string
 	duration_ms: number | null
@@ -478,6 +481,7 @@ interface HistoryRow {
 interface BookmarkRow {
 	id: string
 	connection_id: string
+	database: string | null
 	name: string
 	description: string
 	sql: string
@@ -512,6 +516,7 @@ function rowToBookmark(row: BookmarkRow): QueryBookmark {
 	return {
 		id: row.id,
 		connectionId: row.connection_id,
+		database: row.database ?? undefined,
 		name: row.name,
 		description: row.description,
 		sql: row.sql,
@@ -524,6 +529,7 @@ function rowToHistoryEntry(row: HistoryRow): QueryHistoryEntry {
 	return {
 		id: row.id,
 		connectionId: row.connection_id,
+		database: row.database ?? undefined,
 		sql: row.sql,
 		status: row.status as QueryHistoryStatus,
 		durationMs: row.duration_ms ?? undefined,

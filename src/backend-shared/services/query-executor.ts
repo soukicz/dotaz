@@ -377,6 +377,7 @@ export class QueryExecutor {
 		try {
 			this.appDb.addHistory({
 				connectionId,
+				database,
 				sql,
 				status: hasError ? 'error' : 'success',
 				durationMs: Math.round(totalDuration),

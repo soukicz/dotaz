@@ -338,6 +338,8 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		const isDisconnected = conn.state === 'disconnected' || conn.state === 'error'
 		const supportsMultiDb = CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase
 
+		const defaultDb = supportsMultiDb ? getDefaultDatabase(conn.config) : undefined
+
 		const items: ContextMenuEntry[] = [
 			{
 				label: 'New SQL Console',
@@ -346,8 +348,9 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 						type: 'sql-console',
 						title: `SQL — ${conn.name}`,
 						connectionId: conn.id,
+						database: defaultDb,
 					})
-					editorStore.initTab(tabId, conn.id)
+					editorStore.initTab(tabId, conn.id, defaultDb)
 				},
 				disabled: !isConnected,
 			},
@@ -755,7 +758,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 									connectionColor={conn.color}
 									loading={loading()}
 									badge={conn.readOnly ? <Lock size={11} class="tree-item__lock" /> : undefined}
-									actions={conn.state === 'connected' ? [sqlConsoleAction(conn.id, conn.name)] : undefined}
+									actions={conn.state === 'connected' ? [sqlConsoleAction(conn.id, conn.name, CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase ? getDefaultDatabase(conn.config) : undefined)] : undefined}
 									onClick={() => toggleConnection(conn)}
 									onToggle={() => toggleConnection(conn)}
 									onContextMenu={(e) => showContextMenu(e, connectionMenuItems(conn))}

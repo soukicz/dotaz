@@ -118,6 +118,14 @@ const migrations: Migration[] = [
 			`)
 		},
 	},
+	{
+		version: 7,
+		description: 'Add database column to query_history and query_bookmarks',
+		up: (db) => {
+			db.run('ALTER TABLE query_history ADD COLUMN database TEXT DEFAULT NULL')
+			db.run('ALTER TABLE query_bookmarks ADD COLUMN database TEXT DEFAULT NULL')
+		},
+	},
 ]
 
 /**
