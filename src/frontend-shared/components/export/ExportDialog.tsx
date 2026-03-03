@@ -1,3 +1,4 @@
+import ClipboardCopy from 'lucide-solid/icons/clipboard-copy'
 import Download from 'lucide-solid/icons/download'
 import Eye from 'lucide-solid/icons/eye'
 import { createEffect, createSignal, For, Show } from 'solid-js'
@@ -75,6 +76,8 @@ export default function ExportDialog(props: ExportDialogProps) {
 		} | null
 	>(null)
 	const [error, setError] = createSignal<string | null>(null)
+	const [copying, setCopying] = createSignal(false)
+	const [copied, setCopied] = createSignal(false)
 
 	const caps = () => getCapabilities()
 	const tab = () => gridStore.getTab(props.tabId)
@@ -119,6 +122,8 @@ export default function ExportDialog(props: ExportDialogProps) {
 			setProgressRows(0)
 			setExportResult(null)
 			setError(null)
+			setCopying(false)
+			setCopied(false)
 		}
 	})
 
@@ -331,6 +336,35 @@ export default function ExportDialog(props: ExportDialogProps) {
 				unsub()
 				unsubComplete()
 			}, 5000)
+		}
+	}
+
+	async function handleCopyToClipboard() {
+		setCopying(true)
+		setCopied(false)
+		setError(null)
+
+		try {
+			const params: ExportPreviewRequest = {
+				connectionId: props.connectionId,
+				schema: props.schema,
+				table: props.table,
+				format: format(),
+				limit: Number.MAX_SAFE_INTEGER,
+				delimiter: format() === 'csv' ? delimiter() : undefined,
+				filters: getExportFilters(),
+				sort: getExportSort(),
+				database: props.database,
+			}
+
+			const result = await rpc.export.preview(params)
+			await navigator.clipboard.writeText(result.content)
+			setCopied(true)
+			setTimeout(() => setCopied(false), 2000)
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err))
+		} finally {
+			setCopying(false)
 		}
 	}
 
@@ -554,6 +588,13 @@ export default function ExportDialog(props: ExportDialogProps) {
 						onClick={props.onClose}
 					>
 						Close
+					</button>
+					<button
+						class="btn btn--secondary"
+						onClick={handleCopyToClipboard}
+						disabled={copying() || exporting()}
+					>
+						<ClipboardCopy size={14} /> {copying() ? 'Copying...' : copied() ? 'Copied!' : 'Copy to Clipboard'}
 					</button>
 					<button
 						class="btn btn--primary"
