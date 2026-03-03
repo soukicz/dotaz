@@ -26,5 +26,7 @@ jobs:
       - name: Type check
         run: bun run typecheck
 
-      - name: Test
-        run: bun test tests/
+      - name: Test (unit — no external DB required)
+        run: |
+          shopt -s extglob
+          bun test tests/!(pg-*|postgres-*|mysql-*|driver-iterate|ui-store).test.ts
