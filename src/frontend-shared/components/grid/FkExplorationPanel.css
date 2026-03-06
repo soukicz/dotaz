@@ -114,49 +114,53 @@
 	background: var(--surface-hover);
 }
 
-/* ── Table ────────────────────────────────────── */
+/* ── Vertical field list ─────────────────────── */
 
-.fk-panel__table-wrap {
+.fk-panel__body {
 	flex: 1;
-	overflow: auto;
+	overflow-y: auto;
+	padding: var(--spacing-sm);
 }
 
-.fk-panel__table {
-	width: 100%;
-	border-collapse: collapse;
-	font-family: var(--font-mono);
+.fk-panel__field {
+	display: flex;
+	gap: var(--spacing-sm);
+	padding: 3px 0;
 	font-size: var(--font-size-sm);
-}
-
-.fk-panel__table th {
-	position: sticky;
-	top: 0;
-	background: var(--surface-raised);
-	border-bottom: 1px solid var(--edge-strong);
-	padding: 4px var(--spacing-sm);
-	text-align: left;
-	font-weight: 500;
-	color: var(--ink-secondary);
-	white-space: nowrap;
-	z-index: 1;
-}
-
-.fk-panel__table td {
-	padding: 3px var(--spacing-sm);
 	border-bottom: 1px solid var(--edge);
+}
+
+.fk-panel__field:last-child {
+	border-bottom: none;
+}
+
+.fk-panel__field-name {
+	font-family: var(--font-mono);
+	color: var(--ink-secondary);
+	min-width: 100px;
+	max-width: 140px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 200px;
-	color: var(--ink);
+	flex-shrink: 0;
 }
 
-.fk-panel__cell--null {
+.fk-panel__field-value {
+	font-family: var(--font-mono);
+	color: var(--ink);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1;
+	min-width: 0;
+}
+
+.fk-panel__field-value--null {
 	color: var(--ink-muted);
 	font-style: italic;
 }
 
-.fk-panel__cell--fk {
+.fk-panel__field-value--fk {
 	color: var(--accent);
 	cursor: pointer;
 	text-decoration: underline;
@@ -164,7 +168,7 @@
 	text-underline-offset: 2px;
 }
 
-.fk-panel__cell--fk:hover {
+.fk-panel__field-value--fk:hover {
 	color: var(--accent-hover);
 }
 
@@ -186,7 +190,7 @@
 	font-size: var(--font-size-sm);
 }
 
-/* ── Footer / Pagination ─────────────────────── */
+/* ── Footer / Row navigation ────────────────── */
 
 .fk-panel__footer {
 	display: flex;

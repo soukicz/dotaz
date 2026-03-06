@@ -154,6 +154,7 @@ export interface FkPanelState {
 	foreignKeys: ForeignKeyInfo[]
 	totalCount: number
 	currentPage: number
+	currentRowIndex: number
 	pageSize: number
 	loading: boolean
 }
@@ -1525,6 +1526,7 @@ async function openFkPanel(
 		foreignKeys: [],
 		totalCount: 0,
 		currentPage: 1,
+		currentRowIndex: 0,
 		pageSize: 100,
 		loading: true,
 	})
@@ -1610,6 +1612,7 @@ async function fkPanelNavigate(
 		filters: newFilters,
 		breadcrumbs: newBreadcrumbs,
 		currentPage: 1,
+		currentRowIndex: 0,
 		loading: true,
 	})
 
@@ -1631,6 +1634,7 @@ async function fkPanelBack(tabId: string) {
 		filters: [{ column: prev.column, operator: 'eq', value: String(prev.value) }],
 		breadcrumbs: prevBreadcrumbs,
 		currentPage: 1,
+		currentRowIndex: 0,
 		loading: true,
 	})
 
@@ -1647,8 +1651,16 @@ async function fkPanelSetPage(tabId: string, page: number) {
 	const tab = ensureTab(tabId)
 	if (!tab.fkPanel) return
 	setState('tabs', tabId, 'fkPanel', 'currentPage', page)
+	setState('tabs', tabId, 'fkPanel', 'currentRowIndex', 0)
 	setState('tabs', tabId, 'fkPanel', 'loading', true)
 	await fetchFkPanelData(tabId)
+}
+
+function fkPanelSetRowIndex(tabId: string, index: number) {
+	const tab = ensureTab(tabId)
+	if (!tab.fkPanel) return
+	const maxIndex = Math.max(0, tab.fkPanel.rows.length - 1)
+	setState('tabs', tabId, 'fkPanel', 'currentRowIndex', Math.min(Math.max(0, index), maxIndex))
 }
 
 function toggleTranspose(tabId: string) {
@@ -1819,6 +1831,7 @@ export const gridStore = {
 	fkPanelBack,
 	fkPanelResize,
 	fkPanelSetPage,
+	fkPanelSetRowIndex,
 
 	// Saved views
 	setActiveView,

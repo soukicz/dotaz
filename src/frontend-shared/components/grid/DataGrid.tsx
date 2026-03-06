@@ -23,7 +23,7 @@ import ContextMenu from '../common/ContextMenu'
 import type { ContextMenuEntry } from '../common/ContextMenu'
 import Icon from '../common/Icon'
 import PendingChanges from '../edit/PendingChanges'
-import RowDetailDialog from '../edit/RowDetailDialog'
+import RowDetailPanel from '../edit/RowDetailPanel'
 import ExportDialog from '../export/ExportDialog'
 import ImportDialog from '../import/ImportDialog'
 import SaveViewDialog from '../views/SaveViewDialog'
@@ -73,6 +73,7 @@ export default function DataGrid(props: DataGridProps) {
 	const [fkMap, setFkMap] = createSignal<Map<string, FkTarget>>(new Map())
 	const [copyFeedback, setCopyFeedback] = createSignal<string | null>(null)
 	const [rowDetailIndex, setRowDetailIndex] = createSignal<number | null>(null)
+	const [rowDetailWidth, setRowDetailWidth] = createSignal(500)
 	const [showPendingPanel, setShowPendingPanel] = createSignal(false)
 	const [savingChanges, setSavingChanges] = createSignal(false)
 	const [saveError, setSaveError] = createSignal<string | null>(null)
@@ -430,6 +431,7 @@ export default function DataGrid(props: DataGridProps) {
 		if (!t) return
 		const indices = getSelectedRowIndices(t.selection)
 		if (indices.length === 0) return
+		gridStore.closeFkPanel(props.tabId)
 		setRowDetailIndex(indices[0])
 	}
 
@@ -993,6 +995,7 @@ export default function DataGrid(props: DataGridProps) {
 				label: 'Row Detail',
 				action: () => {
 					gridStore.selectFullRow(props.tabId, rowIndex, visibleColumns().length)
+					gridStore.closeFkPanel(props.tabId)
 					setRowDetailIndex(rowIndex)
 				},
 			},
@@ -1042,6 +1045,7 @@ export default function DataGrid(props: DataGridProps) {
 			items.push({
 				label: `Open ${fkTarget.table} in Panel`,
 				action: () => {
+					setRowDetailIndex(null)
 					gridStore.openFkPanel(
 						props.tabId,
 						fkTarget.schema,
@@ -1520,8 +1524,40 @@ export default function DataGrid(props: DataGridProps) {
 											gridStore.fkPanelResize(props.tabId, (panel().width ?? 500) + delta)
 										}}
 										onPageChange={(page) => gridStore.fkPanelSetPage(props.tabId, page)}
+										onRowIndexChange={(index) => gridStore.fkPanelSetRowIndex(props.tabId, index)}
 									/>
 								)}
+							</Show>
+
+							<Show when={rowDetailIndex() !== null}>
+								{(_) => {
+									const t = tab()!
+									return (
+										<RowDetailPanel
+											tabId={props.tabId}
+											connectionId={props.connectionId}
+											schema={currentSchema()}
+											table={currentTable()}
+											database={props.database}
+											columns={t.columns}
+											rows={t.rows}
+											rowIndex={rowDetailIndex()!}
+											foreignKeys={foreignKeys()}
+											pendingCellEdits={t.pendingChanges.cellEdits}
+											width={rowDetailWidth()}
+											onSave={handleRowDetailSave}
+											onClose={handleRowDetailClose}
+											onNavigate={handleRowDetailNavigate}
+											onNavigateToTable={(schema, table, filters) => {
+												setRowDetailIndex(null)
+												gridStore.openFkPanel(props.tabId, schema, table, filters)
+											}}
+											onResize={(delta) => {
+												setRowDetailWidth((w) => Math.min(1200, Math.max(250, w + delta)))
+											}}
+										/>
+									)
+								}}
 							</Show>
 						</div>
 
@@ -1646,6 +1682,7 @@ export default function DataGrid(props: DataGridProps) {
 							const p = peek()
 							const bc = p.breadcrumbs[p.breadcrumbs.length - 1]
 							if (!bc) return
+							setRowDetailIndex(null)
 							gridStore.openFkPanel(
 								props.tabId,
 								p.schema,
@@ -1680,33 +1717,6 @@ export default function DataGrid(props: DataGridProps) {
 				)}
 			</Show>
 
-			<Show when={rowDetailIndex() !== null}>
-				{(_) => {
-					const t = tab()!
-					return (
-						<RowDetailDialog
-							open={true}
-							tabId={props.tabId}
-							connectionId={props.connectionId}
-							schema={currentSchema()}
-							table={currentTable()}
-							database={props.database}
-							columns={t.columns}
-							rows={t.rows}
-							rowIndex={rowDetailIndex()!}
-							foreignKeys={foreignKeys()}
-							pendingCellEdits={t.pendingChanges.cellEdits}
-							onSave={handleRowDetailSave}
-							onClose={handleRowDetailClose}
-							onNavigate={handleRowDetailNavigate}
-							onNavigateToTable={(schema, table, filters) => {
-								setRowDetailIndex(null)
-								gridStore.openFkPanel(props.tabId, schema, table, filters)
-							}}
-						/>
-					)
-				}}
-			</Show>
 
 			<SaveViewDialog
 				open={saveViewOpen()}
