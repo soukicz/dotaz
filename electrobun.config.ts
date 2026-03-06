@@ -6,10 +6,10 @@ export default {
 		identifier: 'dotaz.electrobun.dev',
 		version: '0.0.1',
 	},
-	bun: {
-		entrypoint: 'src/backend-desktop/index.ts',
-	},
 	build: {
+		bun: {
+			entrypoint: 'src/backend-desktop/index.ts',
+		},
 		copy: {
 			'dist/index.html': 'views/mainview/index.html',
 			'dist/assets': 'views/mainview/assets',

@@ -6,9 +6,7 @@
 	"description": "Desktop database client built on Electrobun",
 	"scripts": {
 		"start": "vite build && WEBKIT_DISABLE_COMPOSITING_MODE=1 electrobun dev",
-		"dev": "WEBKIT_DISABLE_COMPOSITING_MODE=1 electrobun dev --watch",
-		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
-		"hmr": "vite --port 6400",
+		"dev": "concurrently \"vite --port 6400\" \"WEBKIT_DISABLE_COMPOSITING_MODE=1 electrobun dev --watch\"",
 		"build:canary": "vite build && electrobun build --env=canary",
 		"test": "bun test",
 		"test:sqlite": "bun test tests/sqlite-smoke.test.ts",

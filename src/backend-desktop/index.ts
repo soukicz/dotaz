@@ -8,7 +8,7 @@ import { createLocalKey } from '../backend-shared/services/encryption'
 import { AppDatabase, setDefaultDbPath } from '../backend-shared/storage/app-db'
 import type { DotazRPC } from '../backend-types'
 
-const DEV_SERVER_PORT = 5173
+const DEV_SERVER_PORT = 6400
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
 
 // Check if Vite dev server is running for HMR

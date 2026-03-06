@@ -17,10 +17,7 @@ Runs in three modes:
 ## Commands
 
 ```bash
-# Development — desktop with HMR (recommended)
-bun run dev:hmr
-
-# Development — desktop without HMR
+# Development — desktop (Vite HMR + Electrobun)
 bun run dev
 
 # Development — web mode (HTTP + WebSocket)
