@@ -106,6 +106,7 @@ export default function TransposedGrid(props: TransposedGridProps) {
 											'transposed-grid__cell-wrapper--selected': props.selectedRows.has(rowIdx()),
 										}}
 										data-column={col.name}
+										data-row-index={rowIdx()}
 										onClick={(e) => props.onRowClick(rowIdx(), e)}
 										onDblClick={(e) => props.onRowDblClick?.(rowIdx(), e)}
 									>

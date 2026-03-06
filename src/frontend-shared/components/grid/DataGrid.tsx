@@ -200,10 +200,10 @@ export default function DataGrid(props: DataGridProps) {
 		return gridStore.computeHeatmapStats(t)
 	})
 
-	// Wait for the connection to be ready before initial data load.
+	// Wait for the connection to be ready AND schema to be loaded before initial data load.
 	// On workspace restore, tabs mount before connections are established —
-	// this effect defers the fetch until the connection is actually available.
-	// If the connection is disconnected, trigger reconnect automatically.
+	// this effect defers the fetch until the connection is actually available
+	// and schema metadata (columns) has been cached.
 	let didInitialLoad = false
 	let didTriggerReconnect = false
 	createEffect(() => {
@@ -211,6 +211,11 @@ export default function DataGrid(props: DataGridProps) {
 		if (!conn || didInitialLoad) return
 
 		if (conn.state === 'connected') {
+			// Also wait for schema to be loaded — on workspace restore, the connection
+			// may be marked 'connected' before schema data arrives from the server.
+			const schemaData = connectionsStore.getSchemaData(props.connectionId, props.database)
+			if (!schemaData) return
+
 			didInitialLoad = true
 			untrack(async () => {
 				const existing = gridStore.getTab(props.tabId)
@@ -626,18 +631,17 @@ export default function DataGrid(props: DataGridProps) {
 		const columnName = cellEl.dataset.column
 		if (!columnName) return
 
-		const t = tab()
-		if (!t) return
-
-		const focusedCell = t.focusedCell
-		if (!focusedCell) return
+		const rowEl = target.closest<HTMLElement>('[data-row-index]')
+		if (!rowEl) return
+		const rowIndex = Number(rowEl.dataset.rowIndex)
+		if (Number.isNaN(rowIndex)) return
 
 		e.preventDefault()
 		setHeaderContextMenu(null)
 		setCellContextMenu({
 			x: e.clientX,
 			y: e.clientY,
-			rowIndex: focusedCell.row,
+			rowIndex,
 			column: columnName,
 		})
 	}

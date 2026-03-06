@@ -52,6 +52,7 @@ export default function GridRow(props: GridRowProps) {
 				'grid-row--deleted': !!props.isDeleted,
 				'grid-row--new': !!props.isNewRow,
 			}}
+			data-row-index={props.index}
 			style={props.style}
 			onClick={handleClick}
 			onDblClick={handleDblClick}
