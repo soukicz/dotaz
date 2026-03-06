@@ -506,6 +506,21 @@ function addCellRange(tabId: string, row: number, col: number) {
 	})
 }
 
+function extendLastRange(tabId: string, toRow: number, toCol: number) {
+	const tab = ensureTab(tabId)
+	const anchor = tab.selection.anchor ?? { row: toRow, col: toCol }
+	const range = normalizeRange(anchor.row, toRow, anchor.col, toCol)
+	const ranges = tab.selection.ranges.length > 1
+		? [...tab.selection.ranges.slice(0, -1), range]
+		: [range]
+	setState('tabs', tabId, 'selection', {
+		focusedCell: { row: toRow, col: toCol },
+		ranges,
+		anchor,
+		selectMode: tab.selection.selectMode,
+	})
+}
+
 function selectFullRow(tabId: string, rowIndex: number, totalCols: number) {
 	ensureTab(tabId)
 	const range = normalizeRange(rowIndex, rowIndex, 0, totalCols - 1)
@@ -566,6 +581,44 @@ function selectFullColumn(tabId: string, colIndex: number, totalRows: number) {
 		anchor: { row: 0, col: colIndex },
 		selectMode: 'columns',
 	})
+}
+
+function selectFullColumnRange(tabId: string, toColIndex: number, totalRows: number) {
+	const tab = ensureTab(tabId)
+	const anchor = tab.selection.anchor ?? { row: 0, col: toColIndex }
+	const range = normalizeRange(0, totalRows - 1, anchor.col, toColIndex)
+	setState('tabs', tabId, 'selection', {
+		focusedCell: { row: 0, col: toColIndex },
+		ranges: [range],
+		anchor,
+		selectMode: 'columns',
+	})
+}
+
+function toggleFullColumn(tabId: string, colIndex: number, totalRows: number) {
+	const tab = ensureTab(tabId)
+	const range = normalizeRange(0, totalRows - 1, colIndex, colIndex)
+	const alreadySelected = tab.selection.ranges.some(
+		(r) => r.minCol <= colIndex && r.maxCol >= colIndex && r.minRow === 0 && r.maxRow === totalRows - 1,
+	)
+	if (alreadySelected) {
+		const filtered = tab.selection.ranges.filter(
+			(r) => !(r.minCol === colIndex && r.maxCol === colIndex),
+		)
+		setState('tabs', tabId, 'selection', {
+			focusedCell: filtered.length > 0 ? tab.selection.focusedCell : null,
+			ranges: filtered,
+			anchor: { row: 0, col: colIndex },
+			selectMode: 'columns',
+		})
+	} else {
+		setState('tabs', tabId, 'selection', {
+			focusedCell: { row: 0, col: colIndex },
+			ranges: [...tab.selection.ranges, range],
+			anchor: { row: 0, col: colIndex },
+			selectMode: 'columns',
+		})
+	}
 }
 
 function selectAll(tabId: string, totalRows: number, totalCols: number) {
@@ -1782,10 +1835,13 @@ export const gridStore = {
 	selectCell,
 	extendSelection,
 	addCellRange,
+	extendLastRange,
 	selectFullRow,
 	selectFullRowRange,
 	toggleFullRow,
 	selectFullColumn,
+	selectFullColumnRange,
+	toggleFullColumn,
 	selectAll,
 	moveFocus,
 	extendFocus,

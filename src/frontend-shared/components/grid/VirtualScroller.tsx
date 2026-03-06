@@ -17,7 +17,7 @@ interface VirtualScrollerProps {
 	pinStyles: Map<string, Record<string, string>>
 	selection: CellSelection
 	scrollMargin: number
-	onRowClick: (index: number, e: MouseEvent) => void
+	onRowMouseDown: (index: number, e: MouseEvent) => void
 	onRowDblClick?: (index: number, e: MouseEvent) => void
 	onRowNumberClick?: (index: number, e: MouseEvent) => void
 	editingCell?: EditingCell | null
@@ -74,7 +74,7 @@ export default function VirtualScroller(props: VirtualScrollerProps) {
 							pinStyles={props.pinStyles}
 							isCellSelected={(colIndex: number) => isCellInSelection(props.selection, virtualRow.index, colIndex)}
 							focusedColIndex={props.selection.focusedCell?.row === virtualRow.index ? props.selection.focusedCell.col : null}
-							onClick={props.onRowClick}
+							onMouseDown={props.onRowMouseDown}
 							onDblClick={props.onRowDblClick}
 							onRowNumberClick={props.onRowNumberClick}
 							editingCell={props.editingCell}

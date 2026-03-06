@@ -1,3 +1,4 @@
+import ArrowDownUp from 'lucide-solid/icons/arrow-down-up'
 import ChevronDown from 'lucide-solid/icons/chevron-down'
 import ChevronUp from 'lucide-solid/icons/chevron-up'
 import { For, Show } from 'solid-js'
@@ -30,12 +31,13 @@ function getSortIndex(sort: SortColumn[], column: string): number {
 }
 
 export default function GridHeader(props: GridHeaderProps) {
-	function handleHeaderClick(e: MouseEvent, column: string, colIndex: number) {
-		if ((e.ctrlKey || e.metaKey) && props.onColumnSelect) {
-			e.preventDefault()
-			props.onColumnSelect(colIndex, e)
-			return
-		}
+	function handleHeaderMouseDown(e: MouseEvent, colIndex: number) {
+		if (e.button !== 0) return
+		props.onColumnSelect?.(colIndex, e)
+	}
+
+	function handleSortClick(e: MouseEvent, column: string) {
+		e.stopPropagation()
 		props.onToggleSort(column, e.shiftKey)
 	}
 
@@ -98,7 +100,7 @@ export default function GridHeader(props: GridHeaderProps) {
 								width: `${getColumnWidth(col.name)}px`,
 								...props.pinStyles.get(col.name),
 							}}
-							onClick={(e) => handleHeaderClick(e, col.name, colIdx())}
+							onMouseDown={(e) => handleHeaderMouseDown(e, colIdx())}
 							onContextMenu={(e) => props.onHeaderContextMenu?.(e, col.name)}
 						>
 							<span class="grid-header__type-badge">
@@ -111,17 +113,6 @@ export default function GridHeader(props: GridHeaderProps) {
 							>
 								{col.name}
 							</span>
-
-							<Show when={sortDir()}>
-								<span class="grid-header__sort-indicator">
-									{sortDir() === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-									<Show when={props.sort.length > 1 && sortIdx() >= 0}>
-										<span class="grid-header__sort-index">
-											{sortIdx() + 1}
-										</span>
-									</Show>
-								</span>
-							</Show>
 
 							<span class="grid-header__icons">
 								<Show when={col.isPrimaryKey}>
@@ -140,6 +131,23 @@ export default function GridHeader(props: GridHeaderProps) {
 									</span>
 								</Show>
 							</span>
+
+							<button
+								class="grid-header__sort-btn"
+								classList={{ 'grid-header__sort-btn--active': !!sortDir() }}
+								onMouseDown={(e) => e.stopPropagation()}
+								onClick={(e) => handleSortClick(e, col.name)}
+								title="Sort (Shift+click for multi-sort)"
+							>
+								<Show when={sortDir()} fallback={<ArrowDownUp size={12} />}>
+									{sortDir() === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+									<Show when={props.sort.length > 1 && sortIdx() >= 0}>
+										<span class="grid-header__sort-index">
+											{sortIdx() + 1}
+										</span>
+									</Show>
+								</Show>
+							</button>
 
 							<div
 								class="grid-header__resize-handle"

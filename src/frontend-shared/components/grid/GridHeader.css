@@ -66,13 +66,39 @@
 	color: var(--ink);
 }
 
-.grid-header__sort-indicator {
+.grid-header__sort-btn {
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 1px;
-	color: var(--accent);
-	font-size: 10px;
+	background: none;
+	border: none;
+	padding: 2px;
+	border-radius: 3px;
+	cursor: pointer;
+	color: var(--ink-muted);
+	opacity: 0;
 	flex-shrink: 0;
+	font-size: 10px;
+	transition: opacity 0.1s;
+}
+
+.grid-header__cell:hover .grid-header__sort-btn,
+.grid-header__sort-btn--active {
+	opacity: 1;
+}
+
+.grid-header__sort-btn--active {
+	color: var(--accent);
+}
+
+.grid-header__sort-btn:hover {
+	background: var(--surface-inset);
+	color: var(--ink);
+}
+
+.grid-header__sort-btn--active:hover {
+	color: var(--accent);
 }
 
 .grid-header__sort-index {

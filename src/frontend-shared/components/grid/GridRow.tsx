@@ -14,7 +14,7 @@ interface GridRowProps {
 	pinStyles: Map<string, Record<string, string>>
 	isCellSelected: (colIndex: number) => boolean
 	focusedColIndex: number | null
-	onClick: (index: number, e: MouseEvent) => void
+	onMouseDown: (index: number, e: MouseEvent) => void
 	onDblClick?: (index: number, e: MouseEvent) => void
 	onRowNumberClick?: (index: number, e: MouseEvent) => void
 	style?: Record<string, string>
@@ -36,8 +36,8 @@ function getColumnWidth(col: string, config: Record<string, ColumnConfig>): numb
 }
 
 export default function GridRow(props: GridRowProps) {
-	function handleClick(e: MouseEvent) {
-		props.onClick(props.index, e)
+	function handleMouseDown(e: MouseEvent) {
+		props.onMouseDown(props.index, e)
 	}
 
 	function handleDblClick(e: MouseEvent) {
@@ -68,7 +68,7 @@ export default function GridRow(props: GridRowProps) {
 			}}
 			data-row-index={props.index}
 			style={props.style}
-			onClick={handleClick}
+			onMouseDown={handleMouseDown}
 			onDblClick={handleDblClick}
 		>
 			<div

@@ -13,7 +13,7 @@ interface TransposedGridProps {
 	columns: GridColumnDef[]
 	columnConfig: Record<string, ColumnConfig>
 	selection: CellSelection
-	onRowClick: (index: number, e: MouseEvent) => void
+	onRowMouseDown: (index: number, e: MouseEvent) => void
 	onRowDblClick?: (index: number, e: MouseEvent) => void
 	editingCell?: EditingCell | null
 	getChangedCells?: (rowIndex: number) => Set<string>
@@ -52,7 +52,7 @@ export default function TransposedGrid(props: TransposedGridProps) {
 								'transposed-grid__col-header--selected': selectedRowSet().has(rowIdx()),
 							}}
 							style={{ width: `${DEFAULT_COLUMN_WIDTH}px` }}
-							onClick={(e) => props.onRowClick(rowIdx(), e)}
+							onMouseDown={(e) => props.onRowMouseDown(rowIdx(), e)}
 						>
 							Row {rowIdx() + 1}
 						</div>
@@ -110,7 +110,7 @@ export default function TransposedGrid(props: TransposedGridProps) {
 										}}
 										data-column={col.name}
 										data-row-index={rowIdx()}
-										onClick={(e) => props.onRowClick(rowIdx(), e)}
+										onMouseDown={(e) => props.onRowMouseDown(rowIdx(), e)}
 										onDblClick={(e) => props.onRowDblClick?.(rowIdx(), e)}
 									>
 										<GridCell

@@ -114,6 +114,8 @@ export default function DataGrid(props: DataGridProps) {
 	let moreMenuTriggerRef: HTMLButtonElement | undefined
 	let gridRef: HTMLDivElement | undefined
 	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
+	let isDragging = false
+	let dragCtrl = false
 
 	const tab = () => gridStore.getTab(props.tabId)
 	const tabInfo = () => tabsStore.openTabs.find((t) => t.id === props.tabId)
@@ -310,16 +312,63 @@ export default function DataGrid(props: DataGridProps) {
 		return idx >= 0 ? idx : 0
 	}
 
-	function handleRowClick(index: number, e: MouseEvent) {
+	function resolveCellFromPoint(x: number, y: number): { row: number; col: number } | null {
+		const el = document.elementFromPoint(x, y)
+		if (!el) return null
+		const rowEl = (el as HTMLElement).closest<HTMLElement>('[data-row-index]')
+		if (!rowEl) return null
+		const row = parseInt(rowEl.dataset.rowIndex!, 10)
+		if (isNaN(row)) return null
+		const cellEl = (el as HTMLElement).closest<HTMLElement>('[data-column]')
+		const columnName = cellEl?.dataset.column ?? null
+		if (!columnName) return { row, col: 0 }
+		const cols = visibleColumns()
+		const idx = cols.findIndex((c) => c.name === columnName)
+		return { row, col: idx >= 0 ? idx : 0 }
+	}
+
+	function handleRowMouseDown(index: number, e: MouseEvent) {
+		// Only primary button
+		if (e.button !== 0) return
 		const colIdx = resolveColIndex(e)
 
-		if (e.shiftKey) {
+		if (e.shiftKey && (e.ctrlKey || e.metaKey)) {
+			gridStore.extendLastRange(props.tabId, index, colIdx)
+			return
+		} else if (e.shiftKey) {
 			gridStore.extendSelection(props.tabId, index, colIdx)
+			return
 		} else if (e.ctrlKey || e.metaKey) {
 			gridStore.addCellRange(props.tabId, index, colIdx)
+			dragCtrl = true
 		} else {
 			gridStore.selectCell(props.tabId, index, colIdx)
 		}
+
+		e.preventDefault()
+		isDragging = true
+
+		const onMouseMove = (ev: MouseEvent) => {
+			if (!isDragging) return
+			ev.preventDefault()
+			const cell = resolveCellFromPoint(ev.clientX, ev.clientY)
+			if (!cell) return
+			if (dragCtrl) {
+				gridStore.extendLastRange(props.tabId, cell.row, cell.col)
+			} else {
+				gridStore.extendSelection(props.tabId, cell.row, cell.col)
+			}
+		}
+
+		const onMouseUp = () => {
+			isDragging = false
+			dragCtrl = false
+			document.removeEventListener('mousemove', onMouseMove)
+			document.removeEventListener('mouseup', onMouseUp)
+		}
+
+		document.addEventListener('mousemove', onMouseMove)
+		document.addEventListener('mouseup', onMouseUp)
 	}
 
 	function handleRowNumberClick(index: number, e: MouseEvent) {
@@ -1409,9 +1458,16 @@ export default function DataGrid(props: DataGridProps) {
 														const t = tab()
 														if (t) gridStore.selectAll(props.tabId, t.rows.length, visibleColumns().length)
 													}}
-													onColumnSelect={(colIndex) => {
+													onColumnSelect={(colIndex, e) => {
 														const t = tab()
-														if (t) gridStore.selectFullColumn(props.tabId, colIndex, t.rows.length)
+														if (!t) return
+														if (e.shiftKey) {
+															gridStore.selectFullColumnRange(props.tabId, colIndex, t.rows.length)
+														} else if (e.ctrlKey || e.metaKey) {
+															gridStore.toggleFullColumn(props.tabId, colIndex, t.rows.length)
+														} else {
+															gridStore.selectFullColumn(props.tabId, colIndex, t.rows.length)
+														}
 													}}
 												/>
 
@@ -1423,7 +1479,7 @@ export default function DataGrid(props: DataGridProps) {
 													pinStyles={pinStyles()}
 													selection={tabState().selection}
 													scrollMargin={HEADER_HEIGHT}
-													onRowClick={handleRowClick}
+													onRowMouseDown={handleRowMouseDown}
 													onRowDblClick={handleRowDblClick}
 													onRowNumberClick={handleRowNumberClick}
 													editingCell={tabState().editingCell}
@@ -1446,7 +1502,7 @@ export default function DataGrid(props: DataGridProps) {
 											columns={visibleColumns()}
 											columnConfig={tabState().columnConfig}
 											selection={tabState().selection}
-											onRowClick={handleRowClick}
+											onRowMouseDown={handleRowMouseDown}
 											onRowDblClick={handleRowDblClick}
 											editingCell={tabState().editingCell}
 											getChangedCells={getChangedCells}

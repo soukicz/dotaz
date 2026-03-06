@@ -607,7 +607,7 @@ function ResultGrid(props: ResultGridProps) {
 					pinStyles={EMPTY_PIN_STYLES}
 					selection={selection()}
 					scrollMargin={HEADER_HEIGHT}
-					onRowClick={handleRowClick}
+					onRowMouseDown={handleRowClick}
 					onRowDblClick={isEditable() ? handleRowDblClick : undefined}
 					editingCell={isEditable() ? editingCell() : undefined}
 					getChangedCells={isEditable() ? getChangedCells : undefined}
