@@ -13,6 +13,7 @@ interface FilterBarProps {
 	filters: ColumnFilter[]
 	customFilter: string
 	onAddFilter: (filter: ColumnFilter) => void
+	onUpdateFilter: (oldColumn: string, filter: ColumnFilter) => void
 	onRemoveFilter: (column: string) => void
 	onSetCustomFilter: (value: string) => void
 	onClearAll: () => void
@@ -52,10 +53,6 @@ function getOperatorsForType(dataType: DatabaseDataType): OperatorOption[] {
 
 function operatorNeedsValue(op: FilterOperator): boolean {
 	return op !== 'isNull' && op !== 'isNotNull'
-}
-
-function operatorLabel(op: FilterOperator): string {
-	return ALL_OPERATORS.find((o) => o.value === op)?.label ?? op
 }
 
 function formatFilterValue(filter: ColumnFilter): string {
@@ -165,22 +162,76 @@ export default function FilterBar(props: FilterBarProps) {
 		<div class="filter-bar">
 			<div class="filter-bar__chips">
 				<For each={props.filters}>
-					{(filter) => (
-						<span class="filter-bar__chip">
-							<span class="filter-bar__chip-col">{filter.column}</span>
-							<span class="filter-bar__chip-op">{operatorLabel(filter.operator)}</span>
-							<Show when={operatorNeedsValue(filter.operator)}>
-								<span class="filter-bar__chip-val">{formatFilterValue(filter)}</span>
-							</Show>
-							<button
-								class="filter-bar__chip-remove"
-								onClick={() => props.onRemoveFilter(filter.column)}
-								title="Remove filter"
-							>
-								<X size={12} />
-							</button>
-						</span>
-					)}
+					{(filter) => {
+						const colDef = () => props.columns.find((c) => c.name === filter.column)
+						const operators = () => {
+							const col = colDef()
+							return col ? getOperatorsForType(col.dataType) : ALL_OPERATORS
+						}
+						const availableCols = () => {
+							const used = new Set(props.filters.map((f) => f.column))
+							return props.columns.filter((c) => c.name === filter.column || !used.has(c.name))
+						}
+
+						function handleChipValueKeyDown(e: KeyboardEvent) {
+							if (e.key === 'Enter') {
+								const raw = (e.currentTarget as HTMLInputElement).value.trim()
+								if (!raw) return
+								const value = filter.operator === 'in' ? raw.split(',').map((v) => v.trim()) : raw
+								props.onAddFilter({ ...filter, value })
+								;(e.currentTarget as HTMLInputElement).blur()
+							}
+						}
+
+						return (
+							<span class="filter-bar__chip">
+								<Select
+									class="filter-bar__chip-inline-select filter-bar__chip-col-select"
+									value={filter.column}
+									onChange={(v) => {
+										const newCol = props.columns.find((c) => c.name === v)
+										const newOps = newCol ? getOperatorsForType(newCol.dataType) : ALL_OPERATORS
+										const op = newOps.find((o) => o.value === filter.operator)
+											? filter.operator
+											: newOps[0].value
+										props.onUpdateFilter(filter.column, { ...filter, column: v, operator: op })
+									}}
+									options={availableCols().map((c) => ({ value: c.name, label: c.name }))}
+								/>
+								<Select
+									class="filter-bar__chip-inline-select filter-bar__chip-op-select"
+									value={filter.operator}
+									onChange={(v) =>
+										props.onAddFilter({ ...filter, operator: v as FilterOperator })
+									}
+									options={operators().map((op) => ({ value: op.value, label: op.label }))}
+								/>
+								<Show when={operatorNeedsValue(filter.operator)}>
+									<input
+										class="filter-bar__chip-value-input"
+										type="text"
+										value={formatFilterValue(filter)}
+										placeholder="value"
+										onKeyDown={handleChipValueKeyDown}
+										onBlur={(e) => {
+											const raw = e.currentTarget.value.trim()
+											if (raw === formatFilterValue(filter)) return
+											if (!raw) return
+											const value = filter.operator === 'in' ? raw.split(',').map((v) => v.trim()) : raw
+											props.onAddFilter({ ...filter, value })
+										}}
+									/>
+								</Show>
+								<button
+									class="filter-bar__chip-remove"
+									onClick={() => props.onRemoveFilter(filter.column)}
+									title="Remove filter"
+								>
+									<X size={12} />
+								</button>
+							</span>
+						)
+					}}
 				</For>
 
 				<Show when={props.customFilter && !editingCustom()}>

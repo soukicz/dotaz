@@ -41,6 +41,68 @@
 	color: var(--ink-secondary);
 }
 
+/* Inline select shared styles (column + operator in chips) */
+.filter-bar__chip-inline-select {
+	margin: -2px 0;
+}
+
+.filter-bar__chip-inline-select .custom-select__trigger {
+	height: 20px;
+	padding: 0 2px;
+	font-size: var(--font-size-xs);
+	background: transparent;
+	border: 1px solid transparent;
+	gap: 2px;
+	min-width: 0;
+}
+
+.filter-bar__chip-inline-select .custom-select__trigger:hover {
+	border-color: var(--edge);
+	background: var(--surface-hover);
+}
+
+.filter-bar__chip-inline-select .custom-select__chevron {
+	width: 10px;
+	height: 10px;
+	opacity: 0.5;
+}
+
+.filter-bar__chip-col-select .custom-select__trigger {
+	color: var(--info);
+	font-weight: 600;
+}
+
+.filter-bar__chip-op-select .custom-select__trigger {
+	color: var(--ink-secondary);
+}
+
+/* Inline value input in chips */
+.filter-bar__chip-value-input {
+	height: 20px;
+	padding: 0 4px;
+	margin: -2px 0;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background: transparent;
+	color: var(--success);
+	font-size: var(--font-size-xs);
+	font-family: inherit;
+	min-width: 40px;
+	max-width: 120px;
+	width: 80px;
+}
+
+.filter-bar__chip-value-input:hover {
+	border-color: var(--edge);
+	background: var(--surface-hover);
+}
+
+.filter-bar__chip-value-input:focus {
+	border-color: var(--edge-focus);
+	background: var(--surface-inset);
+	outline: none;
+}
+
 .filter-bar__chip-val {
 	color: var(--success);
 	max-width: 120px;

@@ -6,8 +6,10 @@ import { createEffect, createSignal, type JSX, onCleanup, Show } from 'solid-js'
 import type { ColumnFilter } from '../../../shared/types/grid'
 import type { SavedViewConfig } from '../../../shared/types/rpc'
 import { rpc } from '../../lib/rpc'
+import { editorStore } from '../../stores/editor'
 import { gridStore } from '../../stores/grid'
 import { tabsStore } from '../../stores/tabs'
+import { uiStore } from '../../stores/ui'
 import { viewsStore } from '../../stores/views'
 import Icon from '../common/Icon'
 import ColumnManager from './ColumnManager'
@@ -205,6 +207,10 @@ export default function DataGridToolbar(props: DataGridToolbarProps) {
 								filters={tabState().filters}
 								customFilter={tabState().customFilter}
 								onAddFilter={handleAddFilter}
+								onUpdateFilter={(oldCol, filter) => {
+									gridStore.removeFilter(props.tabId, oldCol)
+									gridStore.setFilter(props.tabId, filter)
+								}}
 								onRemoveFilter={handleRemoveFilter}
 								onSetCustomFilter={(v) => gridStore.setCustomFilter(props.tabId, v)}
 								onClearAll={handleClearFilters}
@@ -291,6 +297,39 @@ export default function DataGridToolbar(props: DataGridToolbarProps) {
 											}}
 										>
 											<Icon name="schema" size={12} /> Schema
+										</button>
+										<div class="data-grid__more-separator" />
+										<button
+											class="data-grid__more-item"
+											onClick={async () => {
+												const sql = gridStore.getCurrentSql(props.tabId)
+												if (sql) {
+													await navigator.clipboard.writeText(sql)
+													uiStore.addToast('info', 'SQL copied to clipboard')
+												}
+												setMoreMenuOpen(false)
+											}}
+										>
+											<Icon name="copy" size={12} /> Copy SQL
+										</button>
+										<button
+											class="data-grid__more-item"
+											onClick={() => {
+												const sql = gridStore.getCurrentSql(props.tabId)
+												if (sql) {
+													const consoleTabId = tabsStore.openTab({
+														type: 'sql-console',
+														title: `SQL — ${props.currentTable()}`,
+														connectionId: props.connectionId,
+														database: props.database,
+													})
+													editorStore.initTab(consoleTabId, props.connectionId, props.database)
+													editorStore.setContent(consoleTabId, sql)
+												}
+												setMoreMenuOpen(false)
+											}}
+										>
+											<Icon name="sql-console" size={12} /> Open in Console
 										</button>
 										<div class="data-grid__more-separator" />
 										<button

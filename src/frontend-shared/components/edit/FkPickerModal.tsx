@@ -173,6 +173,10 @@ export default function FkPickerModal(props: FkPickerModalProps) {
 							filters={filters()}
 							customFilter={customFilter()}
 							onAddFilter={handleAddFilter}
+							onUpdateFilter={(oldCol, filter) => {
+								handleRemoveFilter(oldCol)
+								handleAddFilter(filter)
+							}}
 							onRemoveFilter={handleRemoveFilter}
 							onSetCustomFilter={handleSetCustomFilter}
 							onClearAll={handleClearAllFilters}
