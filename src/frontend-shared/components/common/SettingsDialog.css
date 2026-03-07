@@ -91,7 +91,10 @@
 	color: var(--ink-secondary);
 }
 
-.settings-form__select,
+.settings-form__select {
+	min-width: 180px;
+}
+
 .settings-form__input {
 	background: var(--surface-inset);
 	border: 1px solid var(--edge-strong);
@@ -103,7 +106,6 @@
 	min-width: 180px;
 }
 
-.settings-form__select:focus,
 .settings-form__input:focus {
 	border-color: var(--edge-focus);
 }
