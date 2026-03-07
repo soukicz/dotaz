@@ -1,0 +1,232 @@
+import type { ConnectionInfo } from '../../../shared/types/connection'
+import { CONNECTION_TYPE_META, getDefaultDatabase } from '../../../shared/types/connection'
+import type { SavedView } from '../../../shared/types/rpc'
+import type { ContextMenuEntry } from '../common/ContextMenu'
+import { rpc } from '../../lib/rpc'
+import { connectionsStore } from '../../stores/connections'
+import { editorStore } from '../../stores/editor'
+import { tabsStore } from '../../stores/tabs'
+import { viewsStore } from '../../stores/views'
+
+export interface TreeMenuCallbacks {
+	onEditConnection: (conn: ConnectionInfo) => void
+	onManageDatabases?: (conn: ConnectionInfo) => void
+	handleTableClick: (connectionId: string, schema: string, table: string, database?: string) => void
+	handleViewClick: (connectionId: string, schema: string, table: string, view: SavedView, database?: string) => void
+}
+
+export function connectionMenuItems(conn: ConnectionInfo, callbacks: TreeMenuCallbacks): ContextMenuEntry[] {
+	const isConnected = conn.state === 'connected'
+	const isDisconnected = conn.state === 'disconnected' || conn.state === 'error'
+	const supportsMultiDb = CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase
+
+	const defaultDb = supportsMultiDb ? getDefaultDatabase(conn.config) : undefined
+
+	const items: ContextMenuEntry[] = [
+		{
+			label: 'New SQL Console',
+			action: () => {
+				const tabId = tabsStore.openTab({
+					type: 'sql-console',
+					title: `SQL — ${conn.name}`,
+					connectionId: conn.id,
+					database: defaultDb,
+				})
+				editorStore.initTab(tabId, conn.id, defaultDb)
+			},
+			disabled: !isConnected,
+		},
+		'separator',
+		{
+			label: 'Connect',
+			action: () => connectionsStore.connectTo(conn.id),
+			disabled: !isDisconnected,
+		},
+		{
+			label: 'Disconnect',
+			action: () => connectionsStore.disconnectFrom(conn.id),
+			disabled: !isConnected,
+		},
+	]
+
+	if (supportsMultiDb) {
+		items.push('separator')
+		items.push({
+			label: 'Manage Databases...',
+			action: () => callbacks.onManageDatabases?.(conn),
+			disabled: !isConnected,
+		})
+	}
+
+	items.push('separator', {
+		label: 'Search Database...',
+		action: () => {
+			window.dispatchEvent(
+				new CustomEvent('dotaz:open-search', {
+					detail: { connectionId: conn.id },
+				}),
+			)
+		},
+		disabled: !isConnected,
+	})
+
+	items.push(
+		'separator',
+		{
+			label: conn.readOnly ? 'Disable Read-Only' : 'Enable Read-Only',
+			action: () => connectionsStore.setReadOnly(conn.id, !conn.readOnly),
+		},
+		'separator',
+		{
+			label: 'Edit',
+			action: () => callbacks.onEditConnection(conn),
+		},
+		{
+			label: 'Duplicate',
+			action: () => {
+				connectionsStore.createConnection(
+					`${conn.name} (copy)`,
+					conn.config,
+				)
+			},
+		},
+		'separator',
+		{
+			label: 'Delete',
+			action: () => {
+				const confirmed = window.confirm(
+					`Delete connection "${conn.name}"? This cannot be undone.`,
+				)
+				if (confirmed) {
+					connectionsStore.deleteConnection(conn.id)
+				}
+			},
+		},
+	)
+
+	return items
+}
+
+export function databaseMenuItems(connectionId: string, dbName: string, isDefault: boolean): ContextMenuEntry[] {
+	const items: ContextMenuEntry[] = [
+		{
+			label: 'New SQL Console',
+			action: () => {
+				const tabId = tabsStore.openTab({
+					type: 'sql-console',
+					title: `SQL — ${dbName}`,
+					connectionId,
+					database: dbName,
+				})
+				editorStore.initTab(tabId, connectionId, dbName)
+			},
+		},
+	]
+
+	if (!isDefault) {
+		items.push('separator')
+		items.push({
+			label: 'Deactivate',
+			action: () => connectionsStore.deactivateDatabase(connectionId, dbName),
+		})
+	}
+
+	return items
+}
+
+export function tableMenuItems(connectionId: string, schemaName: string, tableName: string, callbacks: TreeMenuCallbacks, database?: string): ContextMenuEntry[] {
+	const conn = connectionsStore.connections.find((c) => c.id === connectionId)
+	const items: ContextMenuEntry[] = [
+		{
+			label: 'Open Data',
+			action: () => callbacks.handleTableClick(connectionId, schemaName, tableName, database),
+		},
+		{
+			label: 'View Schema',
+			action: () => {
+				tabsStore.openTab({
+					type: 'schema-viewer',
+					title: `Schema — ${tableName}`,
+					connectionId,
+					schema: schemaName,
+					table: tableName,
+					database,
+				})
+			},
+		},
+	]
+
+	items.push('separator', {
+		label: 'Search in Table...',
+		action: () => {
+			window.dispatchEvent(
+				new CustomEvent('dotaz:open-search', {
+					detail: { connectionId, scope: 'tables', table: tableName, schema: schemaName, database },
+				}),
+			)
+		},
+	})
+
+	if (!conn?.readOnly) {
+		items.push('separator', {
+			label: 'Import Data...',
+			action: () => {
+				callbacks.handleTableClick(connectionId, schemaName, tableName, database)
+				// Use a short delay to let the tab render, then dispatch open-import event
+				setTimeout(() => {
+					window.dispatchEvent(
+						new CustomEvent('dotaz:open-import', {
+							detail: { connectionId, schema: schemaName, table: tableName, database },
+						}),
+					)
+				}, 100)
+			},
+		})
+	}
+
+	return items
+}
+
+export function viewMenuItems(connectionId: string, view: SavedView, callbacks: TreeMenuCallbacks, database?: string): ContextMenuEntry[] {
+	return [
+		{
+			label: 'Open',
+			action: () => callbacks.handleViewClick(connectionId, view.schemaName, view.tableName, view, database),
+		},
+		{
+			label: 'Rename',
+			action: async () => {
+				const newName = window.prompt('Rename view:', view.name)
+				if (newName?.trim() && newName.trim() !== view.name) {
+					try {
+						await rpc.views.update({
+							id: view.id,
+							name: newName.trim(),
+							config: view.config,
+						})
+						await viewsStore.refreshViews(connectionId)
+					} catch {
+						// Ignore rename errors
+					}
+				}
+			},
+		},
+		'separator',
+		{
+			label: 'Delete',
+			action: async () => {
+				const confirmed = window.confirm(
+					`Delete view "${view.name}"? This cannot be undone.`,
+				)
+				if (confirmed) {
+					try {
+						await rpc.views.delete({ id: view.id })
+						await viewsStore.refreshViews(connectionId)
+					} catch {
+						// Ignore delete errors
+					}
+				}
+			},
+		},
+	]
+}

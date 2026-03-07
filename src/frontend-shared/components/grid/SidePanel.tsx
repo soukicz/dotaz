@@ -9,6 +9,7 @@ import type { ForeignKeyInfo } from '../../../shared/types/database'
 import { isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
 import { getDataTypeLabel, isBooleanType, isJsonType } from '../../lib/column-types'
+import { tryFormatJson, displayValue } from '../../lib/value-display'
 import RowDetailPanel from '../edit/RowDetailPanel'
 import Resizer from '../layout/Resizer'
 import AggregatePanel from './AggregatePanel'
@@ -121,39 +122,6 @@ export interface SidePanelProps {
 }
 
 // ── Value Viewer ──────────────────────────────────
-
-function tryFormatJson(value: unknown): string | null {
-	if (value === null || value === undefined) return null
-	if (typeof value === 'object') {
-		try {
-			return JSON.stringify(value, null, 2)
-		} catch {
-			return null
-		}
-	}
-	if (typeof value === 'string') {
-		const trimmed = value.trim()
-		if (
-			(trimmed.startsWith('{') && trimmed.endsWith('}'))
-			|| (trimmed.startsWith('[') && trimmed.endsWith(']'))
-		) {
-			try {
-				const parsed = JSON.parse(trimmed)
-				return JSON.stringify(parsed, null, 2)
-			} catch {
-				return null
-			}
-		}
-	}
-	return null
-}
-
-function displayValue(value: unknown): string {
-	if (value === null || value === undefined) return ''
-	if (isSqlDefault(value)) return 'DEFAULT'
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
-}
 
 function ValueViewer(props: {
 	column: GridColumnDef

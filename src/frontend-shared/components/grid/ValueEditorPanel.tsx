@@ -3,6 +3,7 @@ import { createEffect, createSignal, on, Show } from 'solid-js'
 import { isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
 import type { GridColumnDef } from '../../../shared/types/grid'
 import { getDataTypeLabel, isBooleanType, isJsonType } from '../../lib/column-types'
+import { tryFormatJson, displayValue } from '../../lib/value-display'
 import Icon from '../common/Icon'
 import Resizer from '../layout/Resizer'
 import './ValueEditorPanel.css'
@@ -16,40 +17,6 @@ interface ValueEditorPanelProps {
 	onSave: (value: unknown) => void
 	onResize: (delta: number) => void
 	onClose: () => void
-}
-
-/** Try to format a value as pretty-printed JSON. Returns null if not valid JSON. */
-function tryFormatJson(value: unknown): string | null {
-	if (value === null || value === undefined) return null
-	if (typeof value === 'object') {
-		try {
-			return JSON.stringify(value, null, 2)
-		} catch {
-			return null
-		}
-	}
-	if (typeof value === 'string') {
-		const trimmed = value.trim()
-		if (
-			(trimmed.startsWith('{') && trimmed.endsWith('}'))
-			|| (trimmed.startsWith('[') && trimmed.endsWith(']'))
-		) {
-			try {
-				const parsed = JSON.parse(trimmed)
-				return JSON.stringify(parsed, null, 2)
-			} catch {
-				return null
-			}
-		}
-	}
-	return null
-}
-
-function displayValue(value: unknown): string {
-	if (value === null || value === undefined) return ''
-	if (isSqlDefault(value)) return 'DEFAULT'
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
 }
 
 export default function ValueEditorPanel(props: ValueEditorPanelProps) {

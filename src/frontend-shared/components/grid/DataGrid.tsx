@@ -6,6 +6,7 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, untra
 import { createStore } from 'solid-js/store'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
 import type { SavedViewConfig } from '../../../shared/types/rpc'
+import { buildFkLookup } from '../../lib/fk-utils'
 import { HEADER_HEIGHT } from '../../lib/layout-constants'
 import { connectionsStore } from '../../stores/connections'
 import type { FkTarget } from '../../stores/grid'
@@ -43,21 +44,6 @@ interface DataGridProps {
 	schema: string
 	table: string
 	database?: string
-}
-
-/** Build a map from source column → FK target for single-column FKs. */
-function buildFkMap(foreignKeys: ForeignKeyInfo[]): Map<string, FkTarget> {
-	const map = new Map<string, FkTarget>()
-	for (const fk of foreignKeys) {
-		if (fk.columns.length === 1) {
-			map.set(fk.columns[0], {
-				schema: fk.referencedSchema,
-				table: fk.referencedTable,
-				column: fk.referencedColumns[0],
-			})
-		}
-	}
-	return map
 }
 
 export default function DataGrid(props: DataGridProps) {
@@ -239,7 +225,7 @@ export default function DataGrid(props: DataGridProps) {
 				fkCols.add(col)
 			}
 		}
-		setFkState({ columns: fkCols, keys: fks, map: buildFkMap(fks) })
+		setFkState({ columns: fkCols, keys: fks, map: buildFkLookup(fks) })
 	}
 
 	// ── Mouse handling ──────────────────────────────────

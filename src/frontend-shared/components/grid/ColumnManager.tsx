@@ -3,9 +3,10 @@ import GripVertical from 'lucide-solid/icons/grip-vertical'
 import PanelLeftClose from 'lucide-solid/icons/panel-left-close'
 import PanelRightClose from 'lucide-solid/icons/panel-right-close'
 import Settings from 'lucide-solid/icons/settings'
-import { createEffect, createSignal, For, type JSX, onCleanup, Show } from 'solid-js'
+import { createSignal, For, type JSX, Show } from 'solid-js'
 import type { GridColumnDef } from '../../../shared/types/grid'
 import type { ColumnConfig } from '../../stores/grid'
+import { useClickOutside } from '../../lib/hooks'
 import './ColumnManager.css'
 
 interface ColumnManagerProps {
@@ -112,23 +113,7 @@ export default function ColumnManager(props: ColumnManagerProps) {
 	}
 
 	// Close on click outside
-	createEffect(() => {
-		if (open()) {
-			const handler = (e: MouseEvent) => {
-				const target = e.target as HTMLElement
-				if (
-					panelRef
-					&& !panelRef.contains(target)
-					&& triggerRef
-					&& !triggerRef.contains(target)
-				) {
-					setOpen(false)
-				}
-			}
-			document.addEventListener('mousedown', handler)
-			onCleanup(() => document.removeEventListener('mousedown', handler))
-		}
-	})
+	useClickOutside(() => open(), () => [panelRef, triggerRef], () => setOpen(false))
 
 	return (
 		<div class="column-manager">

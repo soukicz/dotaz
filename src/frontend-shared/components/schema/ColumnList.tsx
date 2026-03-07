@@ -2,6 +2,7 @@ import ArrowRight from 'lucide-solid/icons/arrow-right'
 import KeyRound from 'lucide-solid/icons/key-round'
 import { For, Show } from 'solid-js'
 import type { ColumnInfo, ForeignKeyInfo } from '../../../shared/types/database'
+import { buildFkInfoLookup } from '../../lib/fk-utils'
 
 interface ColumnListProps {
 	columns: ColumnInfo[]
@@ -9,19 +10,8 @@ interface ColumnListProps {
 	onFkClick: (schema: string, table: string) => void
 }
 
-/** Build a map from source column name → FK info for single-column FKs. */
-function buildFkLookup(foreignKeys: ForeignKeyInfo[]): Map<string, ForeignKeyInfo> {
-	const map = new Map<string, ForeignKeyInfo>()
-	for (const fk of foreignKeys) {
-		if (fk.columns.length === 1) {
-			map.set(fk.columns[0], fk)
-		}
-	}
-	return map
-}
-
 export default function ColumnList(props: ColumnListProps) {
-	const fkLookup = () => buildFkLookup(props.foreignKeys)
+	const fkLookup = () => buildFkInfoLookup(props.foreignKeys)
 
 	return (
 		<div class="schema-viewer__section">

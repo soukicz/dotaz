@@ -5,7 +5,9 @@ import FilterXIcon from 'lucide-solid/icons/funnel-x'
 import PanelRightOpen from 'lucide-solid/icons/panel-right-open'
 import X from 'lucide-solid/icons/x'
 import { createEffect, For, onCleanup, Show } from 'solid-js'
-import type { ForeignKeyInfo } from '../../../shared/types/database'
+import { buildFkLookup } from '../../lib/fk-utils'
+import { formatDisplayValue } from '../../lib/format-utils'
+import { useClickOutside } from '../../lib/hooks'
 import type { FkPeekState } from '../../stores/grid'
 import './FkPeekPopover.css'
 
@@ -17,26 +19,6 @@ interface FkPeekPopoverProps {
 	onOpenInPanel: () => void
 	onOpenInTab: () => void
 	onFilter?: (column: string, value: unknown, exclude: boolean) => void
-}
-
-function buildFkLookup(foreignKeys: ForeignKeyInfo[]): Map<string, { schema: string; table: string; column: string }> {
-	const map = new Map<string, { schema: string; table: string; column: string }>()
-	for (const fk of foreignKeys) {
-		if (fk.columns.length === 1) {
-			map.set(fk.columns[0], {
-				schema: fk.referencedSchema,
-				table: fk.referencedTable,
-				column: fk.referencedColumns[0],
-			})
-		}
-	}
-	return map
-}
-
-function formatDisplayValue(value: unknown): string {
-	if (value === null || value === undefined) return 'NULL'
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
 }
 
 /** Compute popover position, flipping if near edges. */
@@ -76,25 +58,15 @@ export default function FkPeekPopover(props: FkPeekPopoverProps) {
 		}
 	}
 
-	// Close on click outside
-	function handleClickOutside(e: MouseEvent) {
-		if (popoverRef && !popoverRef.contains(e.target as Node)) {
-			props.onClose()
-		}
-	}
-
 	createEffect(() => {
 		document.addEventListener('keydown', handleKeyDown, true)
-		// Delay adding click listener to avoid immediate close from the FK link click
-		const timer = setTimeout(() => {
-			document.addEventListener('mousedown', handleClickOutside)
-		}, 0)
 		onCleanup(() => {
 			document.removeEventListener('keydown', handleKeyDown, true)
-			document.removeEventListener('mousedown', handleClickOutside)
-			clearTimeout(timer)
 		})
 	})
+
+	// Close on click outside (deferred to avoid immediate close from the FK link click)
+	useClickOutside(() => true, () => [popoverRef], props.onClose, { defer: true })
 
 	const fkLookup = () => buildFkLookup(props.peek.foreignKeys)
 	const position = () => computePosition(props.peek.anchorRect)

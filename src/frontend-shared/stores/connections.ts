@@ -17,7 +17,6 @@ import type {
 } from '../../shared/types/database'
 import { friendlyErrorMessage, messages, rpc } from '../lib/rpc'
 import { storage } from '../lib/storage'
-import { editorStore } from './editor'
 import { uiStore } from './ui'
 
 export interface SchemaTree {
@@ -43,6 +42,8 @@ const [state, setState] = createStore<ConnectionStoreState>({
 	availableDatabases: {},
 })
 
+const dialectCache = new Map<ConnectionType, SqlDialect>()
+
 /**
  * Optional hook called before disconnecting.
  * Returns false to prevent disconnect.
@@ -51,6 +52,16 @@ let beforeDisconnectHook: ((connectionId: string) => boolean) | null = null
 
 function setBeforeDisconnectHook(hook: ((connectionId: string) => boolean) | null) {
 	beforeDisconnectHook = hook
+}
+
+/**
+ * Optional hook called when a transaction is lost due to connection reset.
+ * Used to decouple connections store from editor store (avoids circular dependency).
+ */
+let onTransactionLost: ((connectionId: string) => void) | null = null
+
+function setOnTransactionLost(callback: ((connectionId: string) => void) | null) {
+	onTransactionLost = callback
 }
 
 // ── Password prompt signal ───────────────────────────────
@@ -305,7 +316,7 @@ export function initConnectionsListener(): () => void {
 			}
 		}
 		if (event.state === 'connected' && event.transactionLost) {
-			editorStore.resetTransactionStateForConnection(event.connectionId)
+			onTransactionLost?.(event.connectionId)
 			uiStore.addToast('warning', 'Connection was lost and restored. Active transaction was rolled back by the server.')
 		}
 		if (event.state === 'error' && event.error) {
@@ -387,15 +398,23 @@ export const connectionsStore = {
 		return conn?.config.type
 	},
 	getDialect(connectionId: string): SqlDialect {
-		const type = this.getConnectionType(connectionId)
-		switch (type) {
-			case 'sqlite':
-				return new SqliteDialect()
-			case 'mysql':
-				return new MysqlDialect()
-			default:
-				return new PostgresDialect()
+		const type = this.getConnectionType(connectionId) ?? 'postgresql'
+		let dialect = dialectCache.get(type)
+		if (!dialect) {
+			switch (type) {
+				case 'sqlite':
+					dialect = new SqliteDialect()
+					break
+				case 'mysql':
+					dialect = new MysqlDialect()
+					break
+				default:
+					dialect = new PostgresDialect()
+					break
+			}
+			dialectCache.set(type, dialect)
 		}
+		return dialect
 	},
 	isReadOnly(connectionId: string): boolean {
 		const conn = state.connections.find((c) => c.id === connectionId)
@@ -415,5 +434,6 @@ export const connectionsStore = {
 	activateDatabase,
 	deactivateDatabase,
 	setBeforeDisconnectHook,
+	setOnTransactionLost,
 	resolvePasswordPrompt,
 }

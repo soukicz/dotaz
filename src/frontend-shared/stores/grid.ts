@@ -3,11 +3,13 @@ import { buildCountQuery, buildQuickSearchClause, buildReadableSelectQuery, buil
 import type { ForeignKeyInfo } from '../../shared/types/database'
 import type { ColumnFilter, GridColumnDef, SortColumn } from '../../shared/types/grid'
 import type { DataChange, SavedViewConfig } from '../../shared/types/rpc'
-import { isNumericType } from '../lib/column-types'
 import { DEFAULT_COLUMN_WIDTH } from '../lib/layout-constants'
 import { rpc } from '../lib/rpc'
 import { createTabHelpers } from '../lib/tab-store-helpers'
 import { connectionsStore } from './connections'
+import { createGridFkActions } from './gridFk'
+import { createGridHeatmapActions, computeHeatmapStats, computeHeatmapColor } from './gridHeatmap'
+import { createGridSelectionActions } from './gridSelection'
 import { sessionStore } from './session'
 import { settingsStore } from './settings'
 
@@ -351,7 +353,7 @@ function createDefaultTabState(
 
 // ── Store ────────────────────────────────────────────────
 
-interface GridStoreState {
+export interface GridStoreState {
 	tabs: Record<string, TabGridState>
 }
 
@@ -366,6 +368,9 @@ const latestFetchId = new Map<string, number>()
 let fetchSequence = 0
 
 const { getTab, ensureTab } = createTabHelpers(() => state.tabs, 'Grid')
+const heatmapActions = createGridHeatmapActions(state, setState, ensureTab)
+const selectionActions = createGridSelectionActions(setState, ensureTab, normalizeRange, createDefaultSelection)
+const fkActions = createGridFkActions(state, setState, ensureTab, getTab)
 
 async function fetchData(tabId: string) {
 	const tab = ensureTab(tabId)
@@ -668,237 +673,6 @@ async function clearFilters(tabId: string) {
 	setState('tabs', tabId, 'currentPage', 1)
 	setState('tabs', tabId, 'selection', createDefaultSelection())
 	await fetchData(tabId)
-}
-
-function selectCell(tabId: string, row: number, col: number) {
-	ensureTab(tabId)
-	const range = normalizeRange(row, row, col, col)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row, col },
-		ranges: [range],
-		anchor: { row, col },
-		selectMode: 'cells',
-	})
-}
-
-function extendSelection(tabId: string, toRow: number, toCol: number) {
-	const tab = ensureTab(tabId)
-	const anchor = tab.selection.anchor ?? { row: toRow, col: toCol }
-	const range = normalizeRange(anchor.row, toRow, anchor.col, toCol)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: toRow, col: toCol },
-		ranges: [range],
-		anchor,
-		selectMode: tab.selection.selectMode,
-	})
-}
-
-function addCellRange(tabId: string, row: number, col: number) {
-	const tab = ensureTab(tabId)
-	const range = normalizeRange(row, row, col, col)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row, col },
-		ranges: [...tab.selection.ranges, range],
-		anchor: { row, col },
-		selectMode: 'cells',
-	})
-}
-
-function extendLastRange(tabId: string, toRow: number, toCol: number) {
-	const tab = ensureTab(tabId)
-	const anchor = tab.selection.anchor ?? { row: toRow, col: toCol }
-	const range = normalizeRange(anchor.row, toRow, anchor.col, toCol)
-	const ranges = tab.selection.ranges.length > 1
-		? [...tab.selection.ranges.slice(0, -1), range]
-		: [range]
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: toRow, col: toCol },
-		ranges,
-		anchor,
-		selectMode: tab.selection.selectMode,
-	})
-}
-
-function selectFullRow(tabId: string, rowIndex: number, totalCols: number) {
-	ensureTab(tabId)
-	const range = normalizeRange(rowIndex, rowIndex, 0, totalCols - 1)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: rowIndex, col: 0 },
-		ranges: [range],
-		anchor: { row: rowIndex, col: 0 },
-		selectMode: 'rows',
-	})
-}
-
-function selectFullRowRange(
-	tabId: string,
-	from: number,
-	to: number,
-	totalCols: number,
-) {
-	const tab = ensureTab(tabId)
-	const anchor = tab.selection.anchor ?? { row: from, col: 0 }
-	const range = normalizeRange(anchor.row, to, 0, totalCols - 1)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: to, col: 0 },
-		ranges: [range],
-		anchor,
-		selectMode: 'rows',
-	})
-}
-
-function toggleFullRow(tabId: string, rowIndex: number, totalCols: number) {
-	const tab = ensureTab(tabId)
-	const range = normalizeRange(rowIndex, rowIndex, 0, totalCols - 1)
-	// Check if this row is already fully selected
-	const alreadySelected = tab.selection.ranges.some(
-		(r) =>
-			r.minRow <= rowIndex
-			&& r.maxRow >= rowIndex
-			&& r.minCol === 0
-			&& r.maxCol === totalCols - 1,
-	)
-	if (alreadySelected) {
-		// Remove ranges that fully cover this row
-		const filtered = tab.selection.ranges.filter(
-			(r) => !(r.minRow === rowIndex && r.maxRow === rowIndex),
-		)
-		setState('tabs', tabId, 'selection', {
-			focusedCell: filtered.length > 0 ? tab.selection.focusedCell : null,
-			ranges: filtered,
-			anchor: { row: rowIndex, col: 0 },
-			selectMode: 'rows',
-		})
-	} else {
-		setState('tabs', tabId, 'selection', {
-			focusedCell: { row: rowIndex, col: 0 },
-			ranges: [...tab.selection.ranges, range],
-			anchor: { row: rowIndex, col: 0 },
-			selectMode: 'rows',
-		})
-	}
-}
-
-function selectFullColumn(tabId: string, colIndex: number, totalRows: number) {
-	ensureTab(tabId)
-	const range = normalizeRange(0, totalRows - 1, colIndex, colIndex)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: 0, col: colIndex },
-		ranges: [range],
-		anchor: { row: 0, col: colIndex },
-		selectMode: 'columns',
-	})
-}
-
-function selectFullColumnRange(
-	tabId: string,
-	toColIndex: number,
-	totalRows: number,
-) {
-	const tab = ensureTab(tabId)
-	const anchor = tab.selection.anchor ?? { row: 0, col: toColIndex }
-	const range = normalizeRange(0, totalRows - 1, anchor.col, toColIndex)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: 0, col: toColIndex },
-		ranges: [range],
-		anchor,
-		selectMode: 'columns',
-	})
-}
-
-function toggleFullColumn(tabId: string, colIndex: number, totalRows: number) {
-	const tab = ensureTab(tabId)
-	const range = normalizeRange(0, totalRows - 1, colIndex, colIndex)
-	const alreadySelected = tab.selection.ranges.some(
-		(r) =>
-			r.minCol <= colIndex
-			&& r.maxCol >= colIndex
-			&& r.minRow === 0
-			&& r.maxRow === totalRows - 1,
-	)
-	if (alreadySelected) {
-		const filtered = tab.selection.ranges.filter(
-			(r) => !(r.minCol === colIndex && r.maxCol === colIndex),
-		)
-		setState('tabs', tabId, 'selection', {
-			focusedCell: filtered.length > 0 ? tab.selection.focusedCell : null,
-			ranges: filtered,
-			anchor: { row: 0, col: colIndex },
-			selectMode: 'columns',
-		})
-	} else {
-		setState('tabs', tabId, 'selection', {
-			focusedCell: { row: 0, col: colIndex },
-			ranges: [...tab.selection.ranges, range],
-			anchor: { row: 0, col: colIndex },
-			selectMode: 'columns',
-		})
-	}
-}
-
-function selectAll(tabId: string, totalRows: number, totalCols: number) {
-	ensureTab(tabId)
-	if (totalRows === 0 || totalCols === 0) return
-	const range = normalizeRange(0, totalRows - 1, 0, totalCols - 1)
-	setState('tabs', tabId, 'selection', {
-		focusedCell: { row: 0, col: 0 },
-		ranges: [range],
-		anchor: { row: 0, col: 0 },
-		selectMode: 'rows',
-	})
-}
-
-function moveFocus(
-	tabId: string,
-	dRow: number,
-	dCol: number,
-	totalRows: number,
-	totalCols: number,
-) {
-	const tab = ensureTab(tabId)
-	const current = tab.selection.focusedCell ?? { row: 0, col: 0 }
-	const row = Math.max(0, Math.min(totalRows - 1, current.row + dRow))
-	const col = Math.max(0, Math.min(totalCols - 1, current.col + dCol))
-	selectCell(tabId, row, col)
-}
-
-function extendFocus(
-	tabId: string,
-	dRow: number,
-	dCol: number,
-	totalRows: number,
-	totalCols: number,
-) {
-	const tab = ensureTab(tabId)
-	const current = tab.selection.focusedCell ?? { row: 0, col: 0 }
-	const row = Math.max(0, Math.min(totalRows - 1, current.row + dRow))
-	const col = Math.max(0, Math.min(totalCols - 1, current.col + dCol))
-	extendSelection(tabId, row, col)
-}
-
-function clearSelection(tabId: string) {
-	ensureTab(tabId)
-	setState('tabs', tabId, 'selection', createDefaultSelection())
-}
-
-/** Legacy compatibility: set focused cell by column name */
-function setFocusedCell(
-	tabId: string,
-	cell: FocusedCell | null,
-	visibleColumns?: GridColumnDef[],
-) {
-	const tab = ensureTab(tabId)
-	if (!cell) {
-		setState('tabs', tabId, 'selection', {
-			...tab.selection,
-			focusedCell: null,
-		})
-		return
-	}
-	const colIdx = visibleColumns
-		? visibleColumns.findIndex((c) => c.name === cell.column)
-		: 0
-	selectCell(tabId, cell.row, Math.max(0, colIdx))
 }
 
 function getSelectedData(tabId: string): Record<string, unknown>[] {
@@ -1303,7 +1077,7 @@ function deleteSelectedRows(tabId: string) {
 	}
 
 	setState('tabs', tabId, 'pendingChanges', 'deletedRows', next)
-	clearSelection(tabId)
+	selectionActions.clearSelection(tabId)
 }
 
 function hasPendingChanges(tabId: string): boolean {
@@ -1689,502 +1463,6 @@ function captureViewConfig(tabId: string): SavedViewConfig {
 	}
 }
 
-// ── FK Peek popover actions ───────────────────────────────
-
-async function fetchFkRowData(
-	connectionId: string,
-	schema: string,
-	table: string,
-	column: string,
-	value: unknown,
-	database?: string,
-): Promise<{
-	rows: Record<string, unknown>[]
-	columns: GridColumnDef[]
-	foreignKeys: ForeignKeyInfo[]
-}> {
-	const dialect = connectionsStore.getDialect(connectionId)
-	const filters: ColumnFilter[] = [
-		{ column, operator: 'eq', value: String(value) },
-	]
-
-	const cachedColumns = connectionsStore.getColumns(
-		connectionId,
-		schema,
-		table,
-		database,
-	)
-	const gridColumns: GridColumnDef[] = cachedColumns.map((c) => ({
-		name: c.name,
-		dataType: c.dataType,
-		nullable: c.nullable,
-		isPrimaryKey: c.isPrimaryKey,
-	}))
-
-	const selectQuery = buildSelectQuery(
-		schema,
-		table,
-		1,
-		50,
-		undefined,
-		filters,
-		dialect,
-	)
-	const results = await rpc.query.execute({
-		connectionId,
-		sql: selectQuery.sql,
-		queryId: `fk-peek-${schema}-${table}-${column}`,
-		params: selectQuery.params,
-		database,
-	})
-
-	const foreignKeys = connectionsStore.getForeignKeys(
-		connectionId,
-		schema,
-		table,
-		database,
-	)
-
-	return {
-		rows: results[0]?.rows ?? [],
-		columns: gridColumns,
-		foreignKeys,
-	}
-}
-
-async function openFkPeek(
-	tabId: string,
-	anchorRect: { top: number; left: number; bottom: number; right: number },
-	schema: string,
-	table: string,
-	column: string,
-	value: unknown,
-) {
-	const tab = ensureTab(tabId)
-
-	setState('tabs', tabId, 'fkPeek', {
-		anchorRect,
-		rows: [],
-		columns: [],
-		breadcrumbs: [],
-		foreignKeys: [],
-		schema,
-		table,
-		loading: true,
-	})
-
-	try {
-		const data = await fetchFkRowData(
-			tab.connectionId,
-			schema,
-			table,
-			column,
-			value,
-			tab.database,
-		)
-		// Check peek is still open (user might have closed it)
-		if (!state.tabs[tabId]?.fkPeek) return
-		setState('tabs', tabId, 'fkPeek', {
-			anchorRect,
-			rows: data.rows,
-			columns: data.columns,
-			breadcrumbs: [{ schema, table, column, value }],
-			foreignKeys: data.foreignKeys,
-			schema,
-			table,
-			loading: false,
-		})
-	} catch {
-		setState('tabs', tabId, 'fkPeek', null)
-	}
-}
-
-function openPkPeek(
-	tabId: string,
-	rowIndex: number,
-	anchorRect: { top: number; left: number; bottom: number; right: number },
-) {
-	const tab = ensureTab(tabId)
-	const row = tab.rows[rowIndex]
-	if (!row) return
-
-	const foreignKeys = connectionsStore.getForeignKeys(
-		tab.connectionId,
-		tab.schema,
-		tab.table,
-		tab.database,
-	)
-
-	setState('tabs', tabId, 'fkPeek', {
-		anchorRect,
-		rows: [row],
-		columns: tab.columns,
-		breadcrumbs: [
-			{ schema: tab.schema, table: tab.table, column: '', value: null },
-		],
-		foreignKeys,
-		schema: tab.schema,
-		table: tab.table,
-		loading: false,
-	})
-}
-
-function closeFkPeek(tabId: string) {
-	ensureTab(tabId)
-	setState('tabs', tabId, 'fkPeek', null)
-}
-
-async function fkPeekNavigate(
-	tabId: string,
-	schema: string,
-	table: string,
-	column: string,
-	value: unknown,
-) {
-	const tab = ensureTab(tabId)
-	const peek = tab.fkPeek
-	if (!peek) return
-
-	const newBreadcrumbs = [
-		...peek.breadcrumbs,
-		{ schema, table, column, value },
-	]
-	setState('tabs', tabId, 'fkPeek', {
-		...peek,
-		loading: true,
-		breadcrumbs: newBreadcrumbs,
-	})
-
-	try {
-		const data = await fetchFkRowData(
-			tab.connectionId,
-			schema,
-			table,
-			column,
-			value,
-			tab.database,
-		)
-		if (!state.tabs[tabId]?.fkPeek) return
-		setState('tabs', tabId, 'fkPeek', {
-			anchorRect: peek.anchorRect,
-			rows: data.rows,
-			columns: data.columns,
-			breadcrumbs: newBreadcrumbs,
-			foreignKeys: data.foreignKeys,
-			schema,
-			table,
-			loading: false,
-		})
-	} catch {
-		setState('tabs', tabId, 'fkPeek', null)
-	}
-}
-
-function fkPeekBack(tabId: string) {
-	const tab = ensureTab(tabId)
-	const peek = tab.fkPeek
-	if (!peek || peek.breadcrumbs.length <= 1) return
-
-	const prevBreadcrumbs = peek.breadcrumbs.slice(0, -1)
-	const prev = prevBreadcrumbs[prevBreadcrumbs.length - 1]
-
-	// Re-fetch the previous breadcrumb's data
-	setState('tabs', tabId, 'fkPeek', {
-		...peek,
-		loading: true,
-		breadcrumbs: prevBreadcrumbs,
-	})
-
-	fetchFkRowData(
-		tab.connectionId,
-		prev.schema,
-		prev.table,
-		prev.column,
-		prev.value,
-		tab.database,
-	)
-		.then((data) => {
-			if (!state.tabs[tabId]?.fkPeek) return
-			setState('tabs', tabId, 'fkPeek', {
-				anchorRect: peek.anchorRect,
-				rows: data.rows,
-				columns: data.columns,
-				breadcrumbs: prevBreadcrumbs,
-				foreignKeys: data.foreignKeys,
-				schema: prev.schema,
-				table: prev.table,
-				loading: false,
-			})
-		})
-		.catch(() => {
-			setState('tabs', tabId, 'fkPeek', null)
-		})
-}
-
-// ── FK Exploration panel actions ──────────────────────────
-
-async function openFkPanel(
-	tabId: string,
-	schema: string,
-	table: string,
-	filters: ColumnFilter[],
-) {
-	const tab = ensureTab(tabId)
-
-	// Close value editor if open (mutually exclusive)
-	if (tab.valueEditorOpen) {
-		setState('tabs', tabId, 'valueEditorOpen', false)
-	}
-	// Close peek if open
-	setState('tabs', tabId, 'fkPeek', null)
-
-	const breadcrumb: FkBreadcrumb = {
-		schema,
-		table,
-		column: filters[0]?.column ?? '',
-		value: filters[0]?.value,
-	}
-
-	setState('tabs', tabId, 'fkPanel', {
-		width: tab.fkPanel?.width ?? 500,
-		schema,
-		table,
-		filters,
-		rows: [],
-		columns: [],
-		breadcrumbs: [breadcrumb],
-		foreignKeys: [],
-		totalCount: null,
-		countLoading: false,
-		currentPage: 1,
-		currentRowIndex: 0,
-		pageSize: 100,
-		loading: true,
-	})
-
-	await fetchFkPanelData(tabId)
-}
-
-async function fetchFkPanelData(tabId: string) {
-	const tab = ensureTab(tabId)
-	const panel = tab.fkPanel
-	if (!panel) return
-
-	try {
-		const dialect = connectionsStore.getDialect(tab.connectionId)
-		const cachedColumns = connectionsStore.getColumns(
-			tab.connectionId,
-			panel.schema,
-			panel.table,
-			tab.database,
-		)
-		const gridColumns: GridColumnDef[] = cachedColumns.map((c) => ({
-			name: c.name,
-			dataType: c.dataType,
-			nullable: c.nullable,
-			isPrimaryKey: c.isPrimaryKey,
-		}))
-
-		const filters = panel.filters.length > 0 ? panel.filters : undefined
-		const selectQuery = buildSelectQuery(
-			panel.schema,
-			panel.table,
-			panel.currentPage,
-			panel.pageSize,
-			undefined,
-			filters,
-			dialect,
-		)
-
-		let dataResults: Awaited<ReturnType<typeof rpc.query.execute>>
-		let totalCount: number | null = null
-
-		if (settingsStore.gridConfig.autoCount) {
-			const countQuery = buildCountQuery(panel.schema, panel.table, filters, dialect)
-			const [dr, cr] = await Promise.all([
-				rpc.query.execute({
-					connectionId: tab.connectionId,
-					sql: selectQuery.sql,
-					queryId: `fk-panel-${tabId}`,
-					params: selectQuery.params,
-					database: tab.database,
-				}),
-				rpc.query.execute({
-					connectionId: tab.connectionId,
-					sql: countQuery.sql,
-					queryId: `fk-panel-count-${tabId}`,
-					params: countQuery.params,
-					database: tab.database,
-				}),
-			])
-			dataResults = dr
-			totalCount = Number(cr[0]?.rows[0]?.count ?? 0)
-		} else {
-			dataResults = await rpc.query.execute({
-				connectionId: tab.connectionId,
-				sql: selectQuery.sql,
-				queryId: `fk-panel-${tabId}`,
-				params: selectQuery.params,
-				database: tab.database,
-			})
-		}
-
-		if (!state.tabs[tabId]?.fkPanel) return
-		const foreignKeys = connectionsStore.getForeignKeys(
-			tab.connectionId,
-			panel.schema,
-			panel.table,
-			tab.database,
-		)
-
-		setState('tabs', tabId, 'fkPanel', {
-			...panel,
-			rows: dataResults[0]?.rows ?? [],
-			columns: gridColumns,
-			totalCount,
-			countLoading: false,
-			foreignKeys,
-			loading: false,
-		})
-	} catch {
-		setState('tabs', tabId, 'fkPanel', null)
-	}
-}
-
-async function fetchFkPanelCount(tabId: string) {
-	const tab = getTab(tabId)
-	if (!tab?.fkPanel) return
-	setState('tabs', tabId, 'fkPanel', 'countLoading', true)
-	try {
-		const dialect = connectionsStore.getDialect(tab.connectionId)
-		const panel = tab.fkPanel
-		const filters = panel.filters.length > 0 ? panel.filters : undefined
-		const countQuery = buildCountQuery(panel.schema, panel.table, filters, dialect)
-		const results = await rpc.query.execute({
-			connectionId: tab.connectionId,
-			sql: countQuery.sql,
-			queryId: `fk-panel-count-${tabId}`,
-			params: countQuery.params,
-			database: tab.database,
-		})
-		if (!state.tabs[tabId]?.fkPanel) return
-		setState('tabs', tabId, 'fkPanel', 'totalCount', Number(results[0]?.rows[0]?.count ?? 0))
-	} catch {
-		// Silently ignore
-	} finally {
-		if (state.tabs[tabId]?.fkPanel) {
-			setState('tabs', tabId, 'fkPanel', 'countLoading', false)
-		}
-	}
-}
-
-async function refreshFkPanel(tabId: string) {
-	const tab = ensureTab(tabId)
-	if (!tab.fkPanel) return
-	setState('tabs', tabId, 'fkPanel', 'loading', true)
-	await fetchFkPanelData(tabId)
-}
-
-function closeFkPanel(tabId: string) {
-	ensureTab(tabId)
-	setState('tabs', tabId, 'fkPanel', null)
-}
-
-async function fkPanelNavigate(
-	tabId: string,
-	schema: string,
-	table: string,
-	column: string,
-	value: unknown,
-) {
-	const tab = ensureTab(tabId)
-	const panel = tab.fkPanel
-	if (!panel) return
-
-	const newFilters: ColumnFilter[] = [
-		{ column, operator: 'eq', value: String(value) },
-	]
-	const newBreadcrumbs = [
-		...panel.breadcrumbs,
-		{ schema, table, column, value },
-	]
-
-	setState('tabs', tabId, 'fkPanel', {
-		...panel,
-		schema,
-		table,
-		filters: newFilters,
-		breadcrumbs: newBreadcrumbs,
-		totalCount: null,
-		countLoading: false,
-		currentPage: 1,
-		currentRowIndex: 0,
-		loading: true,
-	})
-
-	await fetchFkPanelData(tabId)
-}
-
-async function fkPanelBack(tabId: string) {
-	const tab = ensureTab(tabId)
-	const panel = tab.fkPanel
-	if (!panel || panel.breadcrumbs.length <= 1) return
-
-	const prevBreadcrumbs = panel.breadcrumbs.slice(0, -1)
-	const prev = prevBreadcrumbs[prevBreadcrumbs.length - 1]
-
-	setState('tabs', tabId, 'fkPanel', {
-		...panel,
-		schema: prev.schema,
-		table: prev.table,
-		filters: [
-			{ column: prev.column, operator: 'eq', value: String(prev.value) },
-		],
-		breadcrumbs: prevBreadcrumbs,
-		totalCount: null,
-		countLoading: false,
-		currentPage: 1,
-		currentRowIndex: 0,
-		loading: true,
-	})
-
-	await fetchFkPanelData(tabId)
-}
-
-function fkPanelResize(tabId: string, width: number) {
-	const tab = ensureTab(tabId)
-	if (!tab.fkPanel) return
-	setState(
-		'tabs',
-		tabId,
-		'fkPanel',
-		'width',
-		Math.min(1200, Math.max(250, width)),
-	)
-}
-
-async function fkPanelSetPage(tabId: string, page: number) {
-	const tab = ensureTab(tabId)
-	if (!tab.fkPanel) return
-	setState('tabs', tabId, 'fkPanel', 'currentPage', page)
-	setState('tabs', tabId, 'fkPanel', 'currentRowIndex', 0)
-	setState('tabs', tabId, 'fkPanel', 'loading', true)
-	await fetchFkPanelData(tabId)
-}
-
-function fkPanelSetRowIndex(tabId: string, index: number) {
-	const tab = ensureTab(tabId)
-	if (!tab.fkPanel) return
-	const maxIndex = Math.max(0, tab.fkPanel.rows.length - 1)
-	setState(
-		'tabs',
-		tabId,
-		'fkPanel',
-		'currentRowIndex',
-		Math.min(Math.max(0, index), maxIndex),
-	)
-}
-
 function toggleTranspose(tabId: string) {
 	const tab = ensureTab(tabId)
 	setState('tabs', tabId, 'transposed', !tab.transposed)
@@ -2207,77 +1485,6 @@ function setValueEditorWidth(tabId: string, width: number) {
 		'valueEditorWidth',
 		Math.min(800, Math.max(200, width)),
 	)
-}
-
-// ── Heatmap actions ───────────────────────────────────────
-
-function setHeatmap(tabId: string, column: string, mode: HeatmapMode) {
-	const tab = ensureTab(tabId)
-	// Only allow heatmaps on numeric columns
-	const col = tab.columns.find((c) => c.name === column)
-	if (!col || !isNumericType(col.dataType)) return
-	setState('tabs', tabId, 'heatmapColumns', {
-		...tab.heatmapColumns,
-		[column]: mode,
-	})
-}
-
-function removeHeatmap(tabId: string, column: string) {
-	const tab = ensureTab(tabId)
-	const next = { ...tab.heatmapColumns }
-	delete next[column]
-	setState('tabs', tabId, 'heatmapColumns', next)
-}
-
-/** Compute min/max stats for all heatmap columns from currently displayed rows. */
-function computeHeatmapStats(tab: TabGridState): Map<string, HeatmapInfo> {
-	const result = new Map<string, HeatmapInfo>()
-	const columns = Object.keys(tab.heatmapColumns)
-	if (columns.length === 0) return result
-
-	for (const colName of columns) {
-		const mode = tab.heatmapColumns[colName]
-		let min = Infinity
-		let max = -Infinity
-		for (const row of tab.rows) {
-			const val = row[colName]
-			if (val === null || val === undefined) continue
-			const num = Number(val)
-			if (Number.isNaN(num)) continue
-			if (num < min) min = num
-			if (num > max) max = num
-		}
-		if (min <= max) {
-			result.set(colName, { min, max, mode })
-		}
-	}
-	return result
-}
-
-/** Compute a CSS background color for a heatmap cell. */
-function computeHeatmapColor(
-	value: unknown,
-	info: HeatmapInfo,
-): string | undefined {
-	if (value === null || value === undefined) return undefined
-	const num = Number(value)
-	if (Number.isNaN(num)) return undefined
-
-	const range = info.max - info.min
-	const t = range === 0 ? 0.5 : (num - info.min) / range // 0..1
-
-	if (info.mode === 'sequential') {
-		// Blue scale: low opacity → high opacity
-		const alpha = 0.08 + t * 0.47 // 0.08..0.55
-		return `rgba(59, 130, 246, ${alpha.toFixed(3)})`
-	}
-	// Diverging: blue (0) → transparent (0.5) → red (1)
-	if (t < 0.5) {
-		const alpha = (1 - t * 2) * 0.5 // 0.5→0
-		return `rgba(59, 130, 246, ${alpha.toFixed(3)})`
-	}
-	const alpha = (t * 2 - 1) * 0.5 // 0→0.5
-	return `rgba(239, 68, 68, ${alpha.toFixed(3)})`
 }
 
 function removeTab(tabId: string) {
@@ -2326,22 +1533,22 @@ export const gridStore = {
 	clearFilters,
 	setCustomFilter,
 	setQuickSearch,
-	selectCell,
-	extendSelection,
-	addCellRange,
-	extendLastRange,
-	selectFullRow,
-	selectFullRowRange,
-	toggleFullRow,
-	selectFullColumn,
-	selectFullColumnRange,
-	toggleFullColumn,
-	selectAll,
-	moveFocus,
-	extendFocus,
-	clearSelection,
+	selectCell: selectionActions.selectCell,
+	extendSelection: selectionActions.extendSelection,
+	addCellRange: selectionActions.addCellRange,
+	extendLastRange: selectionActions.extendLastRange,
+	selectFullRow: selectionActions.selectFullRow,
+	selectFullRowRange: selectionActions.selectFullRowRange,
+	toggleFullRow: selectionActions.toggleFullRow,
+	selectFullColumn: selectionActions.selectFullColumn,
+	selectFullColumnRange: selectionActions.selectFullColumnRange,
+	toggleFullColumn: selectionActions.toggleFullColumn,
+	selectAll: selectionActions.selectAll,
+	moveFocus: selectionActions.moveFocus,
+	extendFocus: selectionActions.extendFocus,
+	clearSelection: selectionActions.clearSelection,
 	getSelectedData,
-	setFocusedCell,
+	setFocusedCell: selectionActions.setFocusedCell,
 	buildClipboardTsv,
 	buildAdvancedCopyText,
 	formatCellForClipboard,
@@ -2356,8 +1563,8 @@ export const gridStore = {
 	removeTab,
 
 	// Heatmap
-	setHeatmap,
-	removeHeatmap,
+	setHeatmap: heatmapActions.setHeatmap,
+	removeHeatmap: heatmapActions.removeHeatmap,
 	computeHeatmapStats,
 	computeHeatmapColor,
 
@@ -2369,22 +1576,22 @@ export const gridStore = {
 	setValueEditorWidth,
 
 	// FK peek popover
-	openFkPeek,
-	openPkPeek,
-	closeFkPeek,
-	fkPeekNavigate,
-	fkPeekBack,
+	openFkPeek: fkActions.openFkPeek,
+	openPkPeek: fkActions.openPkPeek,
+	closeFkPeek: fkActions.closeFkPeek,
+	fkPeekNavigate: fkActions.fkPeekNavigate,
+	fkPeekBack: fkActions.fkPeekBack,
 
 	// FK exploration panel
-	openFkPanel,
-	closeFkPanel,
-	refreshFkPanel,
-	fetchFkPanelCount,
-	fkPanelNavigate,
-	fkPanelBack,
-	fkPanelResize,
-	fkPanelSetPage,
-	fkPanelSetRowIndex,
+	openFkPanel: fkActions.openFkPanel,
+	closeFkPanel: fkActions.closeFkPanel,
+	refreshFkPanel: fkActions.refreshFkPanel,
+	fetchFkPanelCount: fkActions.fetchFkPanelCount,
+	fkPanelNavigate: fkActions.fkPanelNavigate,
+	fkPanelBack: fkActions.fkPanelBack,
+	fkPanelResize: fkActions.fkPanelResize,
+	fkPanelSetPage: fkActions.fkPanelSetPage,
+	fkPanelSetRowIndex: fkActions.fkPanelSetRowIndex,
 
 	// Saved views
 	setActiveView,

@@ -2,9 +2,10 @@ import ArrowLeftRight from 'lucide-solid/icons/arrow-left-right'
 import EllipsisVertical from 'lucide-solid/icons/ellipsis-vertical'
 import RotateCcw from 'lucide-solid/icons/rotate-ccw'
 import Save from 'lucide-solid/icons/save'
-import { createEffect, createSignal, type JSX, onCleanup, Show } from 'solid-js'
+import { createSignal, type JSX, onCleanup, Show } from 'solid-js'
 import type { ColumnFilter } from '../../../shared/types/grid'
 import type { SavedViewConfig } from '../../../shared/types/rpc'
+import { useClickOutside } from '../../lib/hooks'
 import { rpc } from '../../lib/rpc'
 import { editorStore } from '../../stores/editor'
 import { gridStore } from '../../stores/grid'
@@ -51,21 +52,7 @@ export default function DataGridToolbar(props: DataGridToolbarProps) {
 	})
 
 	// Close more menu on click outside
-	createEffect(() => {
-		if (moreMenuOpen()) {
-			const handler = (e: MouseEvent) => {
-				const target = e.target as HTMLElement
-				if (
-					moreMenuRef && !moreMenuRef.contains(target)
-					&& moreMenuTriggerRef && !moreMenuTriggerRef.contains(target)
-				) {
-					setMoreMenuOpen(false)
-				}
-			}
-			document.addEventListener('mousedown', handler)
-			onCleanup(() => document.removeEventListener('mousedown', handler))
-		}
-	})
+	useClickOutside(() => moreMenuOpen(), () => [moreMenuRef, moreMenuTriggerRef], () => setMoreMenuOpen(false))
 
 	function handleQuickSearchInput(value: string) {
 		setSearchInput(value)

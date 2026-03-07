@@ -8,6 +8,7 @@ import { createEffect, createSignal, For, on, Show } from 'solid-js'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
 import type { FkBreadcrumb } from '../../stores/grid'
+import { formatDisplayValue } from '../../lib/format-utils'
 import Resizer from '../layout/Resizer'
 import RowDetailEditFields from './RowDetailEditFields'
 import './RowDetailPanel.css'
@@ -54,13 +55,6 @@ interface RowDetailPanelProps {
 	onResize: (delta: number) => void
 
 	subtitle?: string
-}
-
-function formatDisplayValue(value: unknown): string {
-	if (value === null || value === undefined) return 'NULL'
-	if (typeof value === 'object') return JSON.stringify(value)
-	const str = String(value)
-	return str.length > 200 ? str.slice(0, 200) + '...' : str
 }
 
 export default function RowDetailPanel(props: RowDetailPanelProps) {
@@ -311,7 +305,7 @@ export default function RowDetailPanel(props: RowDetailPanelProps) {
 													: undefined}
 												title={isFk() ? `Go to ${detail.fkLookup().get(col.name)!.table}` : undefined}
 											>
-												{formatDisplayValue(value())}
+												{formatDisplayValue(value(), 200)}
 											</span>
 										</div>
 									)

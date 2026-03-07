@@ -2,22 +2,11 @@ import { createEffect, createMemo, createSignal, on, type Accessor } from 'solid
 import { buildCountQuery } from '../../../shared/sql'
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
+import { buildFkLookup } from '../../lib/fk-utils'
 import { rpc } from '../../lib/rpc'
 import { connectionsStore } from '../../stores/connections'
 
-export function buildFkLookup(foreignKeys: ForeignKeyInfo[]): Map<string, { schema: string; table: string; column: string }> {
-	const map = new Map<string, { schema: string; table: string; column: string }>()
-	for (const fk of foreignKeys) {
-		if (fk.columns.length === 1) {
-			map.set(fk.columns[0], {
-				schema: fk.referencedSchema,
-				table: fk.referencedTable,
-				column: fk.referencedColumns[0],
-			})
-		}
-	}
-	return map
-}
+export { buildFkLookup } from '../../lib/fk-utils'
 
 export interface UseRowDetailParams {
 	connectionId: string

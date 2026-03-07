@@ -4,13 +4,23 @@ import { generateChangesPreview, generateChangeSql } from '../../shared/sql/buil
 import { analyzeSelectSource } from '../../shared/sql/editability'
 import { detectDestructiveWithoutWhere, isUnlimitedSelect, splitStatements } from '../../shared/sql/statements'
 import type { ExplainResult, QueryEditability, QueryResult } from '../../shared/types/query'
-import type { DataChange, TransactionLogEntry, TransactionLogStatus } from '../../shared/types/rpc'
+import type { DataChange } from '../../shared/types/rpc'
 import { friendlyErrorMessage, rpc } from '../lib/rpc'
 import { getStatementAtCursor } from '../lib/sql-utils'
 import { storage } from '../lib/storage'
 import { createTabHelpers } from '../lib/tab-store-helpers'
 import { scheduleWorkspaceSave } from '../lib/workspace'
 import { connectionsStore } from './connections'
+import { createEditorAiActions } from './editorAi'
+import {
+	clearTransactionLog,
+	createTxLogHelpers,
+	fetchTransactionLog,
+	setTxLogSearch,
+	setTxLogSelectedEntry,
+	setTxLogStatusFilter,
+	txLogState,
+} from './editorTransactionLog'
 import type { CellChange, EditingCell } from './grid'
 import { sessionStore } from './session'
 import { settingsStore } from './settings'
@@ -120,7 +130,7 @@ function createDefaultResultPendingChanges(): ResultPendingChanges {
 
 // ── Store ─────────────────────────────────────────────────
 
-interface EditorStoreState {
+export interface EditorStoreState {
 	tabs: Record<string, TabEditorState>
 }
 
@@ -846,123 +856,10 @@ function revertResultRowUpdate(tabId: string, resultIndex: number, rowIndex: num
 	setState('tabs', tabId, 'resultPendingChanges', resultIndex, 'cellEdits', edits)
 }
 
-// ── Transaction Log ───────────────────────────────────────
+// ── Extracted module actions ──────────────────────────────
 
-export interface TransactionLogState {
-	entries: TransactionLogEntry[]
-	pendingStatementCount: number
-	statusFilter: TransactionLogStatus | undefined
-	search: string
-	selectedEntryId: string | null
-}
-
-const [txLogState, setTxLogState] = createStore<TransactionLogState>({
-	entries: [],
-	pendingStatementCount: 0,
-	statusFilter: undefined,
-	search: '',
-	selectedEntryId: null,
-})
-
-async function fetchTransactionLog(connectionId: string, database?: string, sessionId?: string) {
-	try {
-		const result = await rpc.transaction.getLog({
-			connectionId,
-			database,
-			sessionId,
-			statusFilter: txLogState.statusFilter,
-			search: txLogState.search || undefined,
-		})
-		setTxLogState({
-			entries: result.entries,
-			pendingStatementCount: result.pendingStatementCount,
-		})
-	} catch (err) {
-		console.debug('Failed to fetch transaction log:', err instanceof Error ? err.message : err)
-	}
-}
-
-function setTxLogStatusFilter(filter: TransactionLogStatus | undefined) {
-	setTxLogState('statusFilter', filter)
-}
-
-function setTxLogSearch(search: string) {
-	setTxLogState('search', search)
-}
-
-function setTxLogSelectedEntry(id: string | null) {
-	setTxLogState('selectedEntryId', id)
-}
-
-async function clearTransactionLog(connectionId: string, database?: string) {
-	try {
-		await rpc.transaction.clearLog({ connectionId, database })
-		setTxLogState({ entries: [], pendingStatementCount: 0, selectedEntryId: null })
-	} catch (err) {
-		console.debug('Failed to clear transaction log:', err instanceof Error ? err.message : err)
-	}
-}
-
-/** Get the pending TX statement count for the status bar. */
-function getPendingTxCount(connectionId: string): number {
-	// Check if any editor tab on this connection is in a transaction
-	for (const [, tab] of Object.entries(state.tabs)) {
-		if (tab.connectionId === connectionId && tab.inTransaction) {
-			return txLogState.pendingStatementCount
-		}
-	}
-	return 0
-}
-
-// ── AI SQL generation ─────────────────────────────────────
-
-function openAiPrompt(tabId: string) {
-	ensureTab(tabId)
-	setState('tabs', tabId, { aiPromptOpen: true, aiError: null })
-}
-
-function closeAiPrompt(tabId: string) {
-	ensureTab(tabId)
-	setState('tabs', tabId, { aiPromptOpen: false, aiGenerating: false, aiError: null })
-}
-
-function toggleAiPrompt(tabId: string) {
-	const tab = ensureTab(tabId)
-	if (tab.aiPromptOpen) {
-		closeAiPrompt(tabId)
-	} else {
-		openAiPrompt(tabId)
-	}
-}
-
-async function generateAiSql(tabId: string, prompt: string) {
-	const tab = ensureTab(tabId)
-	if (!prompt.trim()) return
-
-	setState('tabs', tabId, { aiGenerating: true, aiError: null })
-
-	try {
-		const result = await rpc.ai.generateSql({
-			connectionId: tab.connectionId,
-			database: tab.database,
-			prompt: prompt.trim(),
-		})
-
-		// Insert generated SQL into editor
-		const currentContent = tab.content
-		if (currentContent.trim()) {
-			// Append after existing content with a blank line separator
-			setState('tabs', tabId, 'content', currentContent.trimEnd() + '\n\n' + result.sql)
-		} else {
-			setState('tabs', tabId, 'content', result.sql)
-		}
-
-		setState('tabs', tabId, { aiGenerating: false, aiPromptOpen: false, aiError: null })
-	} catch (err) {
-		const errorMessage = friendlyErrorMessage(err)
-		setState('tabs', tabId, { aiGenerating: false, aiError: errorMessage })
-	}
-}
+const aiActions = createEditorAiActions(setState, ensureTab)
+const txLogHelpers = createTxLogHelpers(state)
 
 // ── Export ─────────────────────────────────────────────────
 
@@ -1020,10 +917,10 @@ export const editorStore = {
 	setTxLogSearch,
 	setTxLogSelectedEntry,
 	clearTransactionLog,
-	getPendingTxCount,
+	getPendingTxCount: txLogHelpers.getPendingTxCount,
 	// AI SQL generation
-	openAiPrompt,
-	closeAiPrompt,
-	toggleAiPrompt,
-	generateAiSql,
+	openAiPrompt: aiActions.openAiPrompt,
+	closeAiPrompt: aiActions.closeAiPrompt,
+	toggleAiPrompt: aiActions.toggleAiPrompt,
+	generateAiSql: aiActions.generateAiSql,
 }

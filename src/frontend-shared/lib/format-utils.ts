@@ -8,8 +8,10 @@ export function formatFileSize(bytes: number): string {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function formatDisplayValue(value: unknown): string {
+export function formatDisplayValue(value: unknown, maxLength?: number): string {
 	if (value === null || value === undefined) return 'NULL'
 	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
+	const str = String(value)
+	if (maxLength && str.length > maxLength) return str.slice(0, maxLength) + '...'
+	return str
 }
