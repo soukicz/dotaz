@@ -89,7 +89,7 @@
 }
 
 .export-dialog__radio-label input[type="radio"] {
-	accent-color: var(--accent);
+	margin: 0;
 }
 
 .export-dialog__radio-label--disabled {
@@ -114,10 +114,11 @@
 .export-dialog__field-label {
 	font-size: var(--font-size-sm);
 	color: var(--ink);
-	min-width: 100px;
+	min-width: 120px;
 }
 
 .export-dialog__select {
+	flex: 1;
 	padding: var(--spacing-xs) var(--spacing-sm);
 	border: 1px solid var(--edge);
 	border-radius: 4px;
@@ -161,7 +162,7 @@
 }
 
 .export-dialog__checkbox-label input {
-	accent-color: var(--accent);
+	margin: 0;
 }
 
 /* Preview */

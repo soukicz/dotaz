@@ -66,11 +66,22 @@ export default function ExportDialog(props: ExportDialogProps) {
 	const [utf8Bom, setUtf8Bom] = createSignal(false)
 	const [includeHeaders, setIncludeHeaders] = createSignal(true)
 	const [batchSize, setBatchSize] = createSignal(100)
-	const [previewRows, setPreviewRows] = createSignal<Record<string, unknown>[] | null>(null)
+	const [previewRows, setPreviewRows] = createSignal<
+		Record<string, unknown>[] | null
+	>(null)
 	const [previewColumns, setPreviewColumns] = createSignal<string[]>([])
 	const [previewLoading, setPreviewLoading] = createSignal(false)
 	const preview = createMemo(() =>
-		formatPreview(previewRows(), previewColumns(), format(), delimiter(), includeHeaders(), batchSize(), props.schema, props.table),
+		formatPreview(
+			previewRows(),
+			previewColumns(),
+			format(),
+			delimiter(),
+			includeHeaders(),
+			batchSize(),
+			props.schema,
+			props.table,
+		)
 	)
 	const [exporting, setExporting] = createSignal(false)
 	const [progressRows, setProgressRows] = createSignal(0)
@@ -405,7 +416,12 @@ export default function ExportDialog(props: ExportDialogProps) {
 	}
 
 	return (
-		<Dialog open={props.open} title="Export Data" onClose={props.onClose} class="export-dialog-modal">
+		<Dialog
+			open={props.open}
+			title="Export Data"
+			onClose={props.onClose}
+			class="export-dialog-modal"
+		>
 			<div class="export-dialog">
 				{/* Format selection */}
 				<div class="export-dialog__section">
@@ -499,23 +515,29 @@ export default function ExportDialog(props: ExportDialogProps) {
 										)}
 									/>
 								</div>
-								<label class="export-dialog__checkbox-label">
-									<input
-										type="checkbox"
-										checked={includeHeaders()}
-										onChange={(e) => setIncludeHeaders(e.currentTarget.checked)}
-									/>
-									Include headers
-								</label>
-								<Show when={encoding() === 'utf-8'}>
+								<div class="export-dialog__field">
+									<div class="export-dialog__field-label" />
 									<label class="export-dialog__checkbox-label">
 										<input
 											type="checkbox"
-											checked={utf8Bom()}
-											onChange={(e) => setUtf8Bom(e.currentTarget.checked)}
+											checked={includeHeaders()}
+											onChange={(e) => setIncludeHeaders(e.currentTarget.checked)}
 										/>
-										Include BOM
+										Include headers
 									</label>
+								</div>
+								<Show when={encoding() === 'utf-8'}>
+									<div class="export-dialog__field">
+										<div class="export-dialog__field-label" />
+										<label class="export-dialog__checkbox-label">
+											<input
+												type="checkbox"
+												checked={utf8Bom()}
+												onChange={(e) => setUtf8Bom(e.currentTarget.checked)}
+											/>
+											Include BOM
+										</label>
+									</div>
 								</Show>
 							</div>
 						</div>
@@ -526,7 +548,9 @@ export default function ExportDialog(props: ExportDialogProps) {
 							<label class="export-dialog__label">Options</label>
 							<div class="export-dialog__options">
 								<div class="export-dialog__field">
-									<label class="export-dialog__field-label">Rows per INSERT</label>
+									<label class="export-dialog__field-label">
+										Rows per INSERT
+									</label>
 									<input
 										class="export-dialog__input export-dialog__input--small"
 										type="number"
@@ -614,7 +638,7 @@ export default function ExportDialog(props: ExportDialogProps) {
 				<div class="export-dialog__info">
 					{scope() === 'selected'
 						? `${selectedRowCount()} row${selectedRowCount() !== 1 ? 's' : ''}, ${selectedCellCount()} cell${selectedCellCount() !== 1 ? 's' : ''} selected`
-						: `${rowCountForScope()} row${rowCountForScope() !== 1 ? 's' : ''} to export`}
+						: `${rowCountForScope() ?? 0} row${(rowCountForScope() ?? 0) !== 1 ? 's' : ''} to export`}
 				</div>
 
 				{/* Actions */}
