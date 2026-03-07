@@ -2,28 +2,28 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test'
 
 // Mock solid-js/store before importing the module
 // We replicate createStore behavior for testing
-let storeState: any
-let setStore: any
+const stores: any[] = []
 
 mock.module('solid-js/store', () => ({
 	createStore: (initial: any) => {
-		storeState = structuredClone(initial)
+		const localState = structuredClone(initial)
+		stores.push(localState)
 
-		setStore = (...args: any[]) => {
+		const setStore = (...args: any[]) => {
 			if (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'function') {
 				// setState("key", fn)
-				storeState[args[0]] = args[1](storeState[args[0]])
+				localState[args[0]] = args[1](localState[args[0]])
 			} else if (args.length === 2 && typeof args[0] === 'string') {
 				// setState("key", value)
-				storeState[args[0]] = args[1]
+				localState[args[0]] = args[1]
 			} else if (args.length === 4) {
 				// setState("openTabs", idx, "field", value)
 				const [, idx, field, value] = args
-				storeState.openTabs[idx][field] = value
+				localState.openTabs[idx][field] = value
 			}
 		}
 
-		return [storeState, setStore]
+		return [localState, setStore]
 	},
 }))
 
@@ -45,9 +45,12 @@ function restoreConfirm() {
 
 describe('tabs store', () => {
 	beforeEach(() => {
-		// Reset store state
-		storeState.openTabs = []
-		storeState.activeTabId = null
+		// Reset store state — find the tabs store (has openTabs property)
+		const tabState = stores.find((s) => 'openTabs' in s)
+		if (tabState) {
+			tabState.openTabs = []
+			tabState.activeTabId = null
+		}
 		restoreConfirm()
 	})
 

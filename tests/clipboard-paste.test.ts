@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { cellValueToDbValue, detectDelimiter, parseClipboardText } from '../src/frontend-shared/lib/clipboard-paste'
+import { cellValueToDbValue, detectDelimiter, parseClipboardText } from '../src/shared/clipboard-paste'
 
 describe('detectDelimiter', () => {
 	test('detects tab delimiter', () => {

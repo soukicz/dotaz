@@ -2,23 +2,21 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test'
 
 // ── Mock solid-js/store ──────────────────────────────────
 
-let storeState: any
-
 mock.module('solid-js/store', () => ({
 	createStore: (initial: any) => {
-		storeState = structuredClone(initial)
+		const localState = structuredClone(initial)
 
 		const setStore = (...args: any[]) => {
 			if (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'function') {
 				// setState("key", fn)
-				storeState[args[0]] = args[1](storeState[args[0]])
+				localState[args[0]] = args[1](localState[args[0]])
 			} else if (args.length === 2 && typeof args[0] === 'string') {
 				// setState("key", value)
-				storeState[args[0]] = args[1]
+				localState[args[0]] = args[1]
 			}
 		}
 
-		return [storeState, setStore]
+		return [localState, setStore]
 	},
 }))
 
