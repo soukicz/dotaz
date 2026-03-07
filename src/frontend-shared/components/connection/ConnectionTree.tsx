@@ -8,7 +8,7 @@ import Plus from 'lucide-solid/icons/plus'
 import SquareTerminal from 'lucide-solid/icons/square-terminal'
 import Table from 'lucide-solid/icons/table'
 import { siMysql, siPostgresql, siSqlite } from 'simple-icons'
-import { createMemo, createSignal, For, type JSX, onCleanup, Show } from 'solid-js'
+import { createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from 'solid-js'
 import type { ConnectionInfo, ConnectionState, ConnectionType } from '../../../shared/types/connection'
 import { CONNECTION_TYPE_META, getDefaultDatabase } from '../../../shared/types/connection'
 import type { SchemaInfo, TableInfo } from '../../../shared/types/database'
@@ -156,7 +156,10 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	function handleFocusFilter() {
 		searchInputRef?.focus()
 	}
-	window.addEventListener('dotaz:focus-navigator-filter', handleFocusFilter)
+
+	onMount(() => {
+		window.addEventListener('dotaz:focus-navigator-filter', handleFocusFilter)
+	})
 
 	onCleanup(() => {
 		if (filterDebounceTimer) clearTimeout(filterDebounceTimer)
@@ -283,6 +286,25 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			return next
 		})
 	}
+
+	const isFiltering = () => filterTerm().length > 0
+
+	/** Connections that have at least one matching table (or all when not filtering) */
+	const visibleConnectionsRaw = () => {
+		if (!isFiltering()) return connectionsStore.connections
+		return connectionsStore.connections.filter((conn) => {
+			// Always show disconnected/loading connections
+			if (conn.state !== 'connected') return true
+			// For multi-db connections, check all databases
+			if (hasMultipleDatabases(conn)) {
+				return connectionsStore.getActiveDatabaseNames(conn.id).some((db) => databaseHasMatch(conn.id, db))
+			}
+			return connectionHasMatch(conn.id)
+		})
+	}
+
+	/** Check if any connection has matching tables — for empty state */
+	const hasFilterResults = () => visibleConnectionsRaw().length > 0
 
 	/** Group connections by folder. Returns { folders, ungrouped }. */
 	const groupedConnections = createMemo(() => {
@@ -504,9 +526,6 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 		)
 	}
 
-	// ── Filter active check ───────────────────────────────
-	const isFiltering = () => filterTerm().length > 0
-
 	// ── Schema tree rendering (shared between database and non-database views) ──
 
 	function renderSchemaTree(conn: ConnectionInfo, tree: SchemaTree, schemas: SchemaInfo[], baseLevel: number, database?: string) {
@@ -560,23 +579,6 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			</For>
 		)
 	}
-
-	/** Connections that have at least one matching table (or all when not filtering) */
-	const visibleConnectionsRaw = () => {
-		if (!isFiltering()) return connectionsStore.connections
-		return connectionsStore.connections.filter((conn) => {
-			// Always show disconnected/loading connections
-			if (conn.state !== 'connected') return true
-			// For multi-db connections, check all databases
-			if (hasMultipleDatabases(conn)) {
-				return connectionsStore.getActiveDatabaseNames(conn.id).some((db) => databaseHasMatch(conn.id, db))
-			}
-			return connectionHasMatch(conn.id)
-		})
-	}
-
-	/** Check if any connection has matching tables — for empty state */
-	const hasFilterResults = () => visibleConnectionsRaw().length > 0
 
 	// ── Connection item rendering ─────────────────────────
 

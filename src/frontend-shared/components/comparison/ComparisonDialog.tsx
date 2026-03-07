@@ -1,6 +1,5 @@
 import { createEffect, createSignal, For, Show } from 'solid-js'
 import type { ComparisonColumnMapping, ComparisonSource } from '../../../shared/types/comparison'
-import type { ConnectionInfo } from '../../../shared/types/connection'
 import type { ColumnInfo, SchemaData } from '../../../shared/types/database'
 import { rpc } from '../../lib/rpc'
 import { connectionsStore } from '../../stores/connections'
@@ -71,8 +70,6 @@ export default function ComparisonDialog(props: ComparisonDialogProps) {
 			}
 		}
 	})
-
-	const connectedConnections = () => connectionsStore.connections.filter((c: ConnectionInfo) => c.state === 'connected')
 
 	async function loadSchema(side: 'left' | 'right', connectionId: string, database?: string) {
 		try {
@@ -252,7 +249,7 @@ export default function ComparisonDialog(props: ComparisonDialogProps) {
 						class="comparison-dialog__select"
 						value={state().connectionId}
 						onChange={(v) => handleConnectionChange(side, v)}
-						options={[{ value: '', label: 'Select connection...' }, ...connectedConnections().map((conn) => ({ value: conn.id, label: conn.name }))]}
+						options={[{ value: '', label: 'Select connection...' }, ...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name }))]}
 					/>
 				</div>
 

@@ -73,9 +73,6 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 	const [searchError, setSearchError] = createSignal<string | null>(null)
 	const [searchedInfo, setSearchedInfo] = createSignal<{ tables: number; elapsed: number; total: number; cancelled: boolean } | null>(null)
 
-	// Connected connections for the connection picker
-	const connectedConnections = () => connectionsStore.connections.filter((c) => c.state === 'connected')
-
 	const schemas = (): SchemaInfo[] => schemaData()?.schemas ?? []
 	const allTables = (): TableInfo[] => {
 		const sd = schemaData()
@@ -101,7 +98,7 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 	// Reset state when dialog opens
 	createEffect(() => {
 		if (props.open) {
-			const connId = props.initialConnectionId || connectedConnections()[0]?.id || ''
+			const connId = props.initialConnectionId || connectionsStore.connectedConnections[0]?.id || ''
 			setParams(reconcile({
 				term: '',
 				scope: props.initialScope ?? 'database',
@@ -231,7 +228,7 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 								setResults([])
 								setSearchStatus('idle')
 							}}
-							options={connectedConnections().map((conn) => ({ value: conn.id, label: conn.name }))}
+							options={connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name }))}
 						/>
 
 						<span class="search-dialog__label">Scope</span>

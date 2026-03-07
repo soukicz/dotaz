@@ -173,14 +173,9 @@ async function createConnection(
 	color?: string,
 	groupName?: string,
 ): Promise<ConnectionInfo> {
-	try {
-		const conn = await storage.createConnection(name, config, rememberPassword, readOnly, color, groupName)
-		setState('connections', (prev) => [...prev, conn])
-		return conn
-	} catch (err) {
-		uiStore.addToast('warning', 'Failed to save connection. Changes may not persist.')
-		throw err
-	}
+	const conn = await storage.createConnection(name, config, rememberPassword, readOnly, color, groupName)
+	setState('connections', (prev) => [...prev, conn])
+	return conn
 }
 
 async function updateConnection(
@@ -192,14 +187,9 @@ async function updateConnection(
 	color?: string,
 	groupName?: string,
 ): Promise<ConnectionInfo> {
-	try {
-		const conn = await storage.updateConnection(id, name, config, rememberPassword, readOnly, color, groupName)
-		setState('connections', (c) => c.id === id, conn)
-		return conn
-	} catch (err) {
-		uiStore.addToast('warning', 'Failed to update connection. Changes may not persist.')
-		throw err
-	}
+	const conn = await storage.updateConnection(id, name, config, rememberPassword, readOnly, color, groupName)
+	setState('connections', (c) => c.id === id, conn)
+	return conn
 }
 
 async function setReadOnly(id: string, readOnly: boolean): Promise<void> {
@@ -365,6 +355,9 @@ export function initConnectionsListener(): () => void {
 export const connectionsStore = {
 	get connections() {
 		return state.connections
+	},
+	get connectedConnections() {
+		return state.connections.filter((c) => c.state === 'connected')
 	},
 	get activeConnectionId() {
 		return state.activeConnectionId

@@ -4,7 +4,9 @@ import Play from 'lucide-solid/icons/play'
 import Trash2 from 'lucide-solid/icons/trash-2'
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import type { QueryHistoryEntry } from '../../../shared/types/query'
+import { toLocalDateString } from '../../lib/cell-formatters'
 import { storage } from '../../lib/storage'
+import { truncateSql } from '../../lib/sql-utils'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore } from '../../stores/editor'
 import { tabsStore } from '../../stores/tabs'
@@ -20,7 +22,6 @@ interface QueryHistoryProps {
 }
 
 const PAGE_SIZE = 50
-const SQL_TRUNCATE_LENGTH = 120
 const TOAST_DURATION = 1500
 
 export default function QueryHistory(props: QueryHistoryProps) {
@@ -110,13 +111,6 @@ export default function QueryHistory(props: QueryHistoryProps) {
 		loadEntries(true)
 	}
 
-	function toLocalDateString(date: Date): string {
-		const y = date.getFullYear()
-		const m = String(date.getMonth() + 1).padStart(2, '0')
-		const d = String(date.getDate()).padStart(2, '0')
-		return `${y}-${m}-${d}`
-	}
-
 	function applyPreset(preset: 'today' | '7days' | '30days') {
 		const today = new Date()
 		const end = toLocalDateString(today)
@@ -184,12 +178,6 @@ export default function QueryHistory(props: QueryHistoryProps) {
 		return `${(ms / 1000).toFixed(1)} s`
 	}
 
-	function truncateSql(sql: string): string {
-		const oneLine = sql.replace(/\s+/g, ' ').trim()
-		if (oneLine.length <= SQL_TRUNCATE_LENGTH) return oneLine
-		return oneLine.slice(0, SQL_TRUNCATE_LENGTH) + '...'
-	}
-
 	function showToast(message: string) {
 		setToast(message)
 		setTimeout(() => setToast(null), TOAST_DURATION)
@@ -249,9 +237,6 @@ export default function QueryHistory(props: QueryHistoryProps) {
 		}
 	}
 
-	// Get unique connected connections for the filter dropdown
-	const connectedConnections = () => connectionsStore.connections.filter((c) => c.state === 'connected')
-
 	return (
 		<Dialog
 			open={props.open}
@@ -274,7 +259,7 @@ export default function QueryHistory(props: QueryHistoryProps) {
 						onChange={(v) => handleConnectionFilterChange(v)}
 						options={[
 							{ value: '', label: 'All connections' },
-							...connectedConnections().map((conn) => ({ value: String(conn.id), label: String(conn.name) })),
+							...connectionsStore.connectedConnections.map((conn) => ({ value: String(conn.id), label: String(conn.name) })),
 						]}
 					/>
 					<button
@@ -358,7 +343,7 @@ export default function QueryHistory(props: QueryHistoryProps) {
 											<Icon name={entry.status === 'success' ? 'check' : 'error'} size={12} />
 										</span>
 										<span class="query-history__sql-preview">
-											{truncateSql(entry.sql)}
+											{truncateSql(entry.sql, 120)}
 										</span>
 										<span class="query-history__meta">
 											<Show when={entry.durationMs != null}>

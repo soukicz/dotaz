@@ -6,6 +6,7 @@ import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import type { QueryBookmark } from '../../../shared/types/rpc'
 import { rpc } from '../../lib/rpc'
+import { truncateSql } from '../../lib/sql-utils'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore } from '../../stores/editor'
 import { tabsStore } from '../../stores/tabs'
@@ -25,7 +26,6 @@ interface BookmarksDialogProps {
 	initialDatabase?: string
 }
 
-const SQL_TRUNCATE_LENGTH = 100
 const TOAST_DURATION = 1500
 
 type FormMode = { mode: 'idle' } | { mode: 'editing'; bookmark: QueryBookmark } | { mode: 'creating' }
@@ -48,6 +48,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	})
 
 	let searchDebounce: ReturnType<typeof setTimeout> | undefined
+	let toastTimeout: ReturnType<typeof setTimeout> | undefined
 
 	createEffect(() => {
 		if (props.open) {
@@ -70,6 +71,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 
 	onCleanup(() => {
 		if (searchDebounce) clearTimeout(searchDebounce)
+		if (toastTimeout) clearTimeout(toastTimeout)
 	})
 
 	function resetForm() {
@@ -107,14 +109,9 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	}
 
 	function showToast(message: string) {
+		if (toastTimeout) clearTimeout(toastTimeout)
 		setToast(message)
-		setTimeout(() => setToast(null), TOAST_DURATION)
-	}
-
-	function truncateSql(sql: string): string {
-		const oneLine = sql.replace(/\s+/g, ' ').trim()
-		if (oneLine.length <= SQL_TRUNCATE_LENGTH) return oneLine
-		return oneLine.slice(0, SQL_TRUNCATE_LENGTH) + '...'
+		toastTimeout = setTimeout(() => setToast(null), TOAST_DURATION)
 	}
 
 	function startCreate() {
@@ -248,8 +245,6 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 		}
 	}
 
-	const connectedConnections = () => connectionsStore.connections.filter((c) => c.state === 'connected')
-
 	const isFormOpen = () => formMode().mode !== 'idle'
 
 	return (
@@ -325,7 +320,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 							class="bookmarks-dialog__connection-filter"
 							value={connectionFilter()}
 							onChange={(v) => handleConnectionFilterChange(v)}
-							options={[{ value: '', label: 'Select connection' }, ...connectedConnections().map((conn) => ({ value: conn.id, label: conn.name }))]}
+							options={[{ value: '', label: 'Select connection' }, ...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name }))]}
 						/>
 						<button
 							class="bookmarks-dialog__add-btn"

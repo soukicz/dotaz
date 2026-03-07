@@ -9,7 +9,7 @@ import PinOff from 'lucide-solid/icons/pin-off'
 import RotateCcw from 'lucide-solid/icons/rotate-ccw'
 import TriangleAlert from 'lucide-solid/icons/triangle-alert'
 import X from 'lucide-solid/icons/x'
-import { createEffect, createSignal, For, Match, Show, Switch } from 'solid-js'
+import { createEffect, createSignal, For, Match, on, Show, Switch } from 'solid-js'
 import type { QueryEditability, QueryResult } from '../../../shared/types/query'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore, type PinnedResultSet } from '../../stores/editor'
@@ -93,10 +93,7 @@ export default function SqlResultPanel(props: SqlResultPanelProps) {
 		settingsStore.saveConsoleConfig({ ...settingsStore.consoleConfig, defaultResultLimit: value })
 	}
 
-	createEffect(() => {
-		results()
-		setActiveResultIndex(0)
-	})
+	createEffect(on(results, () => setActiveResultIndex(0)))
 
 	const activeResult = () => {
 		const r = results()
