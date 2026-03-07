@@ -2,7 +2,7 @@ import ClipboardPaste from 'lucide-solid/icons/clipboard-paste'
 import Copy from 'lucide-solid/icons/copy'
 import Play from 'lucide-solid/icons/play'
 import Trash2 from 'lucide-solid/icons/trash-2'
-import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import type { QueryHistoryEntry } from '../../../shared/types/query'
 import { storage } from '../../lib/storage'
 import { connectionsStore } from '../../stores/connections'
@@ -43,7 +43,7 @@ export default function QueryHistory(props: QueryHistoryProps) {
 			setEntries([])
 			setExpandedId(null)
 			setHasMore(true)
-			loadEntries(true)
+			untrack(() => loadEntries(true))
 		}
 	})
 
