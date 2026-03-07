@@ -1,37 +1,48 @@
 .tips {
 	display: flex;
-	flex-direction: column;
 	align-items: center;
-	gap: var(--spacing-sm);
-	max-width: 420px;
-	text-align: center;
-}
-
-.tips__header {
-	display: flex;
-	align-items: center;
-	gap: var(--spacing-xs);
-	color: var(--ink-muted);
-	font-size: var(--font-size-sm);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
-.tips__icon {
-	opacity: 0.6;
+	gap: var(--spacing-md);
+	width: 460px;
+	height: 88px;
+	padding: var(--spacing-lg);
+	border: 1px solid var(--border-primary);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
 }
 
 .tips__content {
+	flex: 1;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: var(--spacing-xs);
+}
+
+.tips__title-row {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+}
+
+.tips__tip-icon {
+	color: var(--ink-muted);
+	flex-shrink: 0;
 }
 
 .tips__title {
 	margin: 0;
-	font-size: var(--font-size-base);
+	font-size: var(--font-size-sm);
 	font-weight: 500;
 	color: var(--ink-secondary);
+}
+
+.tips__counter {
+	margin-left: auto;
+	font-size: var(--font-size-sm);
+	color: var(--ink-muted);
+	opacity: 0.5;
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .tips__description {
@@ -41,19 +52,32 @@
 	line-height: 1.5;
 }
 
-.tips__nav {
-	display: flex;
-	align-items: center;
-	gap: var(--spacing-sm);
+.tips__description strong {
+	color: var(--ink-secondary);
+	font-weight: 500;
+}
+
+.tips__kbd {
+	display: inline-block;
+	padding: 1px 5px;
+	font-size: 11px;
+	font-family: inherit;
+	line-height: 1.3;
+	color: var(--ink-secondary);
+	background: var(--surface-hover);
+	border: 1px solid var(--border-primary);
+	border-radius: 3px;
+	white-space: nowrap;
 }
 
 .tips__nav-btn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 24px;
-	height: 24px;
+	width: 28px;
+	height: 28px;
 	padding: 0;
+	flex-shrink: 0;
 	border: 1px solid var(--border-primary);
 	border-radius: var(--radius-sm);
 	background: transparent;
@@ -64,10 +88,4 @@
 .tips__nav-btn:hover {
 	background: var(--surface-hover);
 	color: var(--ink-secondary);
-}
-
-.tips__counter {
-	font-size: var(--font-size-sm);
-	color: var(--ink-muted);
-	min-width: 50px;
 }
