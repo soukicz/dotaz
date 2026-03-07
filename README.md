@@ -22,11 +22,11 @@ Dotaz is a database client that gets out of your way. It focuses on what you do 
 
 It runs in three modes:
 
-| Mode | How it works |
-|------|-------------|
+| Mode        | How it works                                                                             |
+| ----------- | ---------------------------------------------------------------------------------------- |
 | **Desktop** | Native app via [Electrobun](https://electrobun.dev/) — Bun backend with a system webview |
-| **Web** | Bun HTTP/WebSocket server with a browser frontend |
-| **Demo** | Fully in-browser with WASM SQLite — no server, no setup |
+| **Web**     | Bun HTTP/WebSocket server with a browser frontend                                        |
+| **Demo**    | Fully in-browser with WASM SQLite — no server, no setup                                  |
 
 ## Features
 

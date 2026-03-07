@@ -52,7 +52,10 @@ function dateInputValue(value: unknown, dataType: DatabaseDataType): string {
 export default function RowDetailEditFields(props: RowDetailEditFieldsProps) {
 	const [pickerCol, setPickerCol] = createSignal<string | null>(null)
 
-	const isFieldNull = (col: string) => { const v = props.getValue(col); return v === null || v === undefined }
+	const isFieldNull = (col: string) => {
+		const v = props.getValue(col)
+		return v === null || v === undefined
+	}
 	const isFieldDefault = (col: string) => isSqlDefault(props.getValue(col))
 	const setNull = (col: string) => props.setFieldValue(col, null)
 	const setDefault = (col: string) => props.setFieldValue(col, SQL_DEFAULT)

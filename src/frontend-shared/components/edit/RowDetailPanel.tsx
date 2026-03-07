@@ -79,7 +79,6 @@ function formatDisplayValue(value: unknown): string {
 	return str.length > 200 ? str.slice(0, 200) + '...' : str
 }
 
-
 export default function RowDetailPanel(props: RowDetailPanelProps) {
 	const [editing, setEditing] = createSignal(false)
 	const [localEdits, setLocalEdits] = createSignal<Record<string, unknown>>({})
