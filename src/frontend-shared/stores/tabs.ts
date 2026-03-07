@@ -1,6 +1,7 @@
 import { createStore } from 'solid-js/store'
 import type { TabInfo, TabType } from '../../shared/types/tab'
 import { scheduleWorkspaceSave } from '../lib/workspace'
+import { editorStore } from './editor'
 
 export interface TabState {
 	openTabs: TabInfo[]
@@ -257,6 +258,53 @@ function setViewModified(tabId: string, modified: boolean) {
 	}
 }
 
+function duplicateTab(tabId: string) {
+	const sourceTab = state.openTabs.find((t) => t.id === tabId)
+	if (!sourceTab) return
+
+	if (sourceTab.type === 'sql-console') {
+		const editorTab = editorStore.getTab(tabId)
+		const newTabId = openTab({
+			type: 'sql-console',
+			title: sourceTab.title,
+			connectionId: sourceTab.connectionId,
+			database: sourceTab.database,
+		})
+		editorStore.initTab(newTabId, sourceTab.connectionId, sourceTab.database)
+		if (editorTab?.content) {
+			editorStore.setContent(newTabId, editorTab.content)
+		}
+	} else if (sourceTab.type === 'data-grid') {
+		openTab({
+			type: 'data-grid',
+			title: sourceTab.title,
+			connectionId: sourceTab.connectionId,
+			schema: sourceTab.schema,
+			table: sourceTab.table,
+			database: sourceTab.database,
+		})
+	} else if (sourceTab.type === 'schema-viewer') {
+		openTab({
+			type: 'schema-viewer',
+			title: sourceTab.title,
+			connectionId: sourceTab.connectionId,
+			schema: sourceTab.schema,
+			table: sourceTab.table,
+			database: sourceTab.database,
+		})
+	} else if (sourceTab.type === 'row-detail') {
+		openTab({
+			type: 'row-detail',
+			title: sourceTab.title,
+			connectionId: sourceTab.connectionId,
+			schema: sourceTab.schema,
+			table: sourceTab.table,
+			database: sourceTab.database,
+			primaryKeys: sourceTab.primaryKeys,
+		})
+	}
+}
+
 export const tabsStore = {
 	get openTabs() {
 		return state.openTabs
@@ -286,4 +334,5 @@ export const tabsStore = {
 	setBeforeCloseHook,
 	onTabClosed,
 	onBeforeTabChange,
+	duplicateTab,
 }

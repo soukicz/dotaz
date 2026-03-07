@@ -11,9 +11,8 @@ import { commandRegistry } from '../../lib/commands'
 import type { ShortcutContext } from '../../lib/keyboard'
 import { keyboardManager } from '../../lib/keyboard'
 import { friendlyErrorMessage, messages } from '../../lib/rpc'
-import { duplicateTab } from '../../lib/tab-utils'
 import { loadWorkspace, saveWorkspaceNow, scheduleWorkspaceSave, setWorkspaceStateCollector } from '../../lib/workspace'
-import { getComparisonParams, removeComparisonParams, setComparisonParams } from '../../stores/comparison'
+import { getComparisonParams, setComparisonParams } from '../../stores/comparison'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore } from '../../stores/editor'
 import { gridStore } from '../../stores/grid'
@@ -57,11 +56,11 @@ import type { TabStatus } from './TabBar'
 import TabBar from './TabBar'
 import './AppShell.css'
 
-// Clean up grid/editor/comparison/session/navigation state when tabs are closed
+// Clean up grid/editor/session/navigation state when tabs are closed.
+// Comparison params are cleaned up by the comparison store itself.
 tabsStore.onTabClosed((tabId) => {
 	gridStore.removeTab(tabId)
 	editorStore.removeTab(tabId)
-	removeComparisonParams(tabId)
 	sessionStore.handleTabClosed(tabId)
 	navigationStore.handleTabClosed(tabId)
 })
@@ -505,7 +504,7 @@ export default function AppShell() {
 						onCloseTab={tabsStore.closeTab}
 						onCloseOtherTabs={tabsStore.closeOtherTabs}
 						onCloseAllTabs={tabsStore.closeAllTabs}
-						onDuplicateTab={duplicateTab}
+						onDuplicateTab={tabsStore.duplicateTab}
 						onRenameTab={tabsStore.renameTab}
 					/>
 					<main class="main-content">
