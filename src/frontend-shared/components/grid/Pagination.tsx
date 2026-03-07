@@ -73,9 +73,10 @@ export default function Pagination(props: PaginationProps) {
 	const rangeStart = () => props.totalCount === 0 ? 0 : (props.currentPage - 1) * props.pageSize + 1
 	const rangeEnd = () => Math.min(props.currentPage * props.pageSize, props.totalCount!)
 	const isFirst = () => props.currentPage <= 1
-	const isLast = () => countKnown()
-		? props.currentPage >= totalPages()!
-		: props.rowCount < props.pageSize
+	const isLast = () =>
+		countKnown()
+			? props.currentPage >= totalPages()!
+			: props.rowCount < props.pageSize
 
 	// Live-updating "fetched ago" timer
 	const [now, setNow] = createSignal(Date.now())
@@ -142,7 +143,14 @@ export default function Pagination(props: PaginationProps) {
 					<ChevronLeft size={14} />
 				</button>
 
-				<Show when={countKnown()}>
+				<Show
+					when={countKnown()}
+					fallback={
+						<span class="pagination__btn pagination__btn--active">
+							{props.currentPage}
+						</span>
+					}
+				>
 					<For each={getPageNumbers(props.currentPage, totalPages()!)}>
 						{(page) => (
 							<Show
