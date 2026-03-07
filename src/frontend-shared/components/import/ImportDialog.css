@@ -117,20 +117,6 @@
 	min-width: 100px;
 }
 
-.import-dialog__select {
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface-inset);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
-}
-
-.import-dialog__select:focus {
-	outline: none;
-	border-color: var(--accent);
-}
 
 .import-dialog__checkbox-label {
 	display: flex;
@@ -195,19 +181,7 @@
 }
 
 .import-dialog__mapping-select {
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface-inset);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
 	width: 100%;
-}
-
-.import-dialog__mapping-select:focus {
-	outline: none;
-	border-color: var(--accent);
 }
 
 /* Preview */

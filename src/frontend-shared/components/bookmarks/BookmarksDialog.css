@@ -36,19 +36,7 @@
 }
 
 .bookmarks-dialog__connection-filter {
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface-inset);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
 	max-width: 160px;
-}
-
-.bookmarks-dialog__connection-filter:focus {
-	outline: none;
-	border-color: var(--accent);
 }
 
 .bookmarks-dialog__add-btn {

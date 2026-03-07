@@ -51,20 +51,6 @@
 	color: var(--ink-secondary);
 }
 
-.comparison-dialog__select {
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
-}
-
-.comparison-dialog__select:focus {
-	outline: none;
-	border-color: var(--accent);
-}
 
 .comparison-dialog__input {
 	padding: var(--spacing-xs) var(--spacing-sm);

@@ -119,18 +119,6 @@
 
 .export-dialog__select {
 	flex: 1;
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface-inset);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
-}
-
-.export-dialog__select:focus {
-	outline: none;
-	border-color: var(--accent);
 }
 
 .export-dialog__input {

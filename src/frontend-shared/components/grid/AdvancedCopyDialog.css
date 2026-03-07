@@ -62,20 +62,6 @@
 	gap: var(--spacing-sm);
 }
 
-.adv-copy__select {
-	padding: var(--spacing-xs) var(--spacing-sm);
-	border: 1px solid var(--edge);
-	border-radius: 4px;
-	background: var(--surface-inset);
-	color: var(--ink);
-	font-size: var(--font-size-sm);
-	font-family: inherit;
-}
-
-.adv-copy__select:focus {
-	outline: none;
-	border-color: var(--accent);
-}
 
 .adv-copy__input {
 	padding: var(--spacing-xs) var(--spacing-sm);
