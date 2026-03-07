@@ -19,7 +19,7 @@ import { tabsStore } from '../../stores/tabs'
 import { uiStore } from '../../stores/ui'
 import BookmarksDialog from '../bookmarks/BookmarksDialog'
 import CommandPalette from '../common/CommandPalette'
-import Icon from '../common/Icon'
+import KeyboardShortcutsDialog from '../common/KeyboardShortcutsDialog'
 import type { SettingsSection } from '../common/SettingsDialog'
 import SettingsDialog from '../common/SettingsDialog'
 import TabSwitcher from '../common/TabSwitcher'
@@ -77,6 +77,7 @@ type AppModal =
 	| { type: 'search'; connId?: string; scope?: SearchScope; schema?: string; table?: string; db?: string }
 	| { type: 'settings'; section: SettingsSection }
 	| { type: 'tx-warning'; tabId: string; context: 'close' | 'disconnect'; connId: string }
+	| { type: 'keyboard-shortcuts' }
 
 export default function AppShell() {
 	const [sidebarWidth, setSidebarWidth] = createSignal(DEFAULT_WIDTH)
@@ -876,6 +877,14 @@ export default function AppShell() {
 		})
 
 		commandRegistry.register({
+			id: 'keyboard-shortcuts',
+			label: 'Keyboard Shortcuts',
+			shortcut: 'Ctrl+/',
+			category: 'Help',
+			handler: () => setModal((m) => m?.type === 'keyboard-shortcuts' ? null : { type: 'keyboard-shortcuts' }),
+		})
+
+		commandRegistry.register({
 			id: 'settings',
 			label: 'Settings',
 			category: 'View',
@@ -922,6 +931,8 @@ export default function AppShell() {
 		// Global shortcuts
 		keyboardManager.register('Ctrl+Shift+P', 'command-palette')
 		keyboardManager.register('Ctrl+B', 'toggle-sidebar')
+
+		keyboardManager.register('Ctrl+/', 'keyboard-shortcuts')
 
 		// Platform-aware shortcuts (Ctrl-based in desktop, Alt-based in browser)
 		for (
@@ -1223,6 +1234,11 @@ export default function AppShell() {
 				open={modal()?.type === 'settings'}
 				onClose={() => setModal(null)}
 				initialSection={modalAs('settings')?.section}
+			/>
+
+			<KeyboardShortcutsDialog
+				open={modal()?.type === 'keyboard-shortcuts'}
+				onClose={() => setModal(null)}
 			/>
 
 			<ToastContainer />

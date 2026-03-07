@@ -1,0 +1,52 @@
+.keyboard-shortcuts-dialog {
+	min-width: 460px;
+	max-width: 520px;
+}
+
+.keyboard-shortcuts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-lg);
+}
+
+.keyboard-shortcuts__group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-xs);
+}
+
+.keyboard-shortcuts__category {
+	margin: 0;
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	color: var(--ink-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding-bottom: var(--spacing-xs);
+	border-bottom: 1px solid var(--edge);
+}
+
+.keyboard-shortcuts__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--spacing-xs) 0;
+	gap: var(--spacing-md);
+}
+
+.keyboard-shortcuts__label {
+	font-size: var(--font-size-sm);
+	color: var(--ink-secondary);
+}
+
+.keyboard-shortcuts__kbd {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	color: var(--ink-secondary);
+	background: var(--surface-inset);
+	padding: 2px var(--spacing-sm);
+	border-radius: 3px;
+	border: 1px solid var(--edge);
+	white-space: nowrap;
+	flex-shrink: 0;
+}

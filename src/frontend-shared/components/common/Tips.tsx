@@ -1,4 +1,5 @@
 import { createSignal, type JSX } from 'solid-js'
+import { platformShortcut } from '../../lib/keyboard'
 import type { IconName } from './Icon'
 import Icon from './Icon'
 import './Tips.css'
@@ -146,7 +147,7 @@ const tips: Tip[] = [
 		title: 'Tab Switcher',
 		description: () => (
 			<>
-				Press <Kbd>Ctrl+E</Kbd> to open the Tab Switcher. Quickly <strong>search and jump</strong>{' '}
+				Press <Kbd>{platformShortcut('tab-switcher')}</Kbd> to open the Tab Switcher. Quickly <strong>search and jump</strong>{' '}
 				between open tabs by name, or filter by type (Grid, SQL, Schema, Compare).
 			</>
 		),
