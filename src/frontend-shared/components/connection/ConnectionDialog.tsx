@@ -1,6 +1,3 @@
-import ChevronDown from 'lucide-solid/icons/chevron-down'
-import ChevronRight from 'lucide-solid/icons/chevron-right'
-import FolderOpen from 'lucide-solid/icons/folder-open'
 import Plug from 'lucide-solid/icons/plug'
 import { siMysql, siPostgresql, siSqlite } from 'simple-icons'
 import { createSignal, For, Show } from 'solid-js'
@@ -8,11 +5,12 @@ import { createStore, reconcile } from 'solid-js/store'
 import type { ConnectionConfig, ConnectionInfo, ConnectionType, SshAuthMethod, SshTunnelConfig, SSLMode } from '../../../shared/types/connection'
 import { CONNECTION_COLORS, CONNECTION_TYPE_META, SSL_MODES } from '../../../shared/types/connection'
 import { rpc } from '../../lib/rpc'
-import { storage } from '../../lib/storage'
 import { connectionsStore } from '../../stores/connections'
 import Dialog from '../common/Dialog'
-import Select from '../common/Select'
 import './ConnectionDialog.css'
+import ServerConnectionForm from './ServerConnectionForm'
+import SQLiteConnectionForm from './SQLiteConnectionForm'
+import SshTunnelForm from './SshTunnelForm'
 
 interface ConnectionDialogProps {
 	open: boolean
@@ -460,291 +458,40 @@ export default function ConnectionDialog(props: ConnectionDialogProps) {
 
 				{/* Server connection fields (PostgreSQL, MySQL) */}
 				<Show when={CONNECTION_TYPE_META[conn.type].hasHost}>
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">Host</label>
-						<input
-							class="conn-dialog__input"
-							classList={{ 'conn-dialog__input--error': !!form.errors.host }}
-							type="text"
-							value={conn.pgFields.host}
-							onInput={(e) => updatePgField('host', e.currentTarget.value)}
-							placeholder="localhost"
-						/>
-						<Show when={form.errors.host}>
-							<span class="conn-dialog__error">{form.errors.host}</span>
-						</Show>
-					</div>
-
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">Port</label>
-						<input
-							class="conn-dialog__input"
-							classList={{ 'conn-dialog__input--error': !!form.errors.port }}
-							type="text"
-							value={conn.pgFields.port}
-							onInput={(e) => updatePgField('port', e.currentTarget.value)}
-							placeholder={String(CONNECTION_TYPE_META[conn.type].defaultPort ?? 5432)}
-						/>
-						<Show when={form.errors.port}>
-							<span class="conn-dialog__error">{form.errors.port}</span>
-						</Show>
-					</div>
-
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">Database</label>
-						<input
-							class="conn-dialog__input"
-							classList={{ 'conn-dialog__input--error': !!form.errors.database }}
-							type="text"
-							value={conn.pgFields.database}
-							onInput={(e) => updatePgField('database', e.currentTarget.value)}
-							placeholder="mydb"
-						/>
-						<Show when={form.errors.database}>
-							<span class="conn-dialog__error">{form.errors.database}</span>
-						</Show>
-					</div>
-
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">Username</label>
-						<input
-							class="conn-dialog__input"
-							classList={{ 'conn-dialog__input--error': !!form.errors.user }}
-							type="text"
-							value={conn.pgFields.user}
-							onInput={(e) => updatePgField('user', e.currentTarget.value)}
-							placeholder="postgres"
-						/>
-						<Show when={form.errors.user}>
-							<span class="conn-dialog__error">{form.errors.user}</span>
-						</Show>
-					</div>
-
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">Password</label>
-						<input
-							class="conn-dialog__input"
-							type="password"
-							value={conn.pgFields.password}
-							onInput={(e) => updatePgField('password', e.currentTarget.value)}
-						/>
-					</div>
-
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">SSL Mode</label>
-						<Select
-							class="conn-dialog__input"
-							value={conn.pgFields.ssl}
-							onChange={(v) => updatePgField('ssl', v)}
-							options={SSL_MODES.map((mode) => ({ value: mode, label: mode }))}
-						/>
-					</div>
-
-					<Show when={storage.passConfigOnConnect}>
-						<div class="conn-dialog__field conn-dialog__field--inline">
-							<label class="conn-dialog__label conn-dialog__label--checkbox">
-								<input
-									type="checkbox"
-									checked={rememberPassword()}
-									onChange={(e) => setRememberPassword(e.currentTarget.checked)}
-								/>
-								Remember password
-							</label>
-							<span class="conn-dialog__hint">Password will be encrypted and stored in your browser</span>
-						</div>
-					</Show>
+					<ServerConnectionForm
+						type={conn.type}
+						fields={conn.pgFields}
+						errors={form.errors}
+						rememberPassword={rememberPassword()}
+						onFieldChange={updatePgField}
+						onRememberPasswordChange={setRememberPassword}
+					/>
 				</Show>
 
 				{/* SSH Tunnel (PostgreSQL only) */}
 				<Show when={conn.type === 'postgresql'}>
-					<div class="conn-dialog__ssh-section">
-						<button
-							class="conn-dialog__ssh-toggle"
-							onClick={() => {
-								const expanding = !ssh.expanded
-								setSsh('expanded', expanding)
-								if (!expanding && !ssh.enabled) return
-							}}
-							type="button"
-						>
-							{ssh.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-							SSH Tunnel
-							<Show when={ssh.enabled}>
-								<span class="conn-dialog__ssh-badge">ON</span>
-							</Show>
-						</button>
-
-						<Show when={ssh.expanded}>
-							<div class="conn-dialog__ssh-fields">
-								<div class="conn-dialog__field conn-dialog__field--inline">
-									<label class="conn-dialog__label conn-dialog__label--checkbox">
-										<input
-											type="checkbox"
-											checked={ssh.enabled}
-											onChange={(e) => updateSshField('enabled', e.currentTarget.checked)}
-										/>
-										Use SSH Tunnel
-									</label>
-								</div>
-
-								<Show when={ssh.enabled}>
-									<div class="conn-dialog__field">
-										<label class="conn-dialog__label">SSH Host</label>
-										<input
-											class="conn-dialog__input"
-											classList={{ 'conn-dialog__input--error': !!form.errors.sshHost }}
-											type="text"
-											value={ssh.host}
-											onInput={(e) => updateSshField('host', e.currentTarget.value)}
-											placeholder="bastion.example.com"
-										/>
-										<Show when={form.errors.sshHost}>
-											<span class="conn-dialog__error">{form.errors.sshHost}</span>
-										</Show>
-									</div>
-
-									<div class="conn-dialog__field">
-										<label class="conn-dialog__label">SSH Port</label>
-										<input
-											class="conn-dialog__input"
-											classList={{ 'conn-dialog__input--error': !!form.errors.sshPort }}
-											type="text"
-											value={ssh.port}
-											onInput={(e) => updateSshField('port', e.currentTarget.value)}
-											placeholder="22"
-										/>
-										<Show when={form.errors.sshPort}>
-											<span class="conn-dialog__error">{form.errors.sshPort}</span>
-										</Show>
-									</div>
-
-									<div class="conn-dialog__field">
-										<label class="conn-dialog__label">SSH Username</label>
-										<input
-											class="conn-dialog__input"
-											classList={{ 'conn-dialog__input--error': !!form.errors.sshUsername }}
-											type="text"
-											value={ssh.username}
-											onInput={(e) => updateSshField('username', e.currentTarget.value)}
-											placeholder="ubuntu"
-										/>
-										<Show when={form.errors.sshUsername}>
-											<span class="conn-dialog__error">{form.errors.sshUsername}</span>
-										</Show>
-									</div>
-
-									<div class="conn-dialog__field">
-										<label class="conn-dialog__label">Authentication</label>
-										<div class="conn-dialog__ssh-auth-switcher">
-											<button
-												class="conn-dialog__ssh-auth-btn"
-												classList={{ 'conn-dialog__ssh-auth-btn--active': ssh.authMethod === 'password' }}
-												onClick={() => updateSshField('authMethod', 'password')}
-												type="button"
-											>
-												Password
-											</button>
-											<button
-												class="conn-dialog__ssh-auth-btn"
-												classList={{ 'conn-dialog__ssh-auth-btn--active': ssh.authMethod === 'key' }}
-												onClick={() => updateSshField('authMethod', 'key')}
-												type="button"
-											>
-												SSH Key
-											</button>
-										</div>
-									</div>
-
-									<Show when={ssh.authMethod === 'password'}>
-										<div class="conn-dialog__field">
-											<label class="conn-dialog__label">SSH Password</label>
-											<input
-												class="conn-dialog__input"
-												type="password"
-												value={ssh.password}
-												onInput={(e) => updateSshField('password', e.currentTarget.value)}
-											/>
-										</div>
-									</Show>
-
-									<Show when={ssh.authMethod === 'key'}>
-										<div class="conn-dialog__field">
-											<label class="conn-dialog__label">Private Key</label>
-											<div class="conn-dialog__browse-row">
-												<input
-													class="conn-dialog__input"
-													classList={{ 'conn-dialog__input--error': !!form.errors.sshKeyPath }}
-													type="text"
-													value={ssh.keyPath}
-													onInput={(e) => updateSshField('keyPath', e.currentTarget.value)}
-													placeholder="~/.ssh/id_rsa"
-												/>
-												<button
-													class="conn-dialog__browse-btn"
-													onClick={handleBrowseSshKey}
-													type="button"
-												>
-													<FolderOpen size={14} /> Browse
-												</button>
-											</div>
-											<Show when={form.errors.sshKeyPath}>
-												<span class="conn-dialog__error">{form.errors.sshKeyPath}</span>
-											</Show>
-										</div>
-
-										<div class="conn-dialog__field">
-											<label class="conn-dialog__label">Passphrase</label>
-											<input
-												class="conn-dialog__input"
-												type="password"
-												value={ssh.keyPassphrase}
-												onInput={(e) => updateSshField('keyPassphrase', e.currentTarget.value)}
-												placeholder="Optional"
-											/>
-										</div>
-									</Show>
-
-									<div class="conn-dialog__field">
-										<label class="conn-dialog__label">Local Port</label>
-										<input
-											class="conn-dialog__input"
-											type="text"
-											value={ssh.localPort}
-											onInput={(e) => updateSshField('localPort', e.currentTarget.value)}
-											placeholder="Auto"
-										/>
-										<span class="conn-dialog__hint">Leave empty for automatic assignment</span>
-									</div>
-								</Show>
-							</div>
-						</Show>
-					</div>
+					<SshTunnelForm
+						fields={ssh}
+						expanded={ssh.expanded}
+						errors={form.errors}
+						onFieldChange={updateSshField}
+						onToggleExpanded={() => {
+							const expanding = !ssh.expanded
+							setSsh('expanded', expanding)
+							if (!expanding && !ssh.enabled) return
+						}}
+						onBrowseKey={handleBrowseSshKey}
+					/>
 				</Show>
 
 				{/* SQLite fields */}
 				<Show when={!CONNECTION_TYPE_META[conn.type].hasHost}>
-					<div class="conn-dialog__field">
-						<label class="conn-dialog__label">File Path</label>
-						<div class="conn-dialog__browse-row">
-							<input
-								class="conn-dialog__input"
-								classList={{ 'conn-dialog__input--error': !!form.errors.path }}
-								type="text"
-								value={conn.sqliteFields.path}
-								onInput={(e) => updateSqliteField('path', e.currentTarget.value)}
-								placeholder="/path/to/database.db"
-							/>
-							<button
-								class="conn-dialog__browse-btn"
-								onClick={handleBrowse}
-							>
-								<FolderOpen size={14} /> Browse
-							</button>
-						</div>
-						<Show when={form.errors.path}>
-							<span class="conn-dialog__error">{form.errors.path}</span>
-						</Show>
-					</div>
+					<SQLiteConnectionForm
+						fields={conn.sqliteFields}
+						errors={form.errors}
+						onFieldChange={updateSqliteField}
+						onBrowse={handleBrowse}
+					/>
 				</Show>
 
 				{/* Read-only toggle */}

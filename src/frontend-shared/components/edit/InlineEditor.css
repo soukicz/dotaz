@@ -80,7 +80,7 @@
 
 .inline-editor__browse-btn {
 	position: absolute;
-	right: 22px;
+	right: 36px;
 	top: 50%;
 	transform: translateY(-50%);
 	display: flex;

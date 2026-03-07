@@ -6,6 +6,7 @@ import { createStore, reconcile } from 'solid-js/store'
 import type { ColumnInfo } from '../../../shared/types/database'
 import type { ColumnMapping, CsvDelimiter, ImportFormat, ImportPreviewResult } from '../../../shared/types/import'
 import { getCapabilities } from '../../lib/capabilities'
+import { formatDisplayValue, formatNumber } from '../../lib/format-utils'
 import { rpc } from '../../lib/rpc'
 import { transport } from '../../lib/transport'
 import Dialog from '../common/Dialog'
@@ -297,16 +298,6 @@ export default function ImportDialog(props: ImportDialogProps) {
 		}
 	}
 
-	function formatValue(value: unknown): string {
-		if (value === null || value === undefined) return 'NULL'
-		if (typeof value === 'object') return JSON.stringify(value)
-		return String(value)
-	}
-
-	function formatNumber(n: number): string {
-		return n.toLocaleString()
-	}
-
 	const hasFile = () => file.path !== null || file.content !== null || file.file !== null
 
 	const canImport = () =>
@@ -487,7 +478,7 @@ export default function ImportDialog(props: ImportDialogProps) {
 																	when={row[col] !== null && row[col] !== undefined}
 																	fallback={<span class="import-dialog__preview-null">NULL</span>}
 																>
-																	{formatValue(row[col])}
+																	{formatDisplayValue(row[col])}
 																</Show>
 															</td>
 														)}

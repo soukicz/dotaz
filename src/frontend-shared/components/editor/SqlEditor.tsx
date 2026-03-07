@@ -573,6 +573,10 @@ export default function SqlEditor(props: SqlEditorProps) {
 		]
 	}
 
+	let dragCleanup: (() => void) | null = null
+
+	onCleanup(() => dragCleanup?.())
+
 	function handleResizeMouseDown(e: MouseEvent) {
 		e.preventDefault()
 		let lastY = e.clientY
@@ -588,12 +592,14 @@ export default function SqlEditor(props: SqlEditorProps) {
 			document.removeEventListener('mouseup', onMouseUp)
 			document.body.style.cursor = ''
 			document.body.style.userSelect = ''
+			dragCleanup = null
 		}
 
 		document.body.style.cursor = 'row-resize'
 		document.body.style.userSelect = 'none'
 		document.addEventListener('mousemove', onMouseMove)
 		document.addEventListener('mouseup', onMouseUp)
+		dragCleanup = onMouseUp
 	}
 
 	return (

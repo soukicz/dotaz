@@ -1,10 +1,9 @@
 import RotateCcw from 'lucide-solid/icons/rotate-ccw'
 import Save from 'lucide-solid/icons/save'
-import { createEffect, createMemo, createSignal, For, on, onMount, Show } from 'solid-js'
-import { buildCountQuery, buildSelectQuery, generateUpdate } from '../../../shared/sql'
-import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from '../../../shared/types/database'
-import type { ColumnFilter } from '../../../shared/types/grid'
-import type { GridColumnDef } from '../../../shared/types/grid'
+import { createEffect, createSignal, For, onMount, Show } from 'solid-js'
+import { buildSelectQuery, generateUpdate } from '../../../shared/sql'
+import type { ForeignKeyInfo } from '../../../shared/types/database'
+import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
 import type { UpdateChange } from '../../../shared/types/rpc'
 import { rpc } from '../../lib/rpc'
 import { connectionsStore } from '../../stores/connections'
@@ -13,6 +12,7 @@ import { tabsStore } from '../../stores/tabs'
 import RowDetailEditFields from './RowDetailEditFields'
 import './RowDetailTab.css'
 import './RowDetailPanel.css'
+import { useRowDetail } from './useRowDetail'
 
 interface RowDetailTabProps {
 	tabId: string
@@ -23,25 +23,10 @@ interface RowDetailTabProps {
 	primaryKeys: Record<string, unknown>
 }
 
-function buildFkLookup(foreignKeys: ForeignKeyInfo[]): Map<string, { schema: string; table: string; column: string }> {
-	const map = new Map<string, { schema: string; table: string; column: string }>()
-	for (const fk of foreignKeys) {
-		if (fk.columns.length === 1) {
-			map.set(fk.columns[0], {
-				schema: fk.referencedSchema,
-				table: fk.referencedTable,
-				column: fk.referencedColumns[0],
-			})
-		}
-	}
-	return map
-}
-
 export default function RowDetailTab(props: RowDetailTabProps) {
 	const [row, setRow] = createSignal<Record<string, unknown> | null>(null)
 	const [columns, setColumns] = createSignal<GridColumnDef[]>([])
 	const [foreignKeys, setForeignKeys] = createSignal<ForeignKeyInfo[]>([])
-	const [localEdits, setLocalEdits] = createSignal<Record<string, unknown>>({})
 	const [loading, setLoading] = createSignal(true)
 	const [notFound, setNotFound] = createSignal(false)
 	const [saveError, setSaveError] = createSignal<string | null>(null)
@@ -49,78 +34,29 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 
 	const dialect = () => connectionsStore.getDialect(props.connectionId)
 
-	const pkColumns = createMemo(() => new Set(columns().filter((c) => c.isPrimaryKey).map((c) => c.name)))
-	const fkLookup = createMemo(() => buildFkLookup(foreignKeys()))
-
-	const hasEdits = createMemo(() => Object.keys(localEdits()).length > 0)
+	const detail = useRowDetail({
+		get connectionId() { return props.connectionId },
+		get schema() { return props.schema },
+		get table() { return props.table },
+		get database() { return props.database },
+		get columns() { return columns() },
+		get row() { return row() },
+		get foreignKeys() { return foreignKeys() },
+	})
 
 	// Track dirty state
 	createEffect(() => {
-		tabsStore.setTabDirty(props.tabId, hasEdits())
+		tabsStore.setTabDirty(props.tabId, detail.hasEdits())
 	})
 
-	// ── Reverse FK (Referenced By) ───────────────────────────
-	const referencingFks = createMemo(() =>
-		connectionsStore.getReferencingForeignKeys(
-			props.connectionId,
-			props.schema,
-			props.table,
-			props.database,
-		)
-	)
-	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number | null>>({})
-	const [countingFks, setCountingFks] = createSignal<Set<string>>(new Set())
+	// ── Referenced By navigation ─────────────────────────────
+	function handleReferencingClick(fk: Parameters<typeof detail.buildReferencingFilters>[0]) {
+		const filters = detail.buildReferencingFilters(fk)
+		if (!filters) return
 
-	createEffect(on([referencingFks, row], () => {
-		setReferencingCounts({})
-		setCountingFks(new Set<string>())
-	}))
-
-	async function fetchReferencingCount(fk: ReferencingForeignKeyInfo) {
-		const currentRow = row()
-		if (!currentRow) return
-
-		const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
-			column: fk.referencingColumns[i],
-			operator: 'eq' as const,
-			value: currentRow[refCol],
-		}))
-
-		if (filters.some((f) => f.value === null || f.value === undefined)) {
-			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: 0 }))
-			return
-		}
-
-		setCountingFks((prev) => new Set([...prev, fk.constraintName]))
-		try {
-			const countQuery = buildCountQuery(fk.referencingSchema, fk.referencingTable, filters, dialect())
-			const results = await rpc.query.execute({
-				connectionId: props.connectionId,
-				sql: countQuery.sql,
-				queryId: `ref-count-${fk.constraintName}`,
-				params: countQuery.params,
-				database: props.database,
-			})
-			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: Number(results[0]?.rows[0]?.count ?? 0) }))
-		} catch {
-			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: -1 }))
-		} finally {
-			setCountingFks((prev) => {
-				const next = new Set(prev)
-				next.delete(fk.constraintName)
-				return next
-			})
-		}
-	}
-
-	function handleReferencingClick(fk: ReferencingForeignKeyInfo) {
-		const currentRow = row()
-		if (!currentRow) return
-
-		const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
-			column: fk.referencingColumns[i],
-			operator: 'eq' as const,
-			value: String(currentRow[refCol]),
+		const stringFilters: ColumnFilter[] = filters.map((f) => ({
+			...f,
+			value: String(f.value),
 		}))
 
 		const newTabId = tabsStore.openTab({
@@ -139,7 +75,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 			fk.referencingTable,
 			props.database,
 		).then(() => {
-			for (const f of filters) {
+			for (const f of stringFilters) {
 				gridStore.setFilter(newTabId, f)
 			}
 		})
@@ -190,27 +126,10 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 		fetchRow()
 	})
 
-	// ── Field helpers ────────────────────────────────────────
-
-	function getValue(column: string): unknown {
-		const edits = localEdits()
-		if (column in edits) return edits[column]
-		const r = row()
-		return r ? r[column] : null
-	}
-
-	function isChanged(column: string): boolean {
-		return column in localEdits()
-	}
-
-	function setFieldValue(column: string, value: unknown) {
-		setLocalEdits((prev) => ({ ...prev, [column]: value }))
-	}
-
 	// ── Save ─────────────────────────────────────────────────
 
 	async function handleSave() {
-		const edits = localEdits()
+		const edits = detail.localEdits()
 		if (Object.keys(edits).length === 0) return
 
 		setSaving(true)
@@ -234,7 +153,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 				statements: [{ sql: stmt.sql, params: stmt.params }],
 			})
 
-			setLocalEdits({})
+			detail.resetEdits()
 			await fetchRow()
 		} catch (err) {
 			setSaveError(String(err))
@@ -262,7 +181,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 					<button
 						class="btn btn--secondary btn--sm"
 						onClick={() => {
-							setLocalEdits({})
+							detail.resetEdits()
 							fetchRow()
 						}}
 						disabled={loading()}
@@ -273,7 +192,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 					<button
 						class="btn btn--primary btn--sm"
 						onClick={handleSave}
-						disabled={!hasEdits() || saving()}
+						disabled={!detail.hasEdits() || saving()}
 						title="Save changes"
 					>
 						<Save size={14} /> Save
@@ -298,24 +217,24 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 					<div class="row-detail__fields" style={{ 'max-height': 'none' }}>
 						<RowDetailEditFields
 							columns={columns()}
-							fkLookup={fkLookup()}
-							pkColumns={pkColumns()}
-							getValue={getValue}
-							isChanged={isChanged}
-							setFieldValue={setFieldValue}
+							fkLookup={detail.fkLookup()}
+							pkColumns={detail.pkColumns()}
+							getValue={detail.getValue}
+							isChanged={detail.isFieldChanged}
+							setFieldValue={detail.setFieldValue}
 							connectionId={props.connectionId}
 							database={props.database}
 						/>
 					</div>
 
-					<Show when={referencingFks().length > 0}>
+					<Show when={detail.referencingFks().length > 0}>
 						<div class="row-detail__referenced-by">
 							<div class="row-detail__referenced-by-header">Referenced By</div>
 							<div class="row-detail__referenced-by-list">
-								<For each={referencingFks()}>
+								<For each={detail.referencingFks()}>
 									{(fk) => {
-										const count = () => referencingCounts()[fk.constraintName]
-										const counting = () => countingFks().has(fk.constraintName)
+										const count = () => detail.referencingCounts()[fk.constraintName]
+										const counting = () => detail.countingFks().has(fk.constraintName)
 										return (
 											<button
 												class="row-detail__referenced-by-item"
@@ -337,7 +256,7 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 															class="row-detail__referenced-by-count row-detail__referenced-by-count--unknown"
 															onClick={(e) => {
 																e.stopPropagation()
-																fetchReferencingCount(fk)
+																detail.fetchReferencingCount(fk)
 															}}
 															title="Click to count"
 														>

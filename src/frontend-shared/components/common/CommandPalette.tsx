@@ -1,6 +1,7 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { commandRegistry } from '../../lib/commands'
 import type { Command } from '../../lib/commands'
+import { createListKeyboardHandler } from '../../lib/use-list-keyboard-nav'
 import './CommandPalette.css'
 
 interface CommandPaletteProps {
@@ -34,6 +35,21 @@ export default function CommandPalette(props: CommandPaletteProps) {
 		}
 	})
 
+	const handleListNav = createListKeyboardHandler({
+		getItemCount: () => results().length,
+		getSelectedIndex: selectedIndex,
+		setSelectedIndex,
+		onConfirm: () => {
+			const items = results()
+			const idx = selectedIndex()
+			if (items[idx]) {
+				props.onClose()
+				commandRegistry.execute(items[idx].id)
+			}
+		},
+		scrollIntoView: scrollToSelected,
+	})
+
 	function handleKeyDown(e: KeyboardEvent) {
 		if (!props.open) return
 
@@ -43,30 +59,7 @@ export default function CommandPalette(props: CommandPaletteProps) {
 			return
 		}
 
-		if (e.key === 'ArrowDown') {
-			e.preventDefault()
-			setSelectedIndex((i) => Math.min(i + 1, results().length - 1))
-			scrollToSelected()
-			return
-		}
-
-		if (e.key === 'ArrowUp') {
-			e.preventDefault()
-			setSelectedIndex((i) => Math.max(i - 1, 0))
-			scrollToSelected()
-			return
-		}
-
-		if (e.key === 'Enter') {
-			e.preventDefault()
-			const items = results()
-			const idx = selectedIndex()
-			if (items[idx]) {
-				props.onClose()
-				commandRegistry.execute(items[idx].id)
-			}
-			return
-		}
+		handleListNav(e)
 	}
 
 	function scrollToSelected() {

@@ -7,6 +7,14 @@ const MAX_EDITOR_CONTENT_SIZE = 1024 * 1024 // 1 MB per tab
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let stateCollector: (() => WorkspaceState) | null = null
 
+function capEditorContent(state: WorkspaceState): void {
+	for (const tab of state.tabs) {
+		if (tab.editorContent && tab.editorContent.length > MAX_EDITOR_CONTENT_SIZE) {
+			tab.editorContent = tab.editorContent.slice(0, MAX_EDITOR_CONTENT_SIZE)
+		}
+	}
+}
+
 /** Register a callback that collects current workspace state from stores. */
 export function setWorkspaceStateCollector(fn: () => WorkspaceState): void {
 	stateCollector = fn
@@ -18,12 +26,7 @@ export function scheduleWorkspaceSave(): void {
 	saveTimer = setTimeout(() => {
 		if (!stateCollector) return
 		const state = stateCollector()
-		// Cap editor content to prevent oversized workspace data
-		for (const tab of state.tabs) {
-			if (tab.editorContent && tab.editorContent.length > MAX_EDITOR_CONTENT_SIZE) {
-				tab.editorContent = tab.editorContent.slice(0, MAX_EDITOR_CONTENT_SIZE)
-			}
-		}
+		capEditorContent(state)
 		storage.saveWorkspace(state).catch((e) => {
 			console.debug('Failed to save workspace:', e)
 		})
@@ -48,11 +51,7 @@ export function saveWorkspaceNow(): void {
 	}
 	if (!stateCollector) return
 	const state = stateCollector()
-	for (const tab of state.tabs) {
-		if (tab.editorContent && tab.editorContent.length > MAX_EDITOR_CONTENT_SIZE) {
-			tab.editorContent = tab.editorContent.slice(0, MAX_EDITOR_CONTENT_SIZE)
-		}
-	}
+	capEditorContent(state)
 	// Fire-and-forget — best effort on page unload
 	storage.saveWorkspace(state).catch(() => {})
 }

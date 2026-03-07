@@ -153,10 +153,6 @@ function handleTabClosed(tabId: string) {
 	updateSignals()
 }
 
-// ── Register callbacks ───────────────────────────────────
-
-tabsStore.onBeforeTabChange(() => pushCurrent())
-
 // ── Lifecycle ────────────────────────────────────────────
 
 let initialized = false
@@ -167,6 +163,7 @@ function init() {
 	// Set base history state so we can detect direction from popstate
 	history.replaceState({ __dotazNav: 0 }, '')
 	window.addEventListener('popstate', handlePopState)
+	tabsStore.onBeforeTabChange(() => pushCurrent())
 }
 
 function destroy() {

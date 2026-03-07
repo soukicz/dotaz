@@ -6,8 +6,6 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, untra
 import { createStore } from 'solid-js/store'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
 import type { SavedViewConfig } from '../../../shared/types/rpc'
-import { cellValueToDbValue, parseClipboardText } from '../../lib/clipboard-paste'
-import { createKeyHandler } from '../../lib/keyboard'
 import { HEADER_HEIGHT } from '../../lib/layout-constants'
 import { connectionsStore } from '../../stores/connections'
 import type { FkTarget } from '../../stores/grid'
@@ -31,6 +29,11 @@ import GridHeader from './GridHeader'
 import Pagination from './Pagination'
 import PastePreviewDialog from './PastePreviewDialog'
 import TransposedGrid from './TransposedGrid'
+import type { DataGridModal } from './useDataGridModals'
+import { useDataGridModals } from './useDataGridModals'
+import { useDataGridCellEdit } from './useDataGridCellEdit'
+import { useDataGridClipboard } from './useDataGridClipboard'
+import { useDataGridKeyboard } from './useDataGridKeyboard'
 import VirtualScroller from './VirtualScroller'
 import './DataGrid.css'
 
@@ -41,7 +44,6 @@ interface DataGridProps {
 	table: string
 	database?: string
 }
-const COPY_FLASH_DURATION = 400
 
 /** Build a map from source column → FK target for single-column FKs. */
 function buildFkMap(foreignKeys: ForeignKeyInfo[]): Map<string, FkTarget> {
@@ -58,24 +60,12 @@ function buildFkMap(foreignKeys: ForeignKeyInfo[]): Map<string, FkTarget> {
 	return map
 }
 
-type DataGridModal =
-	| null
-	| { type: 'save-view'; forceNew: boolean }
-	| { type: 'export'; scope?: 'selected' }
-	| { type: 'import' }
-	| { type: 'advanced-copy' }
-	| { type: 'batch-edit' }
-	| { type: 'paste-preview'; rows: string[][]; delimiter: string }
-	| { type: 'fk-picker'; rowIndex: number; column: string; target: FkTarget }
-
 export default function DataGrid(props: DataGridProps) {
 	const [fkState, setFkState] = createStore({
 		columns: new Set<string>(),
 		keys: [] as ForeignKeyInfo[],
 		map: new Map<string, FkTarget>(),
 	})
-	const [dgModal, setDgModal] = createSignal<DataGridModal>(null)
-	const [copyFeedback, setCopyFeedback] = createSignal<string | null>(null)
 	const [showPendingPanel, setShowPendingPanel] = createSignal(false)
 	const [savingChanges, setSavingChanges] = createSignal(false)
 	const [saveError, setSaveError] = createSignal<string | null>(null)
@@ -100,6 +90,47 @@ export default function DataGrid(props: DataGridProps) {
 
 	const hasActiveView = () => !!tab()?.activeViewId
 
+	const visibleColumns = () => {
+		const t = tab()
+		return t ? gridStore.getVisibleColumns(t) : []
+	}
+
+	// ── Hooks ──────────────────────────────────────────
+
+	const modals = useDataGridModals()
+
+	const cellEdit = useDataGridCellEdit({
+		tabId: props.tabId,
+		visibleColumns,
+		isReadOnly,
+		fkMap: () => fkState.map,
+		onOpenFkPicker: modals.openFkPicker,
+	})
+
+	const clipboard = useDataGridClipboard({
+		tabId: props.tabId,
+		visibleColumns,
+		isReadOnly,
+		getFocusedCellInfo: cellEdit.getFocusedCellInfo,
+		onOpenPastePreview: modals.openPastePreview,
+	})
+
+	const keyboard = useDataGridKeyboard({
+		tabId: props.tabId,
+		visibleColumns,
+		sidePanelHandle,
+		onCopy: clipboard.handleCopy,
+		onPaste: clipboard.handlePaste,
+		onOpenAdvancedCopy: modals.openAdvancedCopy,
+		onOpenSaveView: () => modals.openSaveView(false),
+		startEditingFocused: cellEdit.startEditingFocused,
+		handleAddNewRow: cellEdit.handleAddNewRow,
+		handleDeleteSelected: cellEdit.handleDeleteSelected,
+		handleCellCancel: cellEdit.handleCellCancel,
+	})
+
+	// ── Event listeners ──────────────────────────────────
+
 	// Listen for import dialog open events from context menu
 	function handleOpenImport(e: Event) {
 		const detail = (e as CustomEvent).detail
@@ -108,7 +139,7 @@ export default function DataGrid(props: DataGridProps) {
 			&& detail?.schema === currentSchema()
 			&& detail?.table === currentTable()
 		) {
-			setDgModal({ type: 'import' })
+			modals.openImport()
 		}
 	}
 	onMount(() => {
@@ -135,11 +166,6 @@ export default function DataGrid(props: DataGridProps) {
 		const modified = gridStore.isViewModified(props.tabId, config)
 		tabsStore.setViewModified(props.tabId, modified)
 	})
-
-	const visibleColumns = () => {
-		const t = tab()
-		return t ? gridStore.getVisibleColumns(t) : []
-	}
 
 	const pinStyles = () => {
 		const t = tab()
@@ -315,126 +341,6 @@ export default function DataGrid(props: DataGridProps) {
 		}
 	}
 
-	// ── Editing handlers ──────────────────────────────────
-
-	function handleRowDblClick(index: number, e: MouseEvent) {
-		if (isReadOnly()) return
-		const target = e.target as HTMLElement
-		const cellEl = target.closest<HTMLElement>('[data-column]')
-		const columnName = cellEl?.dataset.column
-		if (columnName && !gridStore.isRowDeleted(props.tabId, index)) {
-			gridStore.startEditing(props.tabId, index, columnName)
-		}
-	}
-
-	function getFocusedCellInfo(): { row: number; column: string } | null {
-		const t = tab()
-		if (!t?.selection.focusedCell) return null
-		const cols = visibleColumns()
-		const col = cols[t.selection.focusedCell.col]
-		if (!col) return null
-		return { row: t.selection.focusedCell.row, column: col.name }
-	}
-
-	function startEditingFocused() {
-		if (isReadOnly()) return
-		const focused = getFocusedCellInfo()
-		if (!focused) return
-		if (gridStore.isRowDeleted(props.tabId, focused.row)) return
-		gridStore.startEditing(props.tabId, focused.row, focused.column)
-	}
-
-	function handleCellSave(rowIndex: number, column: string, value: unknown) {
-		gridStore.setCellValue(props.tabId, rowIndex, column, value)
-		gridStore.stopEditing(props.tabId)
-	}
-
-	function handleCellCancel() {
-		gridStore.stopEditing(props.tabId)
-	}
-
-	function handleCellMoveNext(rowIndex: number, currentColumn: string) {
-		const cols = visibleColumns()
-		const idx = cols.findIndex((c) => c.name === currentColumn)
-		if (idx < cols.length - 1) {
-			const nextCol = cols[idx + 1].name
-			gridStore.startEditing(props.tabId, rowIndex, nextCol)
-			gridStore.selectCell(props.tabId, rowIndex, idx + 1)
-		} else {
-			gridStore.stopEditing(props.tabId)
-		}
-	}
-
-	function handleCellMoveDown(rowIndex: number, currentColumn: string) {
-		const t = tab()
-		if (!t) return
-		const cols = visibleColumns()
-		const colIdx = cols.findIndex((c) => c.name === currentColumn)
-		if (rowIndex < t.rows.length - 1) {
-			gridStore.startEditing(props.tabId, rowIndex + 1, currentColumn)
-			gridStore.selectCell(props.tabId, rowIndex + 1, Math.max(0, colIdx))
-		} else {
-			gridStore.stopEditing(props.tabId)
-		}
-	}
-
-	function handleBrowseFkForInline(rowIndex: number, column: string) {
-		const target = fkState.map.get(column)
-		if (!target) return
-		gridStore.stopEditing(props.tabId)
-		setDgModal({ type: 'fk-picker', rowIndex, column, target })
-	}
-
-	function handleFkPickerSelect(value: unknown) {
-		const m = dgModal()
-		if (m?.type !== 'fk-picker') return
-		gridStore.setCellValue(props.tabId, m.rowIndex, m.column, value)
-		setDgModal(null)
-	}
-
-	function handleAddNewRow() {
-		if (isReadOnly()) return
-		const newIndex = gridStore.addNewRow(props.tabId)
-		const cols = visibleColumns()
-		if (cols.length > 0) {
-			gridStore.startEditing(props.tabId, newIndex, cols[0].name)
-			gridStore.selectCell(props.tabId, newIndex, 0)
-		}
-	}
-
-	function handleDeleteSelected() {
-		if (isReadOnly()) return
-		gridStore.deleteSelectedRows(props.tabId)
-	}
-
-	function getChangedCells(rowIndex: number): Set<string> {
-		const t = tab()
-		if (!t) return new Set()
-		const changed = new Set<string>()
-		for (const key of Object.keys(t.pendingChanges.cellEdits)) {
-			const edit = t.pendingChanges.cellEdits[key]
-			if (edit.rowIndex === rowIndex) {
-				changed.add(edit.column)
-			}
-		}
-		return changed
-	}
-
-	function handleDuplicateRow(rowIndex: number) {
-		const t = tab()
-		if (!t) return
-		const sourceRow = t.rows[rowIndex]
-		if (!sourceRow) return
-		const newIndex = gridStore.addNewRow(props.tabId)
-		for (const col of t.columns) {
-			if (col.isPrimaryKey) continue
-			const value = sourceRow[col.name]
-			if (value !== null && value !== undefined) {
-				gridStore.setCellValue(props.tabId, newIndex, col.name, value)
-			}
-		}
-	}
-
 	// ── Pending changes ──────────────────────────────────
 
 	function handleChangesApplied() {
@@ -478,66 +384,20 @@ export default function DataGrid(props: DataGridProps) {
 		return parts.length > 0 ? parts.join(', ') : 'Custom view'
 	}
 
-	// ── Clipboard ──────────────────────────────────────
-
-	async function handleCopy() {
-		const result = gridStore.buildClipboardTsv(props.tabId, visibleColumns())
-		if (!result) return
-
-		try {
-			await navigator.clipboard.writeText(result.text)
-			const msg = result.rowCount === 0
-				? 'Copied cell'
-				: `Copied ${result.rowCount} row${result.rowCount > 1 ? 's' : ''}`
-			setCopyFeedback(msg)
-			setTimeout(() => setCopyFeedback(null), COPY_FLASH_DURATION)
-		} catch {
-			// Clipboard API may fail in some contexts
-		}
-	}
-
-	const PASTE_PREVIEW_THRESHOLD = 50
-
-	async function handlePaste() {
-		if (isReadOnly()) return
-		const focused = getFocusedCellInfo()
-		if (!focused) return
-
-		let text: string
-		try {
-			text = await navigator.clipboard.readText()
-		} catch {
-			return
-		}
-		if (!text.trim()) return
-
-		const parsed = parseClipboardText(text)
-		if (parsed.rows.length === 0) return
-
-		if (parsed.rows.length > PASTE_PREVIEW_THRESHOLD) {
-			setDgModal({ type: 'paste-preview', rows: parsed.rows, delimiter: parsed.delimiter })
-		} else {
-			executePaste(parsed.rows, true)
-		}
-	}
-
-	function executePaste(rows: string[][], treatNullText: boolean) {
-		const focused = getFocusedCellInfo()
-		if (!focused) return
-
-		const data = rows.map((row) => row.map((cell) => cellValueToDbValue(cell, treatNullText)))
-		gridStore.pasteCells(props.tabId, focused.row, focused.column, data)
-
-		const msg = `Pasted ${rows.length} row${rows.length !== 1 ? 's' : ''}`
-		setCopyFeedback(msg)
-		setTimeout(() => setCopyFeedback(null), COPY_FLASH_DURATION)
-	}
+	// ── Clipboard modal callbacks ──────────────────────
 
 	function handlePastePreviewConfirm(treatNullText: boolean) {
-		const m = dgModal()
+		const m = modals.dgModal()
 		if (m?.type !== 'paste-preview') return
-		executePaste(m.rows, treatNullText)
-		setDgModal(null)
+		clipboard.handlePastePreviewConfirm(treatNullText, m.rows)
+		modals.closeModal()
+	}
+
+	function handleFkPickerSelect(value: unknown) {
+		const m = modals.dgModal()
+		if (m?.type !== 'fk-picker') return
+		cellEdit.handleFkPickerSelect(value, { rowIndex: m.rowIndex, column: m.column })
+		modals.closeModal()
 	}
 
 	// Listen for save-view events dispatched by the command registry
@@ -546,332 +406,19 @@ export default function DataGrid(props: DataGridProps) {
 			const detail = (e as CustomEvent).detail
 			if (detail?.tabId === props.tabId) {
 				// Quick save via toolbar handler
-				setDgModal({ type: 'save-view', forceNew: false })
+				modals.openSaveView(false)
 			}
 		}
 		window.addEventListener('dotaz:save-view', onSaveView)
 		onCleanup(() => window.removeEventListener('dotaz:save-view', onSaveView))
 	})
 
-	// ── Keyboard shortcuts ────────────────────────────
-
-	const handleKeyDown = createKeyHandler([
-		{
-			key: 'c',
-			ctrl: true,
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				setDgModal({ type: 'advanced-copy' })
-			},
-		},
-		{
-			key: 'c',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				handleCopy()
-			},
-		},
-		{
-			key: 'v',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				handlePaste()
-			},
-		},
-		{
-			key: 'a',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.selectAll(
-						props.tabId,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowUp',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						-1,
-						0,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowDown',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						1,
-						0,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowLeft',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						0,
-						-1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowRight',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						0,
-						1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowUp',
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.extendFocus(
-						props.tabId,
-						-1,
-						0,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowDown',
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.extendFocus(
-						props.tabId,
-						1,
-						0,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowLeft',
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.extendFocus(
-						props.tabId,
-						0,
-						-1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'ArrowRight',
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.extendFocus(
-						props.tabId,
-						0,
-						1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'Home',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					const focused = t.selection.focusedCell
-					gridStore.selectCell(props.tabId, focused?.row ?? 0, 0)
-				}
-			},
-		},
-		{
-			key: 'End',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					const focused = t.selection.focusedCell
-					gridStore.selectCell(
-						props.tabId,
-						focused?.row ?? 0,
-						visibleColumns().length - 1,
-					)
-				}
-			},
-		},
-		{
-			key: 'Home',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				gridStore.selectCell(props.tabId, 0, 0)
-			},
-		},
-		{
-			key: 'End',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.selectCell(
-						props.tabId,
-						t.rows.length - 1,
-						visibleColumns().length - 1,
-					)
-				}
-			},
-		},
-		{
-			key: 'Tab',
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						0,
-						1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'Tab',
-			shift: true,
-			handler(e) {
-				e.preventDefault()
-				const t = tab()
-				if (t) {
-					gridStore.moveFocus(
-						props.tabId,
-						0,
-						-1,
-						t.rows.length,
-						visibleColumns().length,
-					)
-				}
-			},
-		},
-		{
-			key: 'F2',
-			handler(e) {
-				e.preventDefault()
-				e.stopPropagation()
-				startEditingFocused()
-			},
-		},
-		{
-			key: 'Insert',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				handleAddNewRow()
-			},
-		},
-		{
-			key: 'Delete',
-			handler(e) {
-				e.preventDefault()
-				e.stopPropagation()
-				handleDeleteSelected()
-			},
-		},
-		{
-			key: 'Enter',
-			handler(e) {
-				const t = tab()
-				if (t?.editingCell) return
-				if (t && t.selection.ranges.length > 0) {
-					e.preventDefault()
-					sidePanelHandle()?.openForSelection()
-				}
-			},
-		},
-		{
-			key: 's',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				e.stopPropagation()
-				setDgModal({ type: 'save-view', forceNew: false })
-			},
-		},
-		{
-			key: 'Escape',
-			handler(e) {
-				const t = tab()
-				if (t?.editingCell) {
-					e.preventDefault()
-					handleCellCancel()
-				}
-			},
-		},
-	])
-
 	return (
 		<div
 			ref={gridRef}
 			class="data-grid"
 			tabIndex={0}
-			onKeyDown={handleKeyDown}
+			onKeyDown={keyboard.handleKeyDown}
 			onContextMenu={(e) => contextMenuHandle?.handleGridContextMenu(e)}
 		>
 			<DataGridToolbar
@@ -883,9 +430,9 @@ export default function DataGrid(props: DataGridProps) {
 				isReadOnly={isReadOnly}
 				savedViewConfig={savedViewConfig}
 				onSetSavedViewConfig={setSavedViewConfig}
-				onSaveViewOpen={(forceNew) => setDgModal({ type: 'save-view', forceNew })}
-				onExportOpen={() => setDgModal({ type: 'export' })}
-				onImportOpen={() => setDgModal({ type: 'import' })}
+				onSaveViewOpen={(forceNew) => modals.openSaveView(forceNew)}
+				onExportOpen={() => modals.openExport()}
+				onImportOpen={() => modals.openImport()}
 				sidePanelToggle={
 					<button
 						class="data-grid__toolbar-btn"
@@ -1031,18 +578,18 @@ export default function DataGrid(props: DataGridProps) {
 														selection={tabState().selection}
 														scrollMargin={HEADER_HEIGHT}
 														onRowMouseDown={handleRowMouseDown}
-														onRowDblClick={handleRowDblClick}
+														onRowDblClick={cellEdit.handleRowDblClick}
 														onRowNumberClick={handleRowNumberClick}
 														editingCell={tabState().editingCell}
-														getChangedCells={getChangedCells}
+														getChangedCells={cellEdit.getChangedCells}
 														isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
 														isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
 														fkMap={fkState.map}
 														heatmapInfo={heatmapInfo()}
-														onCellSave={handleCellSave}
-														onCellCancel={handleCellCancel}
-														onCellMoveNext={handleCellMoveNext}
-														onCellMoveDown={handleCellMoveDown}
+														onCellSave={cellEdit.handleCellSave}
+														onCellCancel={cellEdit.handleCellCancel}
+														onCellMoveNext={cellEdit.handleCellMoveNext}
+														onCellMoveDown={cellEdit.handleCellMoveDown}
 														onFkClick={(rowIndex, column, anchorEl) =>
 															sidePanelHandle()?.handleFkClick(
 																rowIndex,
@@ -1055,7 +602,7 @@ export default function DataGrid(props: DataGridProps) {
 																column,
 																anchorEl,
 															)}
-														onCellBrowseFk={handleBrowseFkForInline}
+														onCellBrowseFk={cellEdit.handleBrowseFkForInline}
 													/>
 												</>
 											}
@@ -1066,17 +613,17 @@ export default function DataGrid(props: DataGridProps) {
 												columnConfig={tabState().columnConfig}
 												selection={tabState().selection}
 												onRowMouseDown={handleRowMouseDown}
-												onRowDblClick={handleRowDblClick}
+												onRowDblClick={cellEdit.handleRowDblClick}
 												editingCell={tabState().editingCell}
-												getChangedCells={getChangedCells}
+												getChangedCells={cellEdit.getChangedCells}
 												isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
 												isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
 												fkMap={fkState.map}
 												heatmapInfo={heatmapInfo()}
-												onCellSave={handleCellSave}
-												onCellCancel={handleCellCancel}
-												onCellMoveNext={handleCellMoveNext}
-												onCellMoveDown={handleCellMoveDown}
+												onCellSave={cellEdit.handleCellSave}
+												onCellCancel={cellEdit.handleCellCancel}
+												onCellMoveNext={cellEdit.handleCellMoveNext}
+												onCellMoveDown={cellEdit.handleCellMoveDown}
 												onFkClick={(rowIndex, column, anchorEl) =>
 													sidePanelHandle()?.handleFkClick(
 														rowIndex,
@@ -1089,7 +636,7 @@ export default function DataGrid(props: DataGridProps) {
 														column,
 														anchorEl,
 													)}
-												onCellBrowseFk={handleBrowseFkForInline}
+												onCellBrowseFk={cellEdit.handleBrowseFkForInline}
 											/>
 										</Show>
 
@@ -1143,9 +690,9 @@ export default function DataGrid(props: DataGridProps) {
 												)
 											}
 										}
-										setDgModal({ type: 'export', scope: 'selected' })
+										modals.openExport('selected')
 									}}
-									onBatchEdit={() => setDgModal({ type: 'batch-edit' })}
+									onBatchEdit={() => modals.openBatchEdit()}
 								/>
 							</div>
 
@@ -1225,19 +772,19 @@ export default function DataGrid(props: DataGridProps) {
 				}}
 			</Show>
 
-			<Show when={copyFeedback()}>
-				<div class="data-grid__copy-toast">{copyFeedback()}</div>
+			<Show when={clipboard.copyFeedback()}>
+				<div class="data-grid__copy-toast">{clipboard.copyFeedback()}</div>
 			</Show>
 
 			<SaveViewDialog
-				open={dgModal()?.type === 'save-view'}
+				open={modals.dgModal()?.type === 'save-view'}
 				tabId={props.tabId}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				initialName={hasActiveView() ? undefined : generateAutoName()}
-				forceNew={(dgModal() as Extract<DataGridModal, { type: 'save-view' }> | null)?.forceNew ?? false}
-				onClose={() => setDgModal(null)}
+				forceNew={(modals.dgModal() as Extract<DataGridModal, { type: 'save-view' }> | null)?.forceNew ?? false}
+				onClose={() => modals.closeModal()}
 				onSaved={async (viewId, viewName, config) => {
 					tabsStore.setTabView(props.tabId, viewId, viewName)
 					gridStore.setActiveView(props.tabId, viewId, viewName)
@@ -1247,36 +794,36 @@ export default function DataGrid(props: DataGridProps) {
 			/>
 
 			<ExportDialog
-				open={dgModal()?.type === 'export'}
+				open={modals.dgModal()?.type === 'export'}
 				tabId={props.tabId}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				database={props.database}
-				initialScope={(dgModal() as Extract<DataGridModal, { type: 'export' }> | null)?.scope}
-				onClose={() => setDgModal(null)}
+				initialScope={(modals.dgModal() as Extract<DataGridModal, { type: 'export' }> | null)?.scope}
+				onClose={() => modals.closeModal()}
 			/>
 
 			<AdvancedCopyDialog
-				open={dgModal()?.type === 'advanced-copy'}
+				open={modals.dgModal()?.type === 'advanced-copy'}
 				tabId={props.tabId}
 				visibleColumns={visibleColumns()}
-				onClose={() => setDgModal(null)}
+				onClose={() => modals.closeModal()}
 			/>
 
 			<ImportDialog
-				open={dgModal()?.type === 'import'}
+				open={modals.dgModal()?.type === 'import'}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				database={props.database}
-				onClose={() => setDgModal(null)}
+				onClose={() => modals.closeModal()}
 				onImported={() => {
 					gridStore.refreshData(props.tabId)
 				}}
 			/>
 
-			<Show when={dgModal()?.type === 'batch-edit'}>
+			<Show when={modals.dgModal()?.type === 'batch-edit'}>
 				{(_) => {
 					const t = tab()!
 					return (
@@ -1288,16 +835,16 @@ export default function DataGrid(props: DataGridProps) {
 							fkMap={fkState.map}
 							connectionId={props.connectionId}
 							database={props.database}
-							onClose={() => setDgModal(null)}
+							onClose={() => modals.closeModal()}
 						/>
 					)
 				}}
 			</Show>
 
-			<Show when={dgModal()?.type === 'paste-preview'}>
+			<Show when={modals.dgModal()?.type === 'paste-preview'}>
 				{(_) => {
 					const t = tab()!
-					const m = dgModal() as Extract<DataGridModal, { type: 'paste-preview' }>
+					const m = modals.dgModal() as Extract<DataGridModal, { type: 'paste-preview' }>
 					return (
 						<PastePreviewDialog
 							open={true}
@@ -1308,7 +855,7 @@ export default function DataGrid(props: DataGridProps) {
 							startRow={t.selection.focusedCell?.row ?? 0}
 							totalExistingRows={t.rows.length}
 							onConfirm={handlePastePreviewConfirm}
-							onClose={() => setDgModal(null)}
+							onClose={() => modals.closeModal()}
 						/>
 					)
 				}}
@@ -1326,20 +873,20 @@ export default function DataGrid(props: DataGridProps) {
 				fkMap={() => fkState.map}
 				visibleColumns={visibleColumns}
 				isReadOnly={isReadOnly}
-				onPaste={handlePaste}
-				onAdvancedCopy={() => setDgModal({ type: 'advanced-copy' })}
-				onDuplicateRow={handleDuplicateRow}
+				onPaste={clipboard.handlePaste}
+				onAdvancedCopy={() => modals.openAdvancedCopy()}
+				onDuplicateRow={cellEdit.handleDuplicateRow}
 				onFkClick={(rowIndex, column) => sidePanelHandle()?.handleFkClick(rowIndex, column)}
 				onSetSidePanelOpen={(open) => sidePanelHandle()?.setSidePanelOpen(open)}
 			/>
 
-			<Show when={dgModal()?.type === 'fk-picker'}>
+			<Show when={modals.dgModal()?.type === 'fk-picker'}>
 				{(_) => {
-					const m = dgModal() as Extract<DataGridModal, { type: 'fk-picker' }>
+					const m = modals.dgModal() as Extract<DataGridModal, { type: 'fk-picker' }>
 					return (
 						<FkPickerModal
 							open={true}
-							onClose={() => setDgModal(null)}
+							onClose={() => modals.closeModal()}
 							onSelect={handleFkPickerSelect}
 							connectionId={props.connectionId}
 							schema={m.target.schema}

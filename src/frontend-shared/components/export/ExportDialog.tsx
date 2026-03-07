@@ -7,6 +7,7 @@ import type { CsvDelimiter, CsvEncoding, ExportFormat, ExportPreviewRequest } fr
 import type { ColumnFilter, SortColumn } from '../../../shared/types/grid'
 import { getCapabilities } from '../../lib/capabilities'
 import { formatPreview } from '../../lib/export-formatters'
+import { formatFileSize, formatNumber } from '../../lib/format-utils'
 import { rpc } from '../../lib/rpc'
 import { transport } from '../../lib/transport'
 import { gridStore } from '../../stores/grid'
@@ -376,16 +377,6 @@ export default function ExportDialog(props: ExportDialogProps) {
 		} catch (err) {
 			setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 		}
-	}
-
-	function formatFileSize(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-	}
-
-	function formatNumber(n: number): string {
-		return n.toLocaleString()
 	}
 
 	const isExporting = () => phase().status === 'exporting'

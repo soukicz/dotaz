@@ -1,11 +1,12 @@
 import { createSignal, For, Show } from 'solid-js'
-import { DatabaseDataType, SQL_DEFAULT } from '../../../shared/types/database'
+import { SQL_DEFAULT } from '../../../shared/types/database'
 import type { GridColumnDef } from '../../../shared/types/grid'
-import { isBooleanType, isDateType, isNumericType, isTextType } from '../../lib/column-types'
+import { isDateType, isNumericType } from '../../lib/column-types'
+import { parseValue } from '../../lib/value-utils'
 import type { FkTarget } from '../../stores/grid'
 import { gridStore } from '../../stores/grid'
-import DateInput from '../common/DateInput'
 import Dialog from '../common/Dialog'
+import FieldInput from '../common/FieldInput'
 import Select from '../common/Select'
 import FkPickerModal from '../edit/FkPickerModal'
 import './BatchEditDialog.css'
@@ -22,32 +23,6 @@ interface BatchEditDialogProps {
 }
 
 type FieldMode = 'keep' | 'set' | 'null' | 'default' | 'now' | 'inc' | 'dec'
-
-function parseValue(text: string, column: GridColumnDef): unknown {
-	if (text === '') return column.nullable ? null : text
-	if (isNumericType(column.dataType)) {
-		const n = Number(text)
-		return Number.isNaN(n) ? text : n
-	}
-	if (isBooleanType(column.dataType)) {
-		const lower = text.toLowerCase()
-		if (lower === 'true' || lower === '1' || lower === 't') return true
-		if (lower === 'false' || lower === '0' || lower === 'f') return false
-		return text
-	}
-	return text
-}
-
-function dateInputValue(value: unknown, dataType: DatabaseDataType): string {
-	if (value === null || value === undefined) return ''
-	const str = String(value)
-	if (dataType === DatabaseDataType.Date) {
-		return str.substring(0, 10)
-	}
-	const d = new Date(str)
-	if (Number.isNaN(d.getTime())) return str
-	return d.toISOString().substring(0, 19)
-}
 
 function getModesForColumn(col: GridColumnDef): FieldMode[] {
 	if (col.isPrimaryKey) return ['keep']
@@ -157,57 +132,13 @@ export default function BatchEditDialog(props: BatchEditDialogProps) {
 	function renderInput(col: GridColumnDef) {
 		const value = () => values()[col.name]
 
-		if (isBooleanType(col.dataType)) {
-			return (
-				<div class="row-detail__checkbox-row">
-					<input
-						type="checkbox"
-						checked={!!value()}
-						onChange={(e) => setValue(col.name, e.target.checked)}
-					/>
-					<span style={{ 'font-size': 'var(--font-size-sm)', color: 'var(--ink-secondary)' }}>
-						{value() ? 'true' : 'false'}
-					</span>
-				</div>
-			)
-		}
-
-		if (isDateType(col.dataType)) {
-			return (
-				<DateInput
-					class="row-detail__input"
-					value={value() != null ? dateInputValue(value(), col.dataType) : ''}
-					onChange={(v) => {
-						if (v === '') {
-							if (col.nullable) setValue(col.name, null)
-						} else {
-							setValue(col.name, v)
-						}
-					}}
-					mode={col.dataType === DatabaseDataType.Date ? 'date' : 'datetime'}
-				/>
-			)
-		}
-
-		if (isTextType(col.dataType)) {
-			return (
-				<textarea
-					class="row-detail__textarea batch-edit__textarea"
-					value={value() != null ? String(value()) : ''}
-					placeholder="Enter value..."
-					onInput={(e) => setValue(col.name, parseValue(e.target.value, col))}
-				/>
-			)
-		}
-
 		return (
-			<input
-				class="row-detail__input"
-				type="text"
-				inputMode={isNumericType(col.dataType) ? 'numeric' : undefined}
-				value={value() != null ? String(value()) : ''}
+			<FieldInput
+				column={col}
+				value={value()}
+				onChange={(v) => setValue(col.name, v)}
 				placeholder="Enter value..."
-				onInput={(e) => setValue(col.name, parseValue(e.target.value, col))}
+				class="batch-edit__textarea"
 			/>
 		)
 	}

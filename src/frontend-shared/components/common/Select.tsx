@@ -1,5 +1,6 @@
 import ChevronDown from 'lucide-solid/icons/chevron-down'
 import { createSignal, For, onCleanup, onMount } from 'solid-js'
+import { createListKeyboardHandler } from '../../lib/use-list-keyboard-nav'
 import './Select.css'
 
 export interface SelectOption {
@@ -72,6 +73,17 @@ export default function Select(props: SelectProps) {
 		item?.scrollIntoView({ block: 'nearest' })
 	}
 
+	const handleListNav = createListKeyboardHandler({
+		getItemCount: () => props.options.length,
+		getSelectedIndex: focusedIndex,
+		setSelectedIndex: setFocusedIndex,
+		onConfirm: () => {
+			const opt = props.options[focusedIndex()]
+			if (opt) select(opt.value)
+		},
+		scrollIntoView: scrollToFocused,
+	})
+
 	function handleKeyDown(e: KeyboardEvent) {
 		if (!open()) {
 			if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
@@ -81,35 +93,17 @@ export default function Select(props: SelectProps) {
 			return
 		}
 
-		switch (e.key) {
-			case 'ArrowDown': {
-				e.preventDefault()
-				const next = Math.min(focusedIndex() + 1, props.options.length - 1)
-				setFocusedIndex(next)
-				scrollToFocused()
-				break
-			}
-			case 'ArrowUp': {
-				e.preventDefault()
-				const prev = Math.max(focusedIndex() - 1, 0)
-				setFocusedIndex(prev)
-				scrollToFocused()
-				break
-			}
-			case 'Enter':
-			case ' ': {
-				e.preventDefault()
-				const opt = props.options[focusedIndex()]
-				if (opt) select(opt.value)
-				break
-			}
-			case 'Escape':
-				e.preventDefault()
-				close()
-				break
-			case 'Tab':
-				close()
-				break
+		if (handleListNav(e)) return
+
+		if (e.key === ' ') {
+			e.preventDefault()
+			const opt = props.options[focusedIndex()]
+			if (opt) select(opt.value)
+		} else if (e.key === 'Escape') {
+			e.preventDefault()
+			close()
+		} else if (e.key === 'Tab') {
+			close()
 		}
 	}
 

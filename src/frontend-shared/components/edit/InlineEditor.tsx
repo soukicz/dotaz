@@ -4,6 +4,7 @@ import { DatabaseDataType, isSqlDefault, SQL_DEFAULT } from '../../../shared/typ
 import type { GridColumnDef } from '../../../shared/types/grid'
 import { isBooleanType, isDateType, isNumericType, isTextType } from '../../lib/column-types'
 import { isQuickValueModifier } from '../../lib/keyboard'
+import { parseValue, valueToString } from '../../lib/value-utils'
 import type { FkTarget } from '../../stores/grid'
 import DateInput from '../common/DateInput'
 import './InlineEditor.css'
@@ -18,31 +19,6 @@ interface InlineEditorProps {
 	onMoveDown: () => void
 	fkTarget?: FkTarget
 	onBrowseFk?: () => void
-}
-
-function valueToString(value: unknown): string {
-	if (value === null || value === undefined) return ''
-	if (isSqlDefault(value)) return ''
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
-}
-
-function parseValue(text: string, column: GridColumnDef): unknown {
-	if (text === '') return column.nullable ? null : text
-
-	if (isNumericType(column.dataType)) {
-		const n = Number(text)
-		return Number.isNaN(n) ? text : n
-	}
-
-	if (isBooleanType(column.dataType)) {
-		const lower = text.toLowerCase()
-		if (lower === 'true' || lower === '1' || lower === 't') return true
-		if (lower === 'false' || lower === '0' || lower === 'f') return false
-		return text
-	}
-
-	return text
 }
 
 /**
@@ -208,6 +184,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 		<Show when={props.fkTarget && props.onBrowseFk}>
 			<button
 				class="inline-editor__browse-btn"
+				onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
 				onClick={(e) => {
 					e.preventDefault()
 					e.stopPropagation()
@@ -238,7 +215,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 					onChange={handleCheckboxChange}
 				/>
 				{props.column.nullable && (
-					<button class="inline-editor__null-btn" onClick={handleSetNull} title="Set NULL">
+					<button class="inline-editor__null-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} onClick={handleSetNull} title="Set NULL">
 						NULL
 					</button>
 				)}
@@ -265,7 +242,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 					onKeyDown={handleKeyDown}
 				/>
 				{props.column.nullable && (
-					<button class="inline-editor__null-btn" onClick={handleSetNull} title="Set NULL">
+					<button class="inline-editor__null-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} onClick={handleSetNull} title="Set NULL">
 						NULL
 					</button>
 				)}
@@ -291,7 +268,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 					onBlur={() => save()}
 				/>
 				{props.column.nullable && (
-					<button class="inline-editor__null-btn" onClick={handleSetNull} title="Set NULL">
+					<button class="inline-editor__null-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} onClick={handleSetNull} title="Set NULL">
 						NULL
 					</button>
 				)}
@@ -322,7 +299,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 					}}
 				/>
 				{props.column.nullable && (
-					<button class="inline-editor__null-btn" onClick={handleSetNull} title="Set NULL">
+					<button class="inline-editor__null-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} onClick={handleSetNull} title="Set NULL">
 						NULL
 					</button>
 				)}
@@ -347,7 +324,7 @@ export default function InlineEditor(props: InlineEditorProps) {
 				onBlur={() => save()}
 			/>
 			{props.column.nullable && (
-				<button class="inline-editor__null-btn" onClick={handleSetNull} title="Set NULL">
+				<button class="inline-editor__null-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} onClick={handleSetNull} title="Set NULL">
 					NULL
 				</button>
 			)}

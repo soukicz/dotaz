@@ -3,6 +3,10 @@
 import type { DatabaseErrorCode } from '../../shared/types/errors'
 import { friendlyMessageForCode } from '../../shared/types/errors'
 
+function errProp(err: unknown, prop: string): unknown {
+	return (err as Record<string, unknown>)?.[prop]
+}
+
 export class RpcError extends Error {
 	/** Domain error code from the backend, if available */
 	public readonly code: DatabaseErrorCode | undefined
@@ -14,16 +18,17 @@ export class RpcError extends Error {
 		const message = cause instanceof Error ? cause.message : String(cause)
 		super(`${method}: ${message}`)
 		this.name = 'RpcError'
-		this.code = (cause as any)?.code as DatabaseErrorCode | undefined
+		this.code = errProp(cause, 'code') as DatabaseErrorCode | undefined
 	}
 }
 
 /** Map common DB/connection error patterns to user-friendly messages */
 export function friendlyErrorMessage(err: unknown): string {
-	const raw = typeof (err as any)?.message === 'string' ? (err as any).message : String(err)
+	const rawMsg = errProp(err, 'message')
+	const raw = typeof rawMsg === 'string' ? rawMsg : String(err)
 
 	// If we have a typed error code, use the centralized mapping
-	const code = (err as any)?.code as DatabaseErrorCode | undefined
+	const code = errProp(err, 'code') as DatabaseErrorCode | undefined
 	if (code && code !== 'UNKNOWN') {
 		// Strip method prefix from RpcError messages before passing to friendly mapper
 		const stripped = raw.replace(/^[\w.]+:\s*/, '')

@@ -1,7 +1,7 @@
 import ArrowDownUp from 'lucide-solid/icons/arrow-down-up'
 import ChevronDown from 'lucide-solid/icons/chevron-down'
 import ChevronUp from 'lucide-solid/icons/chevron-up'
-import { For, Show } from 'solid-js'
+import { For, onCleanup, Show } from 'solid-js'
 import type { GridColumnDef, SortColumn } from '../../../shared/types/grid'
 import { getDataTypeLabel } from '../../lib/column-types'
 import { DEFAULT_COLUMN_WIDTH, MIN_COLUMN_WIDTH } from '../../lib/layout-constants'
@@ -31,6 +31,10 @@ function getSortIndex(sort: SortColumn[], column: string): number {
 }
 
 export default function GridHeader(props: GridHeaderProps) {
+	let dragCleanup: (() => void) | null = null
+
+	onCleanup(() => dragCleanup?.())
+
 	function handleHeaderMouseDown(e: MouseEvent, colIndex: number) {
 		if (e.button !== 0) return
 		props.onColumnSelect?.(colIndex, e)
@@ -59,6 +63,7 @@ export default function GridHeader(props: GridHeaderProps) {
 			document.removeEventListener('mouseup', onMouseUp)
 			document.body.style.cursor = ''
 			document.body.style.userSelect = ''
+			dragCleanup = null
 			// Suppress the click event that the browser synthesizes after mouseup,
 			// so it doesn't trigger column sorting on the parent header cell.
 			document.addEventListener('click', suppressClick, true)
@@ -74,6 +79,7 @@ export default function GridHeader(props: GridHeaderProps) {
 		document.addEventListener('mouseup', onMouseUp)
 		document.body.style.cursor = 'col-resize'
 		document.body.style.userSelect = 'none'
+		dragCleanup = onMouseUp
 	}
 
 	function getColumnWidth(col: string): number {

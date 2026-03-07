@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js'
+import { createSignal, onCleanup } from 'solid-js'
 import './Resizer.css'
 
 interface ResizerProps {
@@ -7,6 +7,9 @@ interface ResizerProps {
 
 export default function Resizer(props: ResizerProps) {
 	const [active, setActive] = createSignal(false)
+	let dragCleanup: (() => void) | null = null
+
+	onCleanup(() => dragCleanup?.())
 
 	function onMouseDown(e: MouseEvent) {
 		e.preventDefault()
@@ -25,12 +28,14 @@ export default function Resizer(props: ResizerProps) {
 			document.removeEventListener('mouseup', onMouseUp)
 			document.body.style.cursor = ''
 			document.body.style.userSelect = ''
+			dragCleanup = null
 		}
 
 		document.body.style.cursor = 'col-resize'
 		document.body.style.userSelect = 'none'
 		document.addEventListener('mousemove', onMouseMove)
 		document.addEventListener('mouseup', onMouseUp)
+		dragCleanup = onMouseUp
 	}
 
 	return (

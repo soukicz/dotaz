@@ -1,10 +1,10 @@
 import Search from 'lucide-solid/icons/search'
 import { createSignal, For, Show } from 'solid-js'
-import { DatabaseDataType, isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
+import { isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
 import type { GridColumnDef } from '../../../shared/types/grid'
-import { isBooleanType, isDateType, isNumericType, isTextType } from '../../lib/column-types'
+import { isBooleanType } from '../../lib/column-types'
 import { isQuickValueModifier, quickValueModifierLabel } from '../../lib/keyboard'
-import DateInput from '../common/DateInput'
+import FieldInput from '../common/FieldInput'
 import FkPickerModal from './FkPickerModal'
 
 export interface RowDetailEditFieldsProps {
@@ -16,37 +16,6 @@ export interface RowDetailEditFieldsProps {
 	setFieldValue: (col: string, value: unknown) => void
 	connectionId: string
 	database?: string
-}
-
-function valueToString(value: unknown): string {
-	if (value === null || value === undefined) return ''
-	if (isSqlDefault(value)) return ''
-	if (typeof value === 'object') return JSON.stringify(value, null, 2)
-	return String(value)
-}
-
-function parseValue(text: string, column: GridColumnDef): unknown {
-	if (text === '') return column.nullable ? null : text
-	if (isNumericType(column.dataType)) {
-		const n = Number(text)
-		return Number.isNaN(n) ? text : n
-	}
-	if (isBooleanType(column.dataType)) {
-		const lower = text.toLowerCase()
-		if (lower === 'true' || lower === '1' || lower === 't') return true
-		if (lower === 'false' || lower === '0' || lower === 'f') return false
-		return text
-	}
-	return text
-}
-
-function dateInputValue(value: unknown, dataType: DatabaseDataType): string {
-	if (value === null || value === undefined || isSqlDefault(value)) return ''
-	const str = String(value)
-	if (dataType === DatabaseDataType.Date) return str.substring(0, 10)
-	const d = new Date(str)
-	if (Number.isNaN(d.getTime())) return str
-	return d.toISOString().substring(0, 19)
 }
 
 export default function RowDetailEditFields(props: RowDetailEditFieldsProps) {
@@ -89,86 +58,30 @@ export default function RowDetailEditFields(props: RowDetailEditFieldsProps) {
 
 		if (isBooleanType(col.dataType)) {
 			return (
-				<div class="row-detail__checkbox-row" onKeyDown={(e) => handleFieldKeyDown(e, col)}>
-					<input
-						type="checkbox"
-						checked={!!value && !isNull && !isDef}
-						disabled={readOnly}
-						onChange={(e) => props.setFieldValue(col.name, e.target.checked)}
-					/>
-					<span style={{ 'font-size': 'var(--font-size-sm)', color: 'var(--ink-secondary)' }}>
-						{isDef ? 'DEFAULT' : isNull ? 'NULL' : value ? 'true' : 'false'}
-					</span>
-				</div>
-			)
-		}
-
-		if (isDateType(col.dataType)) {
-			return (
-				<div class="row-detail__input-row">
-					<DateInput
-						class="row-detail__input"
-						value={isNull || isDef ? '' : dateInputValue(value, col.dataType)}
-						onChange={(v) => {
-							if (v === '') {
-								if (col.nullable) props.setFieldValue(col.name, null)
-							} else {
-								props.setFieldValue(col.name, v)
-							}
-						}}
-						mode={col.dataType === DatabaseDataType.Date ? 'date' : 'datetime'}
-						readOnly={readOnly}
-						placeholder={specialPlaceholder}
-						onKeyDown={(e) => handleFieldKeyDown(e, col)}
-					/>
-				</div>
-			)
-		}
-
-		if (isTextType(col.dataType)) {
-			return (
-				<div class="row-detail__input-row">
-					<Show when={(isNull || isDef) && readOnly}>
-						<input
-							class="row-detail__input row-detail__input--null"
-							type="text"
-							value={isDef ? 'DEFAULT' : 'NULL'}
-							readOnly
-						/>
-					</Show>
-					<Show when={!((isNull || isDef) && readOnly)}>
-						<textarea
-							class="row-detail__textarea"
-							classList={{
-								'row-detail__input--null': isNull,
-								'row-detail__input--default': isDef,
-							}}
-							value={isNull || isDef ? '' : valueToString(value)}
-							readOnly={readOnly}
-							placeholder={specialPlaceholder}
-							onKeyDown={(e) => handleFieldKeyDown(e, col)}
-							onInput={(e) => props.setFieldValue(col.name, parseValue(e.target.value, col))}
-						/>
-					</Show>
-				</div>
+				<FieldInput
+					column={col}
+					value={value}
+					onChange={(v) => props.setFieldValue(col.name, v)}
+					readOnly={readOnly}
+					isNull={isNull}
+					isDefault={isDef}
+					onKeyDown={(e) => handleFieldKeyDown(e, col)}
+				/>
 			)
 		}
 
 		return (
 			<div class="row-detail__input-row">
-				<input
-					class="row-detail__input"
-					classList={{
-						'row-detail__input--null': isNull,
-						'row-detail__input--default': isDef,
-					}}
-					type="text"
-					inputMode={isNumericType(col.dataType) ? 'numeric' : undefined}
-					value={isNull || isDef ? '' : valueToString(value)}
+				<FieldInput
+					column={col}
+					value={value}
+					onChange={(v) => props.setFieldValue(col.name, v)}
 					readOnly={readOnly}
+					isNull={isNull}
+					isDefault={isDef}
 					placeholder={specialPlaceholder}
 					onKeyDown={(e) => handleFieldKeyDown(e, col)}
-					onInput={(e) => props.setFieldValue(col.name, parseValue(e.target.value, col))}
+					prettyJson
 				/>
 			</div>
 		)
