@@ -92,15 +92,16 @@ setStorage(new RpcAppStateStorage())
 render(() => <App />, document.getElementById('app')!)
 ```
 
-## Implementation Workflow
+## Multi-agent coordination
 
-Follow `docs/INSTRUCTIONS.md` — issue-driven development, one issue per invocation:
+This project may have multiple agents working concurrently. Follow these rules strictly:
 
-1. Read `docs/STATUS.md` to find the next `not started` issue
-2. Read the issue file at `docs/issues/DOTAZ-{NNN}.md`
-3. Check dependencies are `done` before starting
-4. Implement, type-check, test, commit with format `DOTAZ-{NNN}: {description}`
-5. Update `docs/STATUS.md`
+- **Never revert or stash changes** that you did not author in the current task
+- **Never assume a conflict is an error** — another agent may have legitimately modified the file
+- If a merge conflict, unexpected state, or test failure appears to be caused by concurrent edits:
+  1. **Wait between 30-90 seconds (jitter)** (eg `sleep 53`) and retry the failed operation - repeat up to three times
+  2. If it still fails, **stop immediately** — do not attempt further fixes
+  3. Report the situation to the user, describe what you observed, and ask how to proceed
 
 ## General Conventions
 
