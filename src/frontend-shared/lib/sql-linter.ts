@@ -1,8 +1,8 @@
 import { linter, type Diagnostic } from '@codemirror/lint'
 import type { SchemaData } from '../../shared/types/database'
-import { connectionsStore } from '../stores/connections'
 import { parseCteNames } from './alias-completion'
 import { parseTableReferences } from './join-completion'
+import { scanSqlRegions } from './sql-scanner'
 
 // ── Position-preserving literal/comment stripper ─────────
 
@@ -12,93 +12,12 @@ import { parseTableReferences } from './join-completion'
  */
 function blankLiteralsAndComments(sql: string): string {
 	const chars = sql.split('')
-	let i = 0
-
-	function blank(from: number, to: number) {
-		for (let j = from; j < to; j++) {
+	for (const region of scanSqlRegions(sql)) {
+		for (let j = region.from; j < region.to; j++) {
 			// keep newlines so line numbers stay correct
 			if (chars[j] !== '\n') chars[j] = ' '
 		}
 	}
-
-	while (i < sql.length) {
-		const ch = sql[i]
-		const next = i + 1 < sql.length ? sql[i + 1] : ''
-
-		// Line comment
-		if (ch === '-' && next === '-') {
-			const start = i
-			const lineEnd = sql.indexOf('\n', i)
-			i = lineEnd === -1 ? sql.length : lineEnd
-			blank(start, i)
-			continue
-		}
-
-		// Block comment
-		if (ch === '/' && next === '*') {
-			const start = i
-			const endIdx = sql.indexOf('*/', i + 2)
-			i = endIdx === -1 ? sql.length : endIdx + 2
-			blank(start, i)
-			continue
-		}
-
-		// Dollar-quoted string
-		if (ch === '$') {
-			const tagMatch = sql.slice(i).match(/^(\$[a-zA-Z0-9_]*\$)/)
-			if (tagMatch) {
-				const tag = tagMatch[1]
-				const start = i
-				const endIdx = sql.indexOf(tag, i + tag.length)
-				i = endIdx === -1 ? sql.length : endIdx + tag.length
-				blank(start, i)
-				continue
-			}
-		}
-
-		// Single-quoted string
-		if (ch === "'") {
-			const start = i
-			i++
-			while (i < sql.length) {
-				if (sql[i] === "'") {
-					i++
-					if (i < sql.length && sql[i] === "'") {
-						i++
-					} else {
-						break
-					}
-				} else {
-					i++
-				}
-			}
-			blank(start, i)
-			continue
-		}
-
-		// Double-quoted identifier
-		if (ch === '"') {
-			const start = i
-			i++
-			while (i < sql.length) {
-				if (sql[i] === '"') {
-					i++
-					if (i < sql.length && sql[i] === '"') {
-						i++
-					} else {
-						break
-					}
-				} else {
-					i++
-				}
-			}
-			blank(start, i)
-			continue
-		}
-
-		i++
-	}
-
 	return chars.join('')
 }
 
@@ -218,8 +137,7 @@ const SQL_KEYWORDS_LOWER = new Set([
  * Validates table and column names against the loaded schema.
  */
 export function createSqlLinter(
-	connectionId: string,
-	database: string | undefined,
+	getSchemaData: () => SchemaData | undefined,
 	isSqlite: boolean,
 ) {
 	const defaultSchema = isSqlite ? 'main' : 'public'
@@ -229,7 +147,7 @@ export function createSqlLinter(
 		const doc = view.state.doc.toString()
 		if (doc.trim().length === 0) return diagnostics
 
-		const schemaData = connectionsStore.getSchemaData(connectionId, database)
+		const schemaData = getSchemaData()
 		if (!schemaData) return diagnostics
 
 		const blanked = blankLiteralsAndComments(doc)
