@@ -1,11 +1,13 @@
-export type { GeneratedStatement, WhereClauseResult } from './builders'
+export type { ColumnResolver, GeneratedStatement, JoinedColumnSet, WhereClauseResult } from './builders'
 export {
 	buildCountQuery,
+	buildJoinClause,
 	buildOrderByClause,
 	buildQuickSearchClause,
 	buildReadableSelectQuery,
 	buildSelectQuery,
 	buildWhereClause,
+	createColumnResolver,
 	formatValueForPreview,
 	generateChangePreview,
 	generateChangesPreview,
@@ -13,6 +15,8 @@ export {
 	generateDelete,
 	generateInsert,
 	generateUpdate,
+	isJoinedColumn,
+	parseJoinedColumn,
 } from './builders'
 export type { SqlDialect } from './dialect'
 export { MysqlDialect, PostgresDialect, SqliteDialect } from './dialects'

@@ -54,4 +54,14 @@ export interface GridColumnDef {
 	dataType: DatabaseDataType
 	nullable: boolean
 	isPrimaryKey: boolean
+	joinAlias?: string
+	sourceTable?: string
+}
+
+export interface AutoJoinDef {
+	fkColumn: string
+	referencedSchema: string
+	referencedTable: string
+	referencedColumn: string
+	alias: string
 }

@@ -65,6 +65,7 @@ export interface SavedViewConfig {
 	columnWidths?: Record<string, number>
 	customFilter?: string
 	rowColorRules?: RowColorRule[]
+	autoJoins?: import('./grid').AutoJoinDef[]
 }
 
 export interface SavedView {

@@ -1,7 +1,36 @@
 import { DatabaseDataType, isSqlDefault } from '../types/database'
-import type { ColumnFilter, SortColumn } from '../types/grid'
+import type { AutoJoinDef, ColumnFilter, SortColumn } from '../types/grid'
 import type { DataChange, DeleteChange, InsertChange, UpdateChange } from '../types/rpc'
 import type { SqlDialect } from './dialect'
+
+// ── Auto-join helpers ──────────────────────────────────────
+
+export type ColumnResolver = (columnName: string) => string
+
+export function isJoinedColumn(name: string): boolean {
+	return name.includes('.')
+}
+
+export function parseJoinedColumn(name: string): { table: string; column: string } {
+	const dotIdx = name.indexOf('.')
+	return { table: name.substring(0, dotIdx), column: name.substring(dotIdx + 1) }
+}
+
+export function createColumnResolver(
+	autoJoins: AutoJoinDef[],
+	dialect: SqlDialect,
+): ColumnResolver {
+	return (columnName: string) => {
+		if (isJoinedColumn(columnName)) {
+			const { table, column } = parseJoinedColumn(columnName)
+			const join = autoJoins.find((j) => j.referencedTable === table)
+			if (join) {
+				return `${dialect.quoteIdentifier(join.alias)}.${dialect.quoteIdentifier(column)}`
+			}
+		}
+		return `t0.${dialect.quoteIdentifier(columnName)}`
+	}
+}
 
 export interface WhereClauseResult {
 	sql: string
@@ -29,6 +58,7 @@ export function buildQuickSearchClause(
 	searchTerm: string,
 	dialect: SqlDialect,
 	paramOffset = 0,
+	columnResolver?: ColumnResolver,
 ): WhereClauseResult {
 	if (!searchTerm || columns.length === 0) {
 		return { sql: '', params: [] }
@@ -49,7 +79,7 @@ export function buildQuickSearchClause(
 
 	for (const col of searchable) {
 		paramIndex++
-		const quoted = dialect.quoteIdentifier(col.name)
+		const quoted = columnResolver ? columnResolver(col.name) : dialect.quoteIdentifier(col.name)
 		conditions.push(`CAST(${quoted} AS TEXT) ${likeOp} ${dialect.placeholder(paramIndex)}`)
 		params.push(pattern)
 	}
@@ -69,6 +99,7 @@ export function buildWhereClause(
 	filters: ColumnFilter[] | undefined,
 	dialect: SqlDialect,
 	paramOffset = 0,
+	columnResolver?: ColumnResolver,
 ): WhereClauseResult {
 	if (!filters || filters.length === 0) {
 		return { sql: '', params: [] }
@@ -79,7 +110,7 @@ export function buildWhereClause(
 	let paramIndex = paramOffset
 
 	for (const filter of filters) {
-		const col = dialect.quoteIdentifier(filter.column)
+		const col = columnResolver ? columnResolver(filter.column) : dialect.quoteIdentifier(filter.column)
 
 		switch (filter.operator) {
 			case 'eq':
@@ -168,13 +199,14 @@ export function buildWhereClause(
 export function buildOrderByClause(
 	sort: SortColumn[] | undefined,
 	dialect: SqlDialect,
+	columnResolver?: ColumnResolver,
 ): string {
 	if (!sort || sort.length === 0) {
 		return ''
 	}
 
 	const clauses = sort.map((s) => {
-		const col = dialect.quoteIdentifier(s.column)
+		const col = columnResolver ? columnResolver(s.column) : dialect.quoteIdentifier(s.column)
 		const dir = s.direction === 'desc' ? 'DESC' : 'ASC'
 		return `${col} ${dir}`
 	})
@@ -230,6 +262,7 @@ function appendCustomFilter(
 
 /**
  * Build a complete SELECT query with pagination, sorting, and filtering.
+ * When autoJoins + joinedColumns are provided, generates a JOIN query with aliased columns.
  * Returns the SQL string and parameter values.
  */
 export function buildSelectQuery(
@@ -242,11 +275,15 @@ export function buildSelectQuery(
 	dialect: SqlDialect,
 	quickSearch?: WhereClauseResult,
 	customFilter?: string,
+	autoJoins?: AutoJoinDef[],
+	joinedColumns?: JoinedColumnSet[],
 ): { sql: string; params: unknown[] } {
+	const hasJoins = autoJoins != null && autoJoins.length > 0
+	const resolver = hasJoins ? createColumnResolver(autoJoins, dialect) : undefined
 	const from = dialect.qualifyTable(schema, table)
-	const filterWhere = buildWhereClause(filters, dialect)
+	const filterWhere = buildWhereClause(filters, dialect, 0, resolver)
 	const where = appendCustomFilter(combineWhereClauses(filterWhere, quickSearch), customFilter)
-	const orderBy = buildOrderByClause(sort, dialect)
+	const orderBy = buildOrderByClause(sort, dialect, resolver)
 
 	const offset = (page - 1) * pageSize
 	let paramIndex = where.params.length
@@ -256,7 +293,16 @@ export function buildSelectQuery(
 	paramIndex++
 	const offsetParam = dialect.placeholder(paramIndex)
 
-	const parts = [`SELECT * FROM ${from}`]
+	let selectFrom: string
+	if (hasJoins) {
+		const joinClause = buildJoinClause(autoJoins, dialect)
+		const selectList = `t0.*${buildJoinSelectList(joinedColumns ?? [], dialect)}`
+		selectFrom = `SELECT ${selectList} FROM ${from} AS t0 ${joinClause}`
+	} else {
+		selectFrom = `SELECT * FROM ${from}`
+	}
+
+	const parts = [selectFrom]
 	if (where.sql) parts.push(where.sql)
 	if (orderBy) parts.push(orderBy)
 	parts.push(`LIMIT ${limitParam} OFFSET ${offsetParam}`)
@@ -280,18 +326,32 @@ export function buildReadableSelectQuery(
 	filters: ColumnFilter[] | undefined,
 	dialect: SqlDialect,
 	customFilter?: string,
+	autoJoins?: AutoJoinDef[],
+	joinedColumns?: JoinedColumnSet[],
 ): string {
+	const hasJoins = autoJoins != null && autoJoins.length > 0
+	const resolver = hasJoins ? createColumnResolver(autoJoins, dialect) : undefined
+	const resolveCol = (name: string) => resolver ? resolver(name) : dialect.quoteIdentifier(name)
 	const from = dialect.qualifyTable(schema, table)
-	const orderBy = buildOrderByClause(sort, dialect)
+	const orderBy = buildOrderByClause(sort, dialect, resolver)
 	const offset = (page - 1) * pageSize
 
-	const parts = [`SELECT * FROM ${from}`]
+	let selectFrom: string
+	if (hasJoins) {
+		const joinClause = buildJoinClause(autoJoins, dialect)
+		const selectList = `t0.*${buildJoinSelectList(joinedColumns ?? [], dialect)}`
+		selectFrom = `SELECT ${selectList}\nFROM ${from} AS t0\n${joinClause}`
+	} else {
+		selectFrom = `SELECT * FROM ${from}`
+	}
+
+	const parts = [selectFrom]
 
 	const whereConditions: string[] = []
 
 	if (filters && filters.length > 0) {
 		for (const filter of filters) {
-			const col = dialect.quoteIdentifier(filter.column)
+			const col = resolveCol(filter.column)
 			switch (filter.operator) {
 				case 'eq':
 					whereConditions.push(`${col} = ${sqlLiteral(filter.value)}`)
@@ -359,6 +419,7 @@ function sqlLiteral(value: unknown): string {
 
 /**
  * Build a COUNT(*) query with optional filtering.
+ * When autoJoins is provided, generates a JOIN query.
  * Returns the SQL string and parameter values.
  */
 export function buildCountQuery(
@@ -368,18 +429,75 @@ export function buildCountQuery(
 	dialect: SqlDialect,
 	quickSearch?: WhereClauseResult,
 	customFilter?: string,
+	autoJoins?: AutoJoinDef[],
 ): { sql: string; params: unknown[] } {
+	const hasJoins = autoJoins != null && autoJoins.length > 0
+	const resolver = hasJoins ? createColumnResolver(autoJoins, dialect) : undefined
 	const from = dialect.qualifyTable(schema, table)
-	const filterWhere = buildWhereClause(filters, dialect)
+	const filterWhere = buildWhereClause(filters, dialect, 0, resolver)
 	const where = appendCustomFilter(combineWhereClauses(filterWhere, quickSearch), customFilter)
 
-	const parts = [`SELECT COUNT(*) AS count FROM ${from}`]
+	let countFrom: string
+	if (hasJoins) {
+		const joinClause = buildJoinClause(autoJoins, dialect)
+		countFrom = `SELECT COUNT(*) AS count FROM ${from} AS t0 ${joinClause}`
+	} else {
+		countFrom = `SELECT COUNT(*) AS count FROM ${from}`
+	}
+
+	const parts = [countFrom]
 	if (where.sql) parts.push(where.sql)
 
 	return {
 		sql: parts.join(' '),
 		params: where.params,
 	}
+}
+
+// ── Auto-join internal helpers ──────────────────────────────
+
+export interface JoinedColumnSet {
+	alias: string
+	table: string
+	columns: string[]
+}
+
+export function buildJoinClause(autoJoins: AutoJoinDef[], dialect: SqlDialect): string {
+	return autoJoins
+		.map((j) => {
+			const refTable = dialect.qualifyTable(j.referencedSchema, j.referencedTable)
+			const alias = dialect.quoteIdentifier(j.alias)
+
+			// Nested join: fkColumn is "parentTable.column" — resolve to parent join alias
+			let fkCol: string
+			if (isJoinedColumn(j.fkColumn)) {
+				const { table, column } = parseJoinedColumn(j.fkColumn)
+				const parentJoin = autoJoins.find((pj) => pj.referencedTable === table)
+				if (parentJoin) {
+					fkCol = `${dialect.quoteIdentifier(parentJoin.alias)}.${dialect.quoteIdentifier(column)}`
+				} else {
+					fkCol = `t0.${dialect.quoteIdentifier(j.fkColumn)}`
+				}
+			} else {
+				fkCol = `t0.${dialect.quoteIdentifier(j.fkColumn)}`
+			}
+
+			const refCol = `${alias}.${dialect.quoteIdentifier(j.referencedColumn)}`
+			return `LEFT JOIN ${refTable} AS ${alias} ON ${fkCol} = ${refCol}`
+		})
+		.join(' ')
+}
+
+function buildJoinSelectList(joinedColumns: JoinedColumnSet[], dialect: SqlDialect): string {
+	const parts: string[] = []
+	for (const jc of joinedColumns) {
+		for (const col of jc.columns) {
+			const qualifiedCol = `${dialect.quoteIdentifier(jc.alias)}.${dialect.quoteIdentifier(col)}`
+			const aliasName = `${jc.table}.${col}`
+			parts.push(`${qualifiedCol} AS ${dialect.quoteIdentifier(aliasName)}`)
+		}
+	}
+	return parts.length > 0 ? ', ' + parts.join(', ') : ''
 }
 
 // ── Data Editing SQL Generation ─────────────────────────────
