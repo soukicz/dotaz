@@ -4,7 +4,7 @@ import X from 'lucide-solid/icons/x'
 import { createSignal, For, Show } from 'solid-js'
 import type { DatabaseDataType } from '../../../shared/types/database'
 import type { ColumnFilter, FilterOperator, GridColumnDef } from '../../../shared/types/grid'
-import { getColumnCategory } from '../../lib/column-types'
+import { getColumnCategory } from '../../../shared/column-types'
 import Select from '../common/Select'
 import './FilterBar.css'
 

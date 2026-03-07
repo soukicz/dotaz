@@ -4,7 +4,7 @@ import { createSignal, For, Show } from 'solid-js'
 import type { DatabaseDataType } from '../../../shared/types/database'
 import type { FilterOperator, GridColumnDef } from '../../../shared/types/grid'
 import type { RowColorRule } from '../../../shared/types/rpc'
-import { getColumnCategory } from '../../lib/column-types'
+import { getColumnCategory } from '../../../shared/column-types'
 import Select from '../common/Select'
 import './RowColoringPanel.css'
 

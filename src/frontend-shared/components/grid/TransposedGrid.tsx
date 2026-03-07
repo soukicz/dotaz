@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js'
 import type { GridColumnDef } from '../../../shared/types/grid'
-import { getDataTypeLabel } from '../../lib/column-types'
+import { getDataTypeLabel } from '../../../shared/column-types'
 import { DEFAULT_COLUMN_WIDTH } from '../../lib/layout-constants'
 import type { CellSelection, ColumnConfig, EditingCell, FkTarget, HeatmapInfo } from '../../stores/grid'
 import { getSelectedRowIndices } from '../../stores/grid'

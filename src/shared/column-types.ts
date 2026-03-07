@@ -1,4 +1,4 @@
-import { DatabaseDataType } from '../../shared/types/database'
+import { DatabaseDataType } from './types/database'
 
 const NUMERIC_TYPES = new Set<DatabaseDataType>([
 	DatabaseDataType.Integer,
