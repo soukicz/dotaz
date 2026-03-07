@@ -4,6 +4,7 @@ import type { DatabaseInfo } from '../../shared/types/database'
 import type { DatabaseErrorCode } from '../../shared/types/errors'
 import { DatabaseError } from '../../shared/types/errors'
 import type { DatabaseDriver } from '../db/driver'
+import { LoggingDriver } from '../db/logging-driver'
 import { MysqlDriver } from '../drivers/mysql-driver'
 import { PostgresDriver } from '../drivers/postgres-driver'
 import { SqliteDriver } from '../drivers/sqlite-driver'
@@ -688,18 +689,26 @@ export class ConnectionManager {
 // ── Factory helpers ─────────────────────────────────────────
 
 function createDriver(config: ConnectionConfig): DatabaseDriver {
+	let driver: DatabaseDriver
 	switch (config.type) {
 		case 'postgresql':
-			return new PostgresDriver()
+			driver = new PostgresDriver()
+			break
 		case 'sqlite':
-			return new SqliteDriver()
+			driver = new SqliteDriver()
+			break
 		case 'mysql':
-			return new MysqlDriver()
+			driver = new MysqlDriver()
+			break
 		default:
 			throw new Error(
 				`Unsupported connection type: ${(config as any).type}`,
 			)
 	}
+	if (process.env.DEBUG_SQL) {
+		driver = new LoggingDriver(driver)
+	}
+	return driver
 }
 
 function validateConfig(config: ConnectionConfig, allowMissingPassword = false): void {

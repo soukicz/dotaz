@@ -56,7 +56,9 @@ export async function initDemo(emitMessage: EmitMessage) {
 	db.exec('PRAGMA foreign_keys = ON')
 
 	// 4. Create driver, state, and adapter
-	const driver = new WasmSqliteDriver(db)
+	const baseDriver = new WasmSqliteDriver(db)
+	const { LoggingDriver } = await import('../backend-shared/db/logging-driver')
+	const driver = new LoggingDriver(baseDriver)
 	const state = new DemoAppState()
 	const adapter = new DemoAdapter(driver, state, emitMessage)
 

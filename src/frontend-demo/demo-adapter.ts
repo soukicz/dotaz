@@ -28,8 +28,6 @@ import type {
 } from '../shared/types/rpc'
 import { settingsToAiConfig } from '../shared/types/settings'
 import type { DemoAppState } from './demo-state'
-import type { WasmSqliteDriver } from './wasm-sqlite-driver'
-
 type EmitMessage = (channel: string, payload: any) => void
 
 export class DemoAdapter implements RpcAdapter {
@@ -38,12 +36,12 @@ export class DemoAdapter implements RpcAdapter {
 	private pendingCount = 0
 
 	constructor(
-		private driver: WasmSqliteDriver,
+		private driver: DatabaseDriver,
 		private state: DemoAppState,
 		private emitMessage: EmitMessage,
 	) {}
 
-	private getConnectedDriver(connectionId: string): WasmSqliteDriver {
+	private getConnectedDriver(connectionId: string): DatabaseDriver {
 		if (!this.connectedSet.has(connectionId)) {
 			throw new Error(`Connection ${connectionId} is not connected`)
 		}
