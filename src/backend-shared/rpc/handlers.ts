@@ -17,16 +17,28 @@ export function createHandlers(adapter: RpcAdapter) {
 		'connections.list': () => {
 			return adapter.listConnections()
 		},
-		'connections.create': ({ name, config, readOnly, color }: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }) => {
-			return adapter.createConnection({ name, config, readOnly, color })
+		'connections.create': ({ name, config, readOnly, color, groupName }: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }) => {
+			return adapter.createConnection({ name, config, readOnly, color, groupName })
 		},
 		'connections.update': (
-			{ id, name, config, readOnly, color }: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string },
+			{ id, name, config, readOnly, color, groupName }: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
 		) => {
-			return adapter.updateConnection({ id, name, config, readOnly, color })
+			return adapter.updateConnection({ id, name, config, readOnly, color, groupName })
 		},
 		'connections.setReadOnly': ({ id, readOnly }: { id: string; readOnly: boolean }) => {
 			return adapter.setConnectionReadOnly(id, readOnly)
+		},
+		'connections.setGroup': ({ id, groupName }: { id: string; groupName: string | null }) => {
+			return adapter.setConnectionGroup(id, groupName)
+		},
+		'connections.listGroups': () => {
+			return adapter.listConnectionGroups()
+		},
+		'connections.renameGroup': ({ oldName, newName }: { oldName: string; newName: string }) => {
+			adapter.renameConnectionGroup(oldName, newName)
+		},
+		'connections.deleteGroup': ({ groupName }: { groupName: string }) => {
+			adapter.deleteConnectionGroup(groupName)
 		},
 		'connections.delete': async ({ id }: { id: string }) => {
 			await adapter.deleteConnection(id)

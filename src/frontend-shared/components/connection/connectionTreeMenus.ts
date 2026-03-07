@@ -78,6 +78,26 @@ export function connectionMenuItems(conn: ConnectionInfo, callbacks: TreeMenuCal
 		},
 		'separator',
 		{
+			label: 'Move to Group...',
+			action: () => {
+				const existingGroups = Array.from(new Set(
+					connectionsStore.connections
+						.map((c) => c.groupName)
+						.filter((g): g is string => !!g && g !== conn.groupName),
+				)).sort()
+
+				const options = existingGroups.length > 0
+					? `Existing groups: ${existingGroups.join(', ')}\n\nEnter group name (or leave empty to remove from group):`
+					: 'Enter group name:'
+
+				const name = window.prompt(options, conn.groupName ?? '')
+				if (name !== null) {
+					connectionsStore.setConnectionGroup(conn.id, name.trim() || null)
+				}
+			},
+		},
+		'separator',
+		{
 			label: 'Edit',
 			action: () => callbacks.onEditConnection(conn),
 		},

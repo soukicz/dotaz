@@ -318,6 +318,7 @@ export class ConnectionManager {
 		config: ConnectionConfig
 		readOnly?: boolean
 		color?: string
+		groupName?: string
 	}, allowMissingPassword = false): ConnectionInfo {
 		validateConfig(params.config, allowMissingPassword)
 		return this.appDb.createConnection(params)
@@ -329,6 +330,7 @@ export class ConnectionManager {
 		config: ConnectionConfig
 		readOnly?: boolean
 		color?: string
+		groupName?: string
 	}): ConnectionInfo {
 		validateConfig(params.config)
 		const updated = this.appDb.updateConnection(params)

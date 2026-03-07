@@ -40,7 +40,7 @@ export class DemoAppState {
 		return this.connections.get(id) ?? null
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; groupName?: string }): ConnectionInfo {
 		const id = crypto.randomUUID()
 		const now = new Date().toISOString()
 		const conn: ConnectionInfo = {
@@ -49,6 +49,7 @@ export class DemoAppState {
 			config: params.config,
 			state: 'disconnected',
 			readOnly: params.readOnly || undefined,
+			groupName: params.groupName || undefined,
 			createdAt: now,
 			updatedAt: now,
 		}
@@ -56,7 +57,7 @@ export class DemoAppState {
 		return conn
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; groupName?: string }): ConnectionInfo {
 		const existing = this.connections.get(params.id)
 		if (!existing) throw new Error(`Connection not found: ${params.id}`)
 		const now = new Date().toISOString()
@@ -65,6 +66,7 @@ export class DemoAppState {
 			name: params.name,
 			config: params.config,
 			readOnly: params.readOnly || undefined,
+			groupName: params.groupName !== undefined ? (params.groupName || undefined) : existing.groupName,
 			updatedAt: now,
 		}
 		this.connections.set(params.id, updated)
@@ -80,6 +82,41 @@ export class DemoAppState {
 		}
 		this.connections.set(id, updated)
 		return updated
+	}
+
+	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo {
+		const existing = this.connections.get(id)
+		if (!existing) throw new Error(`Connection not found: ${id}`)
+		const updated: ConnectionInfo = {
+			...existing,
+			groupName: groupName || undefined,
+		}
+		this.connections.set(id, updated)
+		return updated
+	}
+
+	listConnectionGroups(): string[] {
+		const groups = new Set<string>()
+		for (const conn of this.connections.values()) {
+			if (conn.groupName) groups.add(conn.groupName)
+		}
+		return Array.from(groups).sort()
+	}
+
+	renameConnectionGroup(oldName: string, newName: string): void {
+		for (const [id, conn] of this.connections) {
+			if (conn.groupName === oldName) {
+				this.connections.set(id, { ...conn, groupName: newName })
+			}
+		}
+	}
+
+	deleteConnectionGroup(groupName: string): void {
+		for (const [id, conn] of this.connections) {
+			if (conn.groupName === groupName) {
+				this.connections.set(id, { ...conn, groupName: undefined })
+			}
+		}
 	}
 
 	deleteConnection(id: string): void {

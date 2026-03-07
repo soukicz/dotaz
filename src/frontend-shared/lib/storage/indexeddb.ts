@@ -26,6 +26,7 @@ interface StoredConnectionRecord {
 	rememberPassword: boolean
 	readOnly?: boolean
 	color?: string
+	groupName?: string
 	createdAt: string
 	updatedAt: string
 }
@@ -99,6 +100,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			state: 'disconnected' as const,
 			readOnly: r.readOnly || undefined,
 			color: r.color || undefined,
+			groupName: r.groupName || undefined,
 			createdAt: r.createdAt,
 			updatedAt: r.updatedAt,
 		}))
@@ -110,6 +112,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 		rememberPassword = true,
 		readOnly?: boolean,
 		color?: string,
+		groupName?: string,
 	): Promise<ConnectionInfo> {
 		const id = crypto.randomUUID()
 		const now = new Date().toISOString()
@@ -127,6 +130,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			rememberPassword,
 			readOnly: readOnly || undefined,
 			color: color || undefined,
+			groupName: groupName || undefined,
 			createdAt: now,
 			updatedAt: now,
 		}
@@ -140,6 +144,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			state: 'disconnected',
 			readOnly: readOnly || undefined,
 			color: color || undefined,
+			groupName: groupName || undefined,
 			createdAt: now,
 			updatedAt: now,
 		}
@@ -152,6 +157,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 		rememberPassword?: boolean,
 		readOnly?: boolean,
 		color?: string,
+		groupName?: string,
 	): Promise<ConnectionInfo> {
 		const existing = await txOp<StoredConnectionRecord | undefined>(STORES.connections, 'readonly', (s) => s.get(id))
 		if (!existing) throw new Error(`Connection not found: ${id}`)
@@ -166,6 +172,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 
 		const resolvedReadOnly = readOnly ?? existing.readOnly
 		const resolvedColor = color !== undefined ? (color || undefined) : existing.color
+		const resolvedGroupName = groupName !== undefined ? (groupName || undefined) : existing.groupName
 		const record: StoredConnectionRecord = {
 			id,
 			name,
@@ -174,6 +181,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			rememberPassword: remember,
 			readOnly: resolvedReadOnly || undefined,
 			color: resolvedColor,
+			groupName: resolvedGroupName,
 			createdAt: existing.createdAt,
 			updatedAt: now,
 		}
@@ -187,6 +195,7 @@ export class IndexedDbAppStateStorage implements AppStateStorage {
 			state: 'disconnected',
 			readOnly: resolvedReadOnly || undefined,
 			color: resolvedColor,
+			groupName: resolvedGroupName,
 			createdAt: record.createdAt,
 			updatedAt: now,
 		}

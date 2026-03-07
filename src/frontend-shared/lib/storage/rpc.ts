@@ -18,8 +18,9 @@ export class RpcAppStateStorage implements AppStateStorage {
 		_rememberPassword?: boolean,
 		readOnly?: boolean,
 		color?: string,
+		groupName?: string,
 	): Promise<ConnectionInfo> {
-		return rpc.connections.create({ name, config, readOnly, color })
+		return rpc.connections.create({ name, config, readOnly, color, groupName })
 	}
 
 	async updateConnection(
@@ -29,8 +30,9 @@ export class RpcAppStateStorage implements AppStateStorage {
 		_rememberPassword?: boolean,
 		readOnly?: boolean,
 		color?: string,
+		groupName?: string,
 	): Promise<ConnectionInfo> {
-		return rpc.connections.update({ id, name, config, readOnly, color })
+		return rpc.connections.update({ id, name, config, readOnly, color, groupName })
 	}
 
 	async deleteConnection(id: string): Promise<void> {

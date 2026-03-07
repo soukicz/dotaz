@@ -67,16 +67,32 @@ export class BackendAdapter implements RpcAdapter {
 		return this.cm.listConnections()
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
 		return this.cm.createConnection(params)
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
 		return this.cm.updateConnection(params)
 	}
 
 	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
 		return this.cm.setConnectionReadOnly(id, readOnly)
+	}
+
+	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo {
+		return this.appDb.setConnectionGroup(id, groupName)
+	}
+
+	listConnectionGroups(): string[] {
+		return this.appDb.listConnectionGroups()
+	}
+
+	renameConnectionGroup(oldName: string, newName: string): void {
+		this.appDb.renameConnectionGroup(oldName, newName)
+	}
+
+	deleteConnectionGroup(groupName: string): void {
+		this.appDb.deleteConnectionGroup(groupName)
 	}
 
 	async deleteConnection(id: string): Promise<void> {

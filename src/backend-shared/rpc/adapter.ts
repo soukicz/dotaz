@@ -23,9 +23,13 @@ import type { DatabaseDriver } from '../db/driver'
 export interface RpcAdapter {
 	// ── Connections ────────────────────────────────────────
 	listConnections(): ConnectionInfo[]
-	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo
 	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo
+	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo
+	listConnectionGroups(): string[]
+	renameConnectionGroup(oldName: string, newName: string): void
+	deleteConnectionGroup(groupName: string): void
 	deleteConnection(id: string): void | Promise<void>
 	testConnection(config: ConnectionConfig): Promise<{ success: boolean; error?: string }>
 	connect(connectionId: string, password?: string, encryptedConfig?: string, name?: string): Promise<void>

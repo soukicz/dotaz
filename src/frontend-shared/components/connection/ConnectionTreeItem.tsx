@@ -3,7 +3,7 @@ import { For, Show } from 'solid-js'
 import Icon from '../common/Icon'
 import './ConnectionTree.css'
 
-export type TreeItemType = 'connection' | 'database' | 'schema' | 'table' | 'view'
+export type TreeItemType = 'connection' | 'database' | 'schema' | 'table' | 'view' | 'folder'
 
 export interface TreeItemAction {
 	icon: JSX.Element

@@ -1,13 +1,14 @@
 import Bookmark from 'lucide-solid/icons/bookmark'
 import Database from 'lucide-solid/icons/database'
 import Eye from 'lucide-solid/icons/eye'
+import Folder from 'lucide-solid/icons/folder'
 import FolderOpen from 'lucide-solid/icons/folder-open'
 import Lock from 'lucide-solid/icons/lock'
 import Plus from 'lucide-solid/icons/plus'
 import SquareTerminal from 'lucide-solid/icons/square-terminal'
 import Table from 'lucide-solid/icons/table'
 import { siMysql, siPostgresql, siSqlite } from 'simple-icons'
-import { createSignal, For, type JSX, onCleanup, Show } from 'solid-js'
+import { createMemo, createSignal, For, type JSX, onCleanup, Show } from 'solid-js'
 import type { ConnectionInfo, ConnectionState, ConnectionType } from '../../../shared/types/connection'
 import { CONNECTION_TYPE_META, getDefaultDatabase } from '../../../shared/types/connection'
 import type { SchemaInfo, TableInfo } from '../../../shared/types/database'
@@ -76,7 +77,9 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	const [expandedDatabases, setExpandedDatabases] = createSignal<Set<string>>(new Set())
 	const [expandedSchemas, setExpandedSchemas] = createSignal<Set<string>>(new Set())
 	const [expandedTables, setExpandedTables] = createSignal<Set<string>>(new Set())
+	const [expandedFolders, setExpandedFolders] = createSignal<Set<string>>(new Set())
 	const [contextMenu, setContextMenu] = createSignal<ContextMenuState | null>(null)
+	const [dragOverFolder, setDragOverFolder] = createSignal<string | null | undefined>(undefined)
 
 	// ── Navigator filter ─────────────────────────────────
 	const [filterInput, setFilterInput] = createSignal('')
@@ -260,6 +263,103 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 			}
 			return next
 		})
+	}
+
+	// ── Folder management ─────────────────────────────────
+
+	function isFolderExpanded(name: string): boolean {
+		return expandedFolders().has(name)
+	}
+
+	function toggleFolder(name: string) {
+		setExpandedFolders((prev) => {
+			const next = new Set(prev)
+			if (next.has(name)) {
+				next.delete(name)
+			} else {
+				next.add(name)
+			}
+			return next
+		})
+	}
+
+	/** Group connections by folder. Returns { folders, ungrouped }. */
+	const groupedConnections = createMemo(() => {
+		const conns = isFiltering() ? visibleConnectionsRaw() : connectionsStore.connections
+		const folders = new Map<string, ConnectionInfo[]>()
+		const ungrouped: ConnectionInfo[] = []
+
+		for (const conn of conns) {
+			if (conn.groupName) {
+				let arr = folders.get(conn.groupName)
+				if (!arr) {
+					arr = []
+					folders.set(conn.groupName, arr)
+				}
+				arr.push(conn)
+			} else {
+				ungrouped.push(conn)
+			}
+		}
+
+		const sortedFolders = Array.from(folders.entries()).sort(([a], [b]) => a.localeCompare(b))
+		return { folders: sortedFolders, ungrouped }
+	})
+
+	const hasAnyFolders = createMemo(() => {
+		return connectionsStore.connections.some((c) => c.groupName)
+	})
+
+	function folderMenuItems(folderName: string): ContextMenuEntry[] {
+		return [
+			{
+				label: 'Rename Group',
+				action: () => {
+					const newName = window.prompt('Rename group:', folderName)
+					if (newName?.trim() && newName.trim() !== folderName) {
+						connectionsStore.renameConnectionGroup(folderName, newName.trim())
+					}
+				},
+			},
+			'separator',
+			{
+				label: 'Ungroup All',
+				action: () => {
+					const confirmed = window.confirm(`Ungroup all connections in "${folderName}"?`)
+					if (confirmed) {
+						connectionsStore.deleteConnectionGroup(folderName)
+					}
+				},
+			},
+		]
+	}
+
+	// ── Drag and drop ─────────────────────────────────────
+
+	function handleConnectionDragStart(e: DragEvent, conn: ConnectionInfo) {
+		e.dataTransfer?.setData('text/x-connection-id', conn.id)
+		e.dataTransfer!.effectAllowed = 'move'
+	}
+
+	function handleFolderDragOver(e: DragEvent, folderName: string | null) {
+		if (e.dataTransfer?.types.includes('text/x-connection-id')) {
+			e.preventDefault()
+			e.dataTransfer.dropEffect = 'move'
+			setDragOverFolder(folderName)
+		}
+	}
+
+	function handleFolderDragLeave() {
+		setDragOverFolder(undefined)
+	}
+
+	function handleFolderDrop(e: DragEvent, folderName: string | null) {
+		e.preventDefault()
+		setDragOverFolder(undefined)
+		const connectionId = e.dataTransfer?.getData('text/x-connection-id')
+		if (connectionId) {
+			connectionsStore.setConnectionGroup(connectionId, folderName)
+		}
 	}
 
 	function toggleSchema(schemaKey: string) {
@@ -460,7 +560,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	}
 
 	/** Connections that have at least one matching table (or all when not filtering) */
-	const visibleConnections = () => {
+	const visibleConnectionsRaw = () => {
 		if (!isFiltering()) return connectionsStore.connections
 		return connectionsStore.connections.filter((conn) => {
 			// Always show disconnected/loading connections
@@ -474,7 +574,159 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 	}
 
 	/** Check if any connection has matching tables — for empty state */
-	const hasFilterResults = () => visibleConnections().length > 0
+	const hasFilterResults = () => visibleConnectionsRaw().length > 0
+
+	// ── Connection item rendering ─────────────────────────
+
+	function renderConnectionItem(conn: ConnectionInfo, level: number) {
+		const tree = () => connectionsStore.getSchemaTree(conn.id)
+		const schemas = () => tree()?.schemas ?? []
+		const expanded = () => isFiltering() || isConnectionExpanded(conn.id)
+		const loading = () => isLoading(conn)
+		const hasSchemas = () => conn.state === 'connected' && schemas().length > 0
+		const multiDb = () => hasMultipleDatabases(conn)
+		const schemaLevel = level + 1
+
+		return (
+			<>
+				<div
+					draggable={true}
+					onDragStart={(e) => handleConnectionDragStart(e, conn)}
+				>
+					<ConnectionTreeItem
+						label={conn.name}
+						level={level}
+						type="connection"
+						icon={getConnectionIcon(conn.config.type)}
+						expanded={expanded()}
+						hasChildren={true}
+						statusColor={STATUS_COLORS[conn.state]}
+						connectionColor={conn.color}
+						loading={loading()}
+						badge={conn.readOnly ? <Lock size={11} class="tree-item__lock" /> : undefined}
+						actions={conn.state === 'connected'
+							? [
+								sqlConsoleAction(
+									conn.id,
+									conn.name,
+									CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase ? getDefaultDatabase(conn.config) : undefined,
+								),
+							]
+							: undefined}
+						onClick={() => toggleConnection(conn)}
+						onToggle={() => toggleConnection(conn)}
+						onContextMenu={(e) => showContextMenu(e, connectionMenuItems(conn, menuCallbacks))}
+					/>
+				</div>
+
+				<Show when={expanded() && !loading() && hasSchemas()}>
+					<Show
+						when={multiDb()}
+						fallback={renderSchemaTree(conn, tree()!, schemas(), schemaLevel)}
+					>
+						<For each={connectionsStore.getActiveDatabaseNames(conn.id)}>
+							{(dbName) => {
+								const dbK = () => databaseKey(conn.id, dbName)
+								const dbTree = () => connectionsStore.getSchemaTree(conn.id, dbName)
+								const dbSchemas = () => dbTree()?.schemas ?? []
+								const dbExp = () => isFiltering() || isDatabaseExpanded(dbK())
+								const dbVis = () => !isFiltering() || databaseHasMatch(conn.id, dbName)
+
+								return (
+									<Show when={dbVis()}>
+										<ConnectionTreeItem
+											label={dbName}
+											level={schemaLevel}
+											type="database"
+											icon={<Database size={14} />}
+											expanded={dbExp()}
+											hasChildren={dbSchemas().length > 0}
+											actions={[sqlConsoleAction(conn.id, dbName, dbName)]}
+											onToggle={() => toggleDatabase(dbK())}
+											onClick={() => toggleDatabase(dbK())}
+											onContextMenu={(e) => showContextMenu(e, databaseMenuItems(conn.id, dbName, getDefaultDatabase(conn.config) === dbName))}
+										/>
+
+										<Show when={dbExp() && dbSchemas().length > 0}>
+											{renderSchemaTree(conn, dbTree()!, dbSchemas(), schemaLevel + 1, dbName)}
+										</Show>
+									</Show>
+								)
+							}}
+						</For>
+					</Show>
+				</Show>
+			</>
+		)
+	}
+
+	function renderConnectionList() {
+		const grouped = groupedConnections()
+
+		// If no folders exist, render flat list
+		if (!hasAnyFolders() && !isFiltering()) {
+			return (
+				<div
+					onDragOver={(e) => handleFolderDragOver(e, null)}
+					onDragLeave={handleFolderDragLeave}
+					onDrop={(e) => handleFolderDrop(e, null)}
+				>
+					<For each={visibleConnectionsRaw()}>
+						{(conn) => renderConnectionItem(conn, 0)}
+					</For>
+				</div>
+			)
+		}
+
+		return (
+			<>
+				{/* Folders */}
+				<For each={grouped.folders}>
+					{([folderName, connections]) => {
+						const folderExp = () => isFiltering() || isFolderExpanded(folderName)
+
+						return (
+							<div
+								classList={{ 'tree-item--drag-over': dragOverFolder() === folderName }}
+								onDragOver={(e) => handleFolderDragOver(e, folderName)}
+								onDragLeave={handleFolderDragLeave}
+								onDrop={(e) => handleFolderDrop(e, folderName)}
+							>
+								<ConnectionTreeItem
+									label={folderName}
+									level={0}
+									type="folder"
+									icon={folderExp() ? <FolderOpen size={14} /> : <Folder size={14} />}
+									expanded={folderExp()}
+									hasChildren={connections.length > 0}
+									onToggle={() => toggleFolder(folderName)}
+									onClick={() => toggleFolder(folderName)}
+									onContextMenu={(e) => showContextMenu(e, folderMenuItems(folderName))}
+								/>
+								<Show when={folderExp()}>
+									<For each={connections}>
+										{(conn) => renderConnectionItem(conn, 1)}
+									</For>
+								</Show>
+							</div>
+						)
+					}}
+				</For>
+
+				{/* Ungrouped connections */}
+				<div
+					onDragOver={(e) => handleFolderDragOver(e, null)}
+					onDragLeave={handleFolderDragLeave}
+					onDrop={(e) => handleFolderDrop(e, null)}
+					classList={{ 'tree-item--drag-over': dragOverFolder() === null }}
+				>
+					<For each={grouped.ungrouped}>
+						{(conn) => renderConnectionItem(conn, 0)}
+					</For>
+				</div>
+			</>
+		)
+	}
 
 	return (
 		<div class="connection-tree" onKeyDown={handleTreeKeyDown}>
@@ -533,91 +785,7 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 				</Show>
 
 				{/* ── Tree ───────────────────────────────────── */}
-				<For each={visibleConnections()}>
-					{(conn) => {
-						const tree = () => connectionsStore.getSchemaTree(conn.id)
-						const schemas = () => tree()?.schemas ?? []
-						const expanded = () => isFiltering() || isConnectionExpanded(conn.id)
-						const loading = () => isLoading(conn)
-						const hasSchemas = () => conn.state === 'connected' && schemas().length > 0
-						const multiDb = () => hasMultipleDatabases(conn)
-
-						return (
-							<>
-								<ConnectionTreeItem
-									label={conn.name}
-									level={0}
-									type="connection"
-									icon={getConnectionIcon(conn.config.type)}
-									expanded={expanded()}
-									hasChildren={true}
-									statusColor={STATUS_COLORS[conn.state]}
-									connectionColor={conn.color}
-									loading={loading()}
-									badge={conn.readOnly ? <Lock size={11} class="tree-item__lock" /> : undefined}
-									actions={conn.state === 'connected'
-										? [
-											sqlConsoleAction(
-												conn.id,
-												conn.name,
-												CONNECTION_TYPE_META[conn.config.type].supportsMultiDatabase ? getDefaultDatabase(conn.config) : undefined,
-											),
-										]
-										: undefined}
-									onClick={() => toggleConnection(conn)}
-									onToggle={() => toggleConnection(conn)}
-									onContextMenu={(e) => showContextMenu(e, connectionMenuItems(conn, menuCallbacks))}
-								/>
-
-								<Show when={expanded() && !loading() && hasSchemas()}>
-									{/* PostgreSQL with multiple active databases: show database level */}
-									<Show
-										when={multiDb()}
-										fallback={
-											/* Single database or SQLite: render schemas directly at level 1+ */
-											renderSchemaTree(conn, tree()!, schemas(), 1)
-										}
-									>
-										<For each={connectionsStore.getActiveDatabaseNames(conn.id)}>
-											{(dbName) => {
-												const dbKey = () => databaseKey(conn.id, dbName)
-												const dbTree = () => connectionsStore.getSchemaTree(conn.id, dbName)
-												const dbSchemas = () => dbTree()?.schemas ?? []
-												const dbExpanded = () => isFiltering() || isDatabaseExpanded(dbKey())
-												const dbVisible = () => !isFiltering() || databaseHasMatch(conn.id, dbName)
-
-												return (
-													<Show when={dbVisible()}>
-														<ConnectionTreeItem
-															label={dbName}
-															level={1}
-															type="database"
-															icon={<Database size={14} />}
-															expanded={dbExpanded()}
-															hasChildren={dbSchemas().length > 0}
-															actions={[sqlConsoleAction(conn.id, dbName, dbName)]}
-															onToggle={() => toggleDatabase(dbKey())}
-															onClick={() => toggleDatabase(dbKey())}
-															onContextMenu={(e) => showContextMenu(e, databaseMenuItems(conn.id, dbName, isDefault()))}
-														/>
-
-														<Show when={dbExpanded() && dbSchemas().length > 0}>
-															{renderSchemaTree(conn, dbTree()!, dbSchemas(), 2, dbName)}
-														</Show>
-													</Show>
-												)
-
-												function isDefault() {
-													return getDefaultDatabase(conn.config) === dbName
-												}
-											}}
-										</For>
-									</Show>
-								</Show>
-							</>
-						)
-					}}
-				</For>
+				{renderConnectionList()}
 			</Show>
 
 			<Show when={contextMenu()}>

@@ -171,9 +171,10 @@ async function createConnection(
 	rememberPassword = true,
 	readOnly?: boolean,
 	color?: string,
+	groupName?: string,
 ): Promise<ConnectionInfo> {
 	try {
-		const conn = await storage.createConnection(name, config, rememberPassword, readOnly, color)
+		const conn = await storage.createConnection(name, config, rememberPassword, readOnly, color, groupName)
 		setState('connections', (prev) => [...prev, conn])
 		return conn
 	} catch (err) {
@@ -189,9 +190,10 @@ async function updateConnection(
 	rememberPassword?: boolean,
 	readOnly?: boolean,
 	color?: string,
+	groupName?: string,
 ): Promise<ConnectionInfo> {
 	try {
-		const conn = await storage.updateConnection(id, name, config, rememberPassword, readOnly, color)
+		const conn = await storage.updateConnection(id, name, config, rememberPassword, readOnly, color, groupName)
 		setState('connections', (c) => c.id === id, conn)
 		return conn
 	} catch (err) {
@@ -206,6 +208,33 @@ async function setReadOnly(id: string, readOnly: boolean): Promise<void> {
 		setState('connections', (c) => c.id === id, 'readOnly', conn.readOnly)
 	} catch {
 		uiStore.addToast('warning', 'Failed to update read-only setting.')
+	}
+}
+
+async function setConnectionGroup(id: string, groupName: string | null): Promise<void> {
+	try {
+		const conn = await rpc.connections.setGroup({ id, groupName })
+		setState('connections', (c) => c.id === id, 'groupName', conn.groupName)
+	} catch {
+		uiStore.addToast('warning', 'Failed to update connection group.')
+	}
+}
+
+async function renameConnectionGroup(oldName: string, newName: string): Promise<void> {
+	try {
+		await rpc.connections.renameGroup({ oldName, newName })
+		setState('connections', (c) => c.groupName === oldName, 'groupName', newName)
+	} catch {
+		uiStore.addToast('warning', 'Failed to rename group.')
+	}
+}
+
+async function deleteConnectionGroup(groupName: string): Promise<void> {
+	try {
+		await rpc.connections.deleteGroup({ groupName })
+		setState('connections', (c) => c.groupName === groupName, 'groupName', undefined)
+	} catch {
+		uiStore.addToast('warning', 'Failed to delete group.')
 	}
 }
 
@@ -433,6 +462,9 @@ export const connectionsStore = {
 	loadAvailableDatabases,
 	activateDatabase,
 	deactivateDatabase,
+	setConnectionGroup,
+	renameConnectionGroup,
+	deleteConnectionGroup,
 	setBeforeDisconnectHook,
 	setOnTransactionLost,
 	resolvePasswordPrompt,

@@ -239,3 +239,16 @@
 	margin-left: 2px;
 }
 
+/* ── Drag-over highlight for folder drop targets ──── */
+
+.tree-item--drag-over > .tree-item {
+	background: rgba(59, 130, 246, 0.12);
+}
+
+/* ── Folder items ─────────────────────────────────── */
+
+.tree-item--folder .tree-item__label {
+	font-weight: 500;
+	color: var(--ink-secondary);
+}
+

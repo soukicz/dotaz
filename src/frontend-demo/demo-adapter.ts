@@ -58,16 +58,32 @@ export class DemoAdapter implements RpcAdapter {
 		return this.state.listConnections()
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; groupName?: string }): ConnectionInfo {
 		return this.state.createConnection(params)
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; groupName?: string }): ConnectionInfo {
 		return this.state.updateConnection(params)
 	}
 
 	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
 		return this.state.setConnectionReadOnly(id, readOnly)
+	}
+
+	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo {
+		return this.state.setConnectionGroup(id, groupName)
+	}
+
+	listConnectionGroups(): string[] {
+		return this.state.listConnectionGroups()
+	}
+
+	renameConnectionGroup(oldName: string, newName: string): void {
+		this.state.renameConnectionGroup(oldName, newName)
+	}
+
+	deleteConnectionGroup(groupName: string): void {
+		this.state.deleteConnectionGroup(groupName)
 	}
 
 	deleteConnection(id: string): void {

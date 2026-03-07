@@ -171,6 +171,7 @@ export class AppDatabase {
 			state: 'disconnected',
 			readOnly: row.read_only === 1 ? true : undefined,
 			color: row.color ?? undefined,
+			groupName: row.group_name ?? undefined,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		}
@@ -179,7 +180,7 @@ export class AppDatabase {
 	// ── Connections ──────────────────────────────────────────
 
 	listConnections(): ConnectionInfo[] {
-		const rows = this.db.prepare('SELECT * FROM connections ORDER BY name').all() as ConnectionRow[]
+		const rows = this.db.prepare('SELECT * FROM connections ORDER BY group_name NULLS LAST, name').all() as ConnectionRow[]
 		return rows.map(row => this.toConnectionInfo(row))
 	}
 
@@ -188,27 +189,47 @@ export class AppDatabase {
 		return row ? this.toConnectionInfo(row) : null
 	}
 
-	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo {
+	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
 		const id = crypto.randomUUID()
 		return this.createConnectionWithId(id, params)
 	}
 
-	createConnectionWithId(id: string, params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo {
+	createConnectionWithId(id: string, params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
 		const now = new Date().toISOString()
 		this.db.prepare(
-			'INSERT INTO connections (id, name, type, config, read_only, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-		).run(id, params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, now, now)
+			'INSERT INTO connections (id, name, type, config, read_only, color, group_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+		).run(id, params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, params.groupName || null, now, now)
 		return this.getConnectionById(id)!
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string }): ConnectionInfo {
+	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
 		const now = new Date().toISOString()
 		this.db.prepare(
-			'UPDATE connections SET name = ?, type = ?, config = ?, read_only = ?, color = ?, updated_at = ? WHERE id = ?',
-		).run(params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, now, params.id)
+			'UPDATE connections SET name = ?, type = ?, config = ?, read_only = ?, color = ?, group_name = ?, updated_at = ? WHERE id = ?',
+		).run(params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, params.groupName !== undefined ? (params.groupName || null) : null, now, params.id)
 		const result = this.getConnectionById(params.id)
 		if (!result) throw new Error(`Connection not found: ${params.id}`)
 		return result
+	}
+
+	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo {
+		this.db.prepare('UPDATE connections SET group_name = ? WHERE id = ?').run(groupName, id)
+		const result = this.getConnectionById(id)
+		if (!result) throw new Error(`Connection not found: ${id}`)
+		return result
+	}
+
+	listConnectionGroups(): string[] {
+		const rows = this.db.prepare('SELECT DISTINCT group_name FROM connections WHERE group_name IS NOT NULL ORDER BY group_name').all() as { group_name: string }[]
+		return rows.map(r => r.group_name)
+	}
+
+	renameConnectionGroup(oldName: string, newName: string): void {
+		this.db.prepare('UPDATE connections SET group_name = ? WHERE group_name = ?').run(newName, oldName)
+	}
+
+	deleteConnectionGroup(groupName: string): void {
+		this.db.prepare('UPDATE connections SET group_name = NULL WHERE group_name = ?').run(groupName)
 	}
 
 	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo {
@@ -451,6 +472,7 @@ interface ConnectionRow {
 	config: string
 	read_only: number
 	color: string | null
+	group_name: string | null
 	created_at: string
 	updated_at: string
 }

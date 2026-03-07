@@ -92,6 +92,7 @@ export interface ConnectionInfo {
 	error?: string
 	readOnly?: boolean
 	color?: string
+	groupName?: string
 	createdAt: string
 	updatedAt: string
 }

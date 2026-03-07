@@ -126,6 +126,13 @@ const migrations: Migration[] = [
 			db.run('ALTER TABLE query_bookmarks ADD COLUMN database TEXT DEFAULT NULL')
 		},
 	},
+	{
+		version: 8,
+		description: 'Add group_name column to connections table',
+		up: (db) => {
+			db.run('ALTER TABLE connections ADD COLUMN group_name TEXT DEFAULT NULL')
+		},
+	},
 ]
 
 /**
