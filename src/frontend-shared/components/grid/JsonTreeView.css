@@ -1,0 +1,216 @@
+.json-tree {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	overflow: hidden;
+}
+
+.json-tree__toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	padding: var(--spacing-xs) var(--spacing-sm);
+	border-bottom: 1px solid var(--edge);
+	flex-shrink: 0;
+}
+
+.json-tree__search {
+	flex: 1;
+	position: relative;
+}
+
+.json-tree__search-input {
+	width: 100%;
+	height: 22px;
+	padding: 0 20px 0 var(--spacing-xs);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+	color: var(--ink);
+	background: var(--surface);
+	border: 1px solid var(--edge);
+	border-radius: var(--radius-sm);
+	outline: none;
+	box-sizing: border-box;
+}
+
+.json-tree__search-input:focus {
+	border-color: var(--accent);
+}
+
+.json-tree__search-input::placeholder {
+	color: var(--ink-muted);
+}
+
+.json-tree__search-clear {
+	position: absolute;
+	right: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	color: var(--ink-muted);
+	cursor: pointer;
+	font-size: 14px;
+	padding: 0 4px;
+	line-height: 1;
+}
+
+.json-tree__search-clear:hover {
+	color: var(--ink);
+}
+
+.json-tree__expand-btn {
+	font-size: 10px;
+	color: var(--ink-muted);
+	background: none;
+	border: 1px solid var(--edge);
+	border-radius: var(--radius-sm);
+	padding: 1px 6px;
+	cursor: pointer;
+	height: 20px;
+	white-space: nowrap;
+}
+
+.json-tree__expand-btn:hover {
+	color: var(--ink);
+	background: var(--surface-hover);
+}
+
+/* ── Tree content ───────────────────────── */
+
+.json-tree__content {
+	flex: 1;
+	overflow: auto;
+	padding: var(--spacing-xs) 0;
+}
+
+.json-tree__node {
+	user-select: none;
+}
+
+.json-tree__row {
+	display: flex;
+	align-items: center;
+	padding: 1px var(--spacing-sm);
+	min-height: 22px;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	line-height: 1.4;
+	cursor: default;
+}
+
+.json-tree__row--expandable {
+	cursor: pointer;
+}
+
+.json-tree__row:hover {
+	background: var(--surface-hover);
+}
+
+.json-tree__row--highlight {
+	background: rgba(59, 130, 246, 0.08);
+}
+
+.json-tree__row:hover .json-tree__actions {
+	opacity: 1;
+}
+
+.json-tree__indent {
+	flex-shrink: 0;
+}
+
+.json-tree__toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+	color: var(--ink-muted);
+}
+
+.json-tree__toggle-spacer {
+	width: 16px;
+	flex-shrink: 0;
+}
+
+.json-tree__key {
+	color: var(--accent);
+	flex-shrink: 0;
+}
+
+.json-tree__index {
+	color: var(--ink-muted);
+}
+
+.json-tree__colon {
+	color: var(--ink-muted);
+	flex-shrink: 0;
+	margin-right: 4px;
+}
+
+.json-tree__value {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.json-tree__value--string {
+	color: #6a9955;
+}
+
+.json-tree__value--number {
+	color: #b5cea8;
+}
+
+.json-tree__value--boolean {
+	color: #569cd6;
+}
+
+.json-tree__value--null {
+	color: var(--ink-muted);
+	font-style: italic;
+}
+
+.json-tree__preview {
+	color: var(--ink-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* ── Actions (copy buttons) ─────────────── */
+
+.json-tree__actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: auto;
+	padding-left: var(--spacing-sm);
+	opacity: 0;
+	flex-shrink: 0;
+}
+
+.json-tree__copy-btn {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	font-size: 9px;
+	font-family: var(--font-mono);
+	color: var(--ink-muted);
+	background: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	padding: 0 4px;
+	cursor: pointer;
+	height: 16px;
+	white-space: nowrap;
+}
+
+.json-tree__copy-btn:hover {
+	color: var(--ink);
+	border-color: var(--edge);
+	background: var(--surface-active);
+}
+
+.json-tree__copy-btn--copied {
+	color: var(--accent);
+}

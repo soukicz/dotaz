@@ -53,6 +53,38 @@
 	flex-shrink: 0;
 }
 
+.value-editor-panel__view-toggle {
+	display: flex;
+	border: 1px solid var(--edge);
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.value-editor-panel__view-toggle-btn {
+	font-size: 10px;
+	color: var(--ink-muted);
+	background: none;
+	border: none;
+	border-right: 1px solid var(--edge);
+	padding: 1px 6px;
+	cursor: pointer;
+	height: 20px;
+}
+
+.value-editor-panel__view-toggle-btn:last-child {
+	border-right: none;
+}
+
+.value-editor-panel__view-toggle-btn:hover {
+	color: var(--ink);
+	background: var(--surface-hover);
+}
+
+.value-editor-panel__view-toggle-btn--active {
+	color: var(--accent);
+	background: rgba(59, 130, 246, 0.1);
+}
+
 .value-editor-panel__wrap-btn {
 	font-size: 10px;
 	color: var(--ink-muted);

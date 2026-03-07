@@ -6,6 +6,7 @@ import { getDataTypeLabel, isBooleanType, isJsonType } from '../../lib/column-ty
 import { tryFormatJson, displayValue } from '../../lib/value-display'
 import Icon from '../common/Icon'
 import Resizer from '../layout/Resizer'
+import JsonTreeView from './JsonTreeView'
 import './ValueEditorPanel.css'
 
 interface ValueEditorPanelProps {
@@ -23,6 +24,7 @@ export default function ValueEditorPanel(props: ValueEditorPanelProps) {
 	const [editValue, setEditValue] = createSignal('')
 	const [isEditing, setIsEditing] = createSignal(false)
 	const [wordWrap, setWordWrap] = createSignal(true)
+	const [viewMode, setViewMode] = createSignal<'text' | 'tree'>('text')
 
 	// Determine display mode based on column type and value
 	const isJson = () => isJsonType(props.column.dataType) || tryFormatJson(props.value) !== null
@@ -131,14 +133,34 @@ export default function ValueEditorPanel(props: ValueEditorPanelProps) {
 						</span>
 					</div>
 					<div class="value-editor-panel__header-actions">
-						<button
-							class="value-editor-panel__wrap-btn"
-							classList={{ 'value-editor-panel__wrap-btn--active': wordWrap() }}
-							onClick={() => setWordWrap((w) => !w)}
-							title="Toggle word wrap"
-						>
-							Wrap
-						</button>
+						<Show when={isJson() && !isNull() && !isDefault() && !isEditing()}>
+							<div class="value-editor-panel__view-toggle">
+								<button
+									class="value-editor-panel__view-toggle-btn"
+									classList={{ 'value-editor-panel__view-toggle-btn--active': viewMode() === 'text' }}
+									onClick={() => setViewMode('text')}
+								>
+									Text
+								</button>
+								<button
+									class="value-editor-panel__view-toggle-btn"
+									classList={{ 'value-editor-panel__view-toggle-btn--active': viewMode() === 'tree' }}
+									onClick={() => setViewMode('tree')}
+								>
+									Tree
+								</button>
+							</div>
+						</Show>
+						<Show when={viewMode() === 'text' || isEditing()}>
+							<button
+								class="value-editor-panel__wrap-btn"
+								classList={{ 'value-editor-panel__wrap-btn--active': wordWrap() }}
+								onClick={() => setWordWrap((w) => !w)}
+								title="Toggle word wrap"
+							>
+								Wrap
+							</button>
+						</Show>
 						<button
 							class="value-editor-panel__close-btn"
 							onClick={props.onClose}
@@ -154,16 +176,23 @@ export default function ValueEditorPanel(props: ValueEditorPanelProps) {
 						when={isEditing()}
 						fallback={
 							<div class="value-editor-panel__display-area">
-								<pre
-									class="value-editor-panel__value"
-									classList={{
-										'value-editor-panel__value--null': isNull(),
-										'value-editor-panel__value--json': isJson() && !isNull(),
-										'value-editor-panel__value--wrap': wordWrap(),
-									}}
+								<Show
+									when={viewMode() === 'tree' && isJson() && !isNull() && !isDefault()}
+									fallback={
+										<pre
+											class="value-editor-panel__value"
+											classList={{
+												'value-editor-panel__value--null': isNull(),
+												'value-editor-panel__value--json': isJson() && !isNull(),
+												'value-editor-panel__value--wrap': wordWrap(),
+											}}
+										>
+											{formattedValue()}
+										</pre>
+									}
 								>
-									{formattedValue()}
-								</pre>
+									<JsonTreeView value={props.value} />
+								</Show>
 								<Show when={!props.readOnly}>
 									<div class="value-editor-panel__edit-actions">
 										<button
