@@ -1,4 +1,4 @@
-import { For } from 'solid-js'
+import { createMemo, For } from 'solid-js'
 import type { GridColumnDef } from '../../../shared/types/grid'
 import { DEFAULT_COLUMN_WIDTH } from '../../lib/layout-constants'
 import type { ColumnConfig, EditingCell, FkTarget, HeatmapInfo } from '../../stores/grid'
@@ -86,16 +86,17 @@ export default function GridRow(props: GridRowProps) {
 			</div>
 			<For each={props.columns}>
 				{(col, colIdx) => {
-					const isEditing = () =>
+					const isEditing = createMemo(() =>
 						props.editingCell?.row === props.index
-						&& props.editingCell?.column === col.name
-					const isChanged = () => props.changedCells?.has(col.name) ?? false
-					const isSelected = () => props.isCellSelected(colIdx())
-					const isFocused = () => props.focusedColIndex === colIdx()
-					const heatmapColor = () => {
+						&& props.editingCell?.column === col.name,
+					)
+					const isChanged = createMemo(() => props.changedCells?.has(col.name) ?? false)
+					const isSelected = createMemo(() => props.isCellSelected(colIdx()))
+					const isFocused = createMemo(() => props.focusedColIndex === colIdx())
+					const heatmapColor = createMemo(() => {
 						const info = props.heatmapInfo?.get(col.name)
 						return info ? gridStore.computeHeatmapColor(props.row[col.name], info) : undefined
-					}
+					})
 
 					return (
 						<GridCell
