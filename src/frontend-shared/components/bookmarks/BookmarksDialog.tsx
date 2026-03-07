@@ -3,6 +3,7 @@ import Pencil from 'lucide-solid/icons/pencil'
 import Play from 'lucide-solid/icons/play'
 import Trash2 from 'lucide-solid/icons/trash-2'
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
+import { createStore, reconcile } from 'solid-js/store'
 import type { QueryBookmark } from '../../../shared/types/rpc'
 import { rpc } from '../../lib/rpc'
 import { connectionsStore } from '../../stores/connections'
@@ -27,6 +28,8 @@ interface BookmarksDialogProps {
 const SQL_TRUNCATE_LENGTH = 100
 const TOAST_DURATION = 1500
 
+type FormMode = { mode: 'idle' } | { mode: 'editing'; bookmark: QueryBookmark } | { mode: 'creating' }
+
 export default function BookmarksDialog(props: BookmarksDialogProps) {
 	const [bookmarks, setBookmarks] = createSignal<QueryBookmark[]>([])
 	const [search, setSearch] = createSignal('')
@@ -34,15 +37,15 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	const [loading, setLoading] = createSignal(false)
 	const [toast, setToast] = createSignal<string | null>(null)
 
-	// Edit/create form state
-	const [editing, setEditing] = createSignal<QueryBookmark | null>(null)
-	const [creating, setCreating] = createSignal(false)
-	const [formName, setFormName] = createSignal('')
-	const [formDescription, setFormDescription] = createSignal('')
-	const [formSql, setFormSql] = createSignal('')
-	const [formDatabase, setFormDatabase] = createSignal<string | undefined>(undefined)
-	const [formError, setFormError] = createSignal<string | null>(null)
-	const [saving, setSaving] = createSignal(false)
+	const [formMode, setFormMode] = createSignal<FormMode>({ mode: 'idle' })
+	const [formState, setFormState] = createStore({
+		name: '',
+		description: '',
+		sql: '',
+		database: undefined as string | undefined,
+		error: null as string | null,
+		saving: false,
+	})
 
 	let searchDebounce: ReturnType<typeof setTimeout> | undefined
 
@@ -51,15 +54,14 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 			const connId = props.initialConnectionId || ''
 			setConnectionFilter(connId)
 			setSearch('')
-			setEditing(null)
-			setCreating(false)
+			setFormMode({ mode: 'idle' })
 			resetForm()
 
 			// If we have initial SQL, go directly to create mode
 			if (props.initialSql && connId) {
-				setCreating(true)
-				setFormSql(props.initialSql)
-				setFormDatabase(props.initialDatabase)
+				setFormMode({ mode: 'creating' })
+				setFormState('sql', props.initialSql)
+				setFormState('database', props.initialDatabase)
 			}
 
 			loadBookmarks(connId)
@@ -71,12 +73,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	})
 
 	function resetForm() {
-		setFormName('')
-		setFormDescription('')
-		setFormSql('')
-		setFormDatabase(undefined)
-		setFormError(null)
-		setSaving(false)
+		setFormState(reconcile({ name: '', description: '', sql: '', database: undefined as string | undefined, error: null as string | null, saving: false }))
 	}
 
 	async function loadBookmarks(connId?: string) {
@@ -119,84 +116,84 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	}
 
 	function startCreate() {
-		setEditing(null)
-		setCreating(true)
+		setFormMode({ mode: 'creating' })
 		resetForm()
 		// Pre-fill SQL and database from active editor
 		const activeTab = tabsStore.activeTab
 		if (activeTab?.type === 'sql-console') {
 			const tab = editorStore.getTab(activeTab.id)
 			if (tab?.content.trim()) {
-				setFormSql(tab.content)
+				setFormState('sql', tab.content)
 			}
-			setFormDatabase(activeTab.database)
+			setFormState('database', activeTab.database)
 		}
 	}
 
 	function startEdit(bookmark: QueryBookmark) {
-		setCreating(false)
-		setEditing(bookmark)
-		setFormName(bookmark.name)
-		setFormDescription(bookmark.description)
-		setFormSql(bookmark.sql)
-		setFormError(null)
-		setSaving(false)
+		setFormMode({ mode: 'editing', bookmark })
+		setFormState(reconcile({
+			name: bookmark.name,
+			description: bookmark.description,
+			sql: bookmark.sql,
+			database: undefined as string | undefined,
+			error: null as string | null,
+			saving: false,
+		}))
 	}
 
 	function cancelForm() {
-		setEditing(null)
-		setCreating(false)
+		setFormMode({ mode: 'idle' })
 		resetForm()
 	}
 
 	async function handleSave() {
-		const name = formName().trim()
+		const name = formState.name.trim()
 		if (!name) {
-			setFormError('Name is required')
+			setFormState('error', 'Name is required')
 			return
 		}
-		const sqlText = formSql().trim()
+		const sqlText = formState.sql.trim()
 		if (!sqlText) {
-			setFormError('SQL is required')
+			setFormState('error', 'SQL is required')
 			return
 		}
 
-		setSaving(true)
-		setFormError(null)
+		setFormState('saving', true)
+		setFormState('error', null)
 
 		try {
-			if (editing()) {
+			const fm = formMode()
+			if (fm.mode === 'editing') {
 				await rpc.bookmarks.update({
-					id: editing()!.id,
+					id: fm.bookmark.id,
 					name,
-					description: formDescription().trim(),
+					description: formState.description.trim(),
 					sql: sqlText,
 				})
 				showToast('Bookmark updated')
 			} else {
 				const connId = connectionFilter()
 				if (!connId) {
-					setFormError('Select a connection first')
-					setSaving(false)
+					setFormState('error', 'Select a connection first')
+					setFormState('saving', false)
 					return
 				}
 				await rpc.bookmarks.create({
 					connectionId: connId,
-					database: formDatabase(),
+					database: formState.database,
 					name,
-					description: formDescription().trim(),
+					description: formState.description.trim(),
 					sql: sqlText,
 				})
 				showToast('Bookmark saved')
 			}
-			setEditing(null)
-			setCreating(false)
+			setFormMode({ mode: 'idle' })
 			resetForm()
 			loadBookmarks()
 		} catch (err) {
-			setFormError(err instanceof Error ? err.message : String(err))
+			setFormState('error', err instanceof Error ? err.message : String(err))
 		} finally {
-			setSaving(false)
+			setFormState('saving', false)
 		}
 	}
 
@@ -243,7 +240,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 	}
 
 	function handleFormKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && e.ctrlKey && !saving()) {
+		if (e.key === 'Enter' && e.ctrlKey && !formState.saving) {
 			e.preventDefault()
 			handleSave()
 		}
@@ -251,7 +248,7 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 
 	const connectedConnections = () => connectionsStore.connections.filter((c) => c.state === 'connected')
 
-	const isFormOpen = () => creating() || editing() !== null
+	const isFormOpen = () => formMode().mode !== 'idle'
 
 	return (
 		<Dialog
@@ -268,8 +265,8 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 							<input
 								class="bookmarks-dialog__input"
 								type="text"
-								value={formName()}
-								onInput={(e) => setFormName(e.currentTarget.value)}
+								value={formState.name}
+								onInput={(e) => setFormState('name', e.currentTarget.value)}
 								placeholder="e.g. Active users query"
 								autofocus
 							/>
@@ -281,8 +278,8 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 							<input
 								class="bookmarks-dialog__input"
 								type="text"
-								value={formDescription()}
-								onInput={(e) => setFormDescription(e.currentTarget.value)}
+								value={formState.description}
+								onInput={(e) => setFormState('description', e.currentTarget.value)}
 								placeholder="Brief description..."
 							/>
 						</div>
@@ -290,23 +287,23 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 							<label class="bookmarks-dialog__label">SQL</label>
 							<textarea
 								class="bookmarks-dialog__textarea"
-								value={formSql()}
-								onInput={(e) => setFormSql(e.currentTarget.value)}
+								value={formState.sql}
+								onInput={(e) => setFormState('sql', e.currentTarget.value)}
 								placeholder="SELECT ..."
 								rows={6}
 							/>
 						</div>
-						<Show when={formError()}>
-							<div class="bookmarks-dialog__error">{formError()}</div>
+						<Show when={formState.error}>
+							<div class="bookmarks-dialog__error">{formState.error}</div>
 						</Show>
 						<div class="bookmarks-dialog__form-actions">
 							<button class="btn btn--secondary" onClick={cancelForm}>Cancel</button>
 							<button
 								class="btn btn--primary"
 								onClick={handleSave}
-								disabled={saving() || !formName().trim() || !formSql().trim()}
+								disabled={formState.saving || !formState.name.trim() || !formState.sql.trim()}
 							>
-								{saving() ? 'Saving...' : editing() ? 'Update' : 'Save'}
+								{formState.saving ? 'Saving...' : formMode().mode === 'editing' ? 'Update' : 'Save'}
 							</button>
 						</div>
 					</div>

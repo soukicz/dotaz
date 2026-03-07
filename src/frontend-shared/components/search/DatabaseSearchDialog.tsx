@@ -1,4 +1,5 @@
 import { createEffect, createSignal, For, Show } from 'solid-js'
+import { createStore, reconcile } from 'solid-js/store'
 import type { SchemaData, SchemaInfo, TableInfo } from '../../../shared/types/database'
 import type { SearchMatch, SearchScope } from '../../../shared/types/rpc'
 import { rpc } from '../../lib/rpc'
@@ -55,22 +56,21 @@ function highlightMatch(value: string, term: string): (string | { highlight: str
 }
 
 export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
-	const [searchTerm, setSearchTerm] = createSignal('')
-	const [scope, setScope] = createSignal<SearchScope>('database')
-	const [schemaName, setSchemaName] = createSignal<string>('')
-	const [selectedTables, setSelectedTables] = createSignal<string[]>([])
-	const [resultsPerTable, setResultsPerTable] = createSignal(50)
-	const [connectionId, setConnectionId] = createSignal('')
-	const [database, setDatabase] = createSignal<string | undefined>(undefined)
+	const [params, setParams] = createStore({
+		term: '',
+		scope: 'database' as SearchScope,
+		schema: '',
+		tables: [] as string[],
+		resultsPerTable: 50,
+		connId: '',
+		db: undefined as string | undefined,
+	})
+	const [progress, setProgress] = createStore({ table: '', searched: 0, total: 0 })
 
 	const [schemaData, setSchemaData] = createSignal<SchemaData | null>(null)
 	const [results, setResults] = createSignal<SearchMatch[]>([])
-	const [searching, setSearching] = createSignal(false)
-	const [progressTable, setProgressTable] = createSignal('')
-	const [progressSearched, setProgressSearched] = createSignal(0)
-	const [progressTotal, setProgressTotal] = createSignal(0)
-	const [hasSearched, setHasSearched] = createSignal(false)
-	const [error, setError] = createSignal<string | null>(null)
+	const [searchStatus, setSearchStatus] = createSignal<'idle' | 'searching' | 'done' | 'error'>('idle')
+	const [searchError, setSearchError] = createSignal<string | null>(null)
 	const [searchedInfo, setSearchedInfo] = createSignal<{ tables: number; elapsed: number; total: number; cancelled: boolean } | null>(null)
 
 	// Connected connections for the connection picker
@@ -89,8 +89,8 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 
 	// Load schema data when connection changes
 	createEffect(() => {
-		if (props.open && connectionId()) {
-			rpc.schema.load({ connectionId: connectionId(), database: database() }).then((data) => {
+		if (props.open && params.connId) {
+			rpc.schema.load({ connectionId: params.connId, database: params.db }).then((data) => {
 				setSchemaData(data)
 			}).catch(() => {
 				setSchemaData(null)
@@ -102,54 +102,45 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 	createEffect(() => {
 		if (props.open) {
 			const connId = props.initialConnectionId || connectedConnections()[0]?.id || ''
-			setConnectionId(connId)
-			setDatabase(props.initialDatabase)
-			setSearchTerm('')
-			setResults([])
-			setHasSearched(false)
-			setError(null)
-			setSearchedInfo(null)
-			setSearching(false)
-			setProgressTable('')
-
-			if (props.initialScope) {
-				setScope(props.initialScope)
-			} else {
-				setScope('database')
-			}
-			if (props.initialSchema) {
-				setSchemaName(props.initialSchema)
-			}
+			setParams(reconcile({
+				term: '',
+				scope: props.initialScope ?? 'database',
+				schema: props.initialSchema ?? '',
+				tables: props.initialTable ? [props.initialTable] : [],
+				resultsPerTable: 50,
+				connId,
+				db: props.initialDatabase,
+			}))
 			if (props.initialTable) {
-				setScope('tables')
-				setSelectedTables([props.initialTable])
-			} else {
-				setSelectedTables([])
+				setParams('scope', 'tables')
 			}
+			setResults([])
+			setSearchStatus('idle')
+			setSearchError(null)
+			setSearchedInfo(null)
+			setProgress(reconcile({ table: '', searched: 0, total: 0 }))
 		}
 	})
 
 	async function handleSearch() {
-		const term = searchTerm().trim()
-		if (!term || !connectionId()) return
+		const term = params.term.trim()
+		if (!term || !params.connId) return
 
-		setSearching(true)
-		setError(null)
+		setSearchStatus('searching')
+		setSearchError(null)
 		setResults([])
 		setSearchedInfo(null)
-		setHasSearched(true)
-		setProgressSearched(0)
-		setProgressTotal(0)
+		setProgress(reconcile({ table: '', searched: 0, total: 0 }))
 
 		try {
 			const response = await rpc.search.searchDatabase({
-				connectionId: connectionId(),
-				database: database(),
+				connectionId: params.connId,
+				database: params.db,
 				searchTerm: term,
-				scope: scope(),
-				schemaName: scope() === 'schema' ? schemaName() : undefined,
-				tableNames: scope() === 'tables' ? selectedTables() : undefined,
-				resultsPerTable: resultsPerTable(),
+				scope: params.scope,
+				schemaName: params.scope === 'schema' ? params.schema : undefined,
+				tableNames: params.scope === 'tables' ? params.tables : undefined,
+				resultsPerTable: params.resultsPerTable,
 			})
 
 			setResults(response.matches)
@@ -159,15 +150,15 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 				total: response.totalMatches,
 				cancelled: response.cancelled,
 			})
+			setSearchStatus('done')
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err))
-		} finally {
-			setSearching(false)
+			setSearchError(err instanceof Error ? err.message : String(err))
+			setSearchStatus('error')
 		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !searching()) {
+		if (e.key === 'Enter' && searchStatus() !== 'searching') {
 			e.preventDefault()
 			handleSearch()
 		}
@@ -175,29 +166,29 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 
 	function handleResultClick(match: SearchMatch) {
 		// Open or reuse existing tab for this table
-		const existing = tabsStore.findDefaultTab(connectionId(), match.schema, match.table, database())
+		const existing = tabsStore.findDefaultTab(params.connId, match.schema, match.table, params.db)
 		if (existing) {
 			// Set quick search to help user find the row
-			gridStore.setQuickSearch(existing, searchTerm())
+			gridStore.setQuickSearch(existing, params.term)
 		} else {
 			const tabId = tabsStore.openTab({
 				type: 'data-grid',
 				title: match.table,
-				connectionId: connectionId(),
+				connectionId: params.connId,
 				schema: match.schema,
 				table: match.table,
-				database: database(),
+				database: params.db,
 			})
 			// Apply quick search once data loads
-			gridStore.loadTableData(tabId, connectionId(), match.schema, match.table, database()).then(() => {
-				gridStore.setQuickSearch(tabId, searchTerm())
+			gridStore.loadTableData(tabId, params.connId, match.schema, match.table, params.db).then(() => {
+				gridStore.setQuickSearch(tabId, params.term)
 			})
 		}
 		props.onClose()
 	}
 
 	function handleTableToggle(tableName: string) {
-		setSelectedTables((prev) => {
+		setParams('tables', (prev) => {
 			if (prev.includes(tableName)) {
 				return prev.filter((t) => t !== tableName)
 			}
@@ -216,14 +207,14 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 							class="search-dialog__input"
 							type="text"
 							placeholder="Search text..."
-							value={searchTerm()}
-							onInput={(e) => setSearchTerm(e.currentTarget.value)}
+							value={params.term}
+							onInput={(e) => setParams('term', e.currentTarget.value)}
 							onKeyDown={handleKeyDown}
 						/>
 						<button
 							class="btn btn--primary"
 							onClick={handleSearch}
-							disabled={searching() || !searchTerm().trim()}
+							disabled={searchStatus() === 'searching' || !params.term.trim()}
 						>
 							Search
 						</button>
@@ -233,12 +224,12 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 						<span class="search-dialog__label">Connection</span>
 						<Select
 							class="search-dialog__select"
-							value={connectionId()}
+							value={params.connId}
 							onChange={(v) => {
-								setConnectionId(v)
-								setDatabase(undefined)
+								setParams('connId', v)
+								setParams('db', undefined)
 								setResults([])
-								setHasSearched(false)
+								setSearchStatus('idle')
 							}}
 							options={connectedConnections().map((conn) => ({ value: conn.id, label: conn.name }))}
 						/>
@@ -246,8 +237,8 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 						<span class="search-dialog__label">Scope</span>
 						<Select
 							class="search-dialog__select"
-							value={scope()}
-							onChange={(v) => setScope(v as SearchScope)}
+							value={params.scope}
+							onChange={(v) => setParams('scope', v as SearchScope)}
 							options={[
 								{ value: 'database', label: 'Entire database' },
 								{ value: 'schema', label: 'Specific schema' },
@@ -256,26 +247,26 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 						/>
 					</div>
 
-					<Show when={scope() === 'schema'}>
+					<Show when={params.scope === 'schema'}>
 						<div class="search-dialog__row">
 							<span class="search-dialog__label">Schema</span>
 							<Select
 								class="search-dialog__select"
-								value={schemaName()}
-								onChange={(v) => setSchemaName(v)}
+								value={params.schema}
+								onChange={(v) => setParams('schema', v)}
 								options={schemas().map((s) => ({ value: s.name, label: s.name }))}
 							/>
 						</div>
 					</Show>
 
-					<Show when={scope() === 'tables'}>
+					<Show when={params.scope === 'tables'}>
 						<div class="search-dialog__table-selector">
 							<For each={allTables()}>
 								{(table) => (
 									<label class="search-dialog__table-option">
 										<input
 											type="checkbox"
-											checked={selectedTables().includes(table.name)}
+											checked={params.tables.includes(table.name)}
 											onChange={() => handleTableToggle(table.name)}
 										/>
 										<span>{table.schema !== 'main' && table.schema !== 'public' ? `${table.schema}.` : ''}{table.name}</span>
@@ -292,35 +283,35 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 							type="number"
 							min="1"
 							max="1000"
-							value={resultsPerTable()}
-							onChange={(e) => setResultsPerTable(Math.max(1, Math.min(1000, parseInt(e.currentTarget.value) || 50)))}
+							value={params.resultsPerTable}
+							onChange={(e) => setParams('resultsPerTable', Math.max(1, Math.min(1000, parseInt(e.currentTarget.value) || 50)))}
 						/>
 					</div>
 				</div>
 
-				<Show when={searching()}>
+				<Show when={searchStatus() === 'searching'}>
 					<div class="search-dialog__progress">
 						<div class="search-dialog__progress-bar">
 							<div
 								class="search-dialog__progress-fill"
 								style={{
-									width: progressTotal() > 0
-										? `${Math.round((progressSearched() / progressTotal()) * 100)}%`
+									width: progress.total > 0
+										? `${Math.round((progress.searched / progress.total) * 100)}%`
 										: '0%',
 								}}
 							/>
 						</div>
 						<div class="search-dialog__progress-text">
 							<span>
-								Searching{progressTable() ? `: ${progressTable()}` : '...'}
-								{progressTotal() > 0 ? ` (${progressSearched()}/${progressTotal()})` : ''}
+								Searching{progress.table ? `: ${progress.table}` : '...'}
+								{progress.total > 0 ? ` (${progress.searched}/${progress.total})` : ''}
 							</span>
 						</div>
 					</div>
 				</Show>
 
-				<Show when={error()}>
-					<div class="search-dialog__error">{error()}</div>
+				<Show when={searchError()}>
+					<div class="search-dialog__error">{searchError()}</div>
 				</Show>
 
 				<Show when={searchedInfo()}>
@@ -332,7 +323,7 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 					)}
 				</Show>
 
-				<Show when={hasSearched() && !searching() && results().length === 0 && !error()}>
+				<Show when={searchStatus() === 'done' && results().length === 0 && !searchError()}>
 					<div class="search-dialog__empty">No matches found</div>
 				</Show>
 
@@ -351,7 +342,7 @@ export default function DatabaseSearchDialog(props: DatabaseSearchDialogProps) {
 											const v = match.row[match.column]
 											return v == null ? 'NULL' : String(v)
 										}
-										const parts = () => highlightMatch(value(), searchTerm())
+										const parts = () => highlightMatch(value(), params.term)
 
 										return (
 											<div

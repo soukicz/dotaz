@@ -3,6 +3,7 @@ import PanelRight from 'lucide-solid/icons/panel-right'
 import Pencil from 'lucide-solid/icons/pencil'
 import RotateCcw from 'lucide-solid/icons/rotate-ccw'
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, untrack } from 'solid-js'
+import { createStore } from 'solid-js/store'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
 import type { SavedViewConfig } from '../../../shared/types/rpc'
 import { cellValueToDbValue, parseClipboardText } from '../../lib/clipboard-paste'
@@ -57,37 +58,27 @@ function buildFkMap(foreignKeys: ForeignKeyInfo[]): Map<string, FkTarget> {
 	return map
 }
 
+type DataGridModal =
+	| null
+	| { type: 'save-view'; forceNew: boolean }
+	| { type: 'export'; scope?: 'selected' }
+	| { type: 'import' }
+	| { type: 'advanced-copy' }
+	| { type: 'batch-edit' }
+	| { type: 'paste-preview'; rows: string[][]; delimiter: string }
+	| { type: 'fk-picker'; rowIndex: number; column: string; target: FkTarget }
+
 export default function DataGrid(props: DataGridProps) {
-	const [fkColumns, setFkColumns] = createSignal<Set<string>>(new Set())
-	const [foreignKeys, setForeignKeys] = createSignal<ForeignKeyInfo[]>([])
-	const [fkMap, setFkMap] = createSignal<Map<string, FkTarget>>(new Map())
+	const [fkState, setFkState] = createStore({
+		columns: new Set<string>(),
+		keys: [] as ForeignKeyInfo[],
+		map: new Map<string, FkTarget>(),
+	})
+	const [dgModal, setDgModal] = createSignal<DataGridModal>(null)
 	const [copyFeedback, setCopyFeedback] = createSignal<string | null>(null)
 	const [showPendingPanel, setShowPendingPanel] = createSignal(false)
 	const [savingChanges, setSavingChanges] = createSignal(false)
 	const [saveError, setSaveError] = createSignal<string | null>(null)
-	const [saveViewOpen, setSaveViewOpen] = createSignal(false)
-	const [exportOpen, setExportOpen] = createSignal(false)
-	const [importOpen, setImportOpen] = createSignal(false)
-	const [advancedCopyOpen, setAdvancedCopyOpen] = createSignal(false)
-	const [pastePreview, setPastePreview] = createSignal<
-		{
-			rows: string[][]
-			delimiter: string
-		} | null
-	>(null)
-	const [showBatchEdit, setShowBatchEdit] = createSignal(false)
-	const [fkPickerOpen, setFkPickerOpen] = createSignal(false)
-	const [fkPickerContext, setFkPickerContext] = createSignal<
-		{
-			rowIndex: number
-			column: string
-			target: FkTarget
-		} | null
-	>(null)
-	const [exportInitialScope, setExportInitialScope] = createSignal<
-		'selected' | undefined
-	>(undefined)
-	const [saveViewForceNew, setSaveViewForceNew] = createSignal(false)
 	const [savedViewConfig, setSavedViewConfig] = createSignal<SavedViewConfig | null>(null)
 
 	let scrollRef: HTMLDivElement | undefined
@@ -117,7 +108,7 @@ export default function DataGrid(props: DataGridProps) {
 			&& detail?.schema === currentSchema()
 			&& detail?.table === currentTable()
 		) {
-			setImportOpen(true)
+			setDgModal({ type: 'import' })
 		}
 	}
 	onMount(() => {
@@ -216,15 +207,13 @@ export default function DataGrid(props: DataGridProps) {
 			table,
 			props.database,
 		)
-		setForeignKeys(fks)
 		const fkCols = new Set<string>()
 		for (const fk of fks) {
 			for (const col of fk.columns) {
 				fkCols.add(col)
 			}
 		}
-		setFkColumns(fkCols)
-		setFkMap(buildFkMap(fks))
+		setFkState({ columns: fkCols, keys: fks, map: buildFkMap(fks) })
 	}
 
 	// ── Mouse handling ──────────────────────────────────
@@ -390,19 +379,17 @@ export default function DataGrid(props: DataGridProps) {
 	}
 
 	function handleBrowseFkForInline(rowIndex: number, column: string) {
-		const target = fkMap().get(column)
+		const target = fkState.map.get(column)
 		if (!target) return
 		gridStore.stopEditing(props.tabId)
-		setFkPickerContext({ rowIndex, column, target })
-		setFkPickerOpen(true)
+		setDgModal({ type: 'fk-picker', rowIndex, column, target })
 	}
 
 	function handleFkPickerSelect(value: unknown) {
-		const ctx = fkPickerContext()
-		if (!ctx) return
-		gridStore.setCellValue(props.tabId, ctx.rowIndex, ctx.column, value)
-		setFkPickerOpen(false)
-		setFkPickerContext(null)
+		const m = dgModal()
+		if (m?.type !== 'fk-picker') return
+		gridStore.setCellValue(props.tabId, m.rowIndex, m.column, value)
+		setDgModal(null)
 	}
 
 	function handleAddNewRow() {
@@ -528,7 +515,7 @@ export default function DataGrid(props: DataGridProps) {
 		if (parsed.rows.length === 0) return
 
 		if (parsed.rows.length > PASTE_PREVIEW_THRESHOLD) {
-			setPastePreview(parsed)
+			setDgModal({ type: 'paste-preview', rows: parsed.rows, delimiter: parsed.delimiter })
 		} else {
 			executePaste(parsed.rows, true)
 		}
@@ -547,10 +534,10 @@ export default function DataGrid(props: DataGridProps) {
 	}
 
 	function handlePastePreviewConfirm(treatNullText: boolean) {
-		const preview = pastePreview()
-		if (!preview) return
-		executePaste(preview.rows, treatNullText)
-		setPastePreview(null)
+		const m = dgModal()
+		if (m?.type !== 'paste-preview') return
+		executePaste(m.rows, treatNullText)
+		setDgModal(null)
 	}
 
 	// Listen for save-view events dispatched by the command registry
@@ -559,8 +546,7 @@ export default function DataGrid(props: DataGridProps) {
 			const detail = (e as CustomEvent).detail
 			if (detail?.tabId === props.tabId) {
 				// Quick save via toolbar handler
-				setSaveViewForceNew(false)
-				setSaveViewOpen(true)
+				setDgModal({ type: 'save-view', forceNew: false })
 			}
 		}
 		window.addEventListener('dotaz:save-view', onSaveView)
@@ -576,7 +562,7 @@ export default function DataGrid(props: DataGridProps) {
 			shift: true,
 			handler(e) {
 				e.preventDefault()
-				setAdvancedCopyOpen(true)
+				setDgModal({ type: 'advanced-copy' })
 			},
 		},
 		{
@@ -865,8 +851,7 @@ export default function DataGrid(props: DataGridProps) {
 			handler(e) {
 				e.preventDefault()
 				e.stopPropagation()
-				setSaveViewForceNew(false)
-				setSaveViewOpen(true)
+				setDgModal({ type: 'save-view', forceNew: false })
 			},
 		},
 		{
@@ -898,15 +883,9 @@ export default function DataGrid(props: DataGridProps) {
 				isReadOnly={isReadOnly}
 				savedViewConfig={savedViewConfig}
 				onSetSavedViewConfig={setSavedViewConfig}
-				onSaveViewOpen={(forceNew) => {
-					setSaveViewForceNew(forceNew)
-					setSaveViewOpen(true)
-				}}
-				onExportOpen={() => {
-					setExportInitialScope(undefined)
-					setExportOpen(true)
-				}}
-				onImportOpen={() => setImportOpen(true)}
+				onSaveViewOpen={(forceNew) => setDgModal({ type: 'save-view', forceNew })}
+				onExportOpen={() => setDgModal({ type: 'export' })}
+				onImportOpen={() => setDgModal({ type: 'import' })}
 				sidePanelToggle={
 					<button
 						class="data-grid__toolbar-btn"
@@ -1004,7 +983,7 @@ export default function DataGrid(props: DataGridProps) {
 														sort={tabState().sort}
 														columnConfig={tabState().columnConfig}
 														pinStyles={pinStyles()}
-														fkColumns={fkColumns()}
+														fkColumns={fkState.columns}
 														onToggleSort={handleToggleSort}
 														onResizeColumn={handleResizeColumn}
 														onHeaderContextMenu={(e, col) => contextMenuHandle?.handleHeaderContextMenu(e, col)}
@@ -1058,7 +1037,7 @@ export default function DataGrid(props: DataGridProps) {
 														getChangedCells={getChangedCells}
 														isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
 														isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
-														fkMap={fkMap()}
+														fkMap={fkState.map}
 														heatmapInfo={heatmapInfo()}
 														onCellSave={handleCellSave}
 														onCellCancel={handleCellCancel}
@@ -1092,7 +1071,7 @@ export default function DataGrid(props: DataGridProps) {
 												getChangedCells={getChangedCells}
 												isRowDeleted={(idx) => gridStore.isRowDeleted(props.tabId, idx)}
 												isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
-												fkMap={fkMap()}
+												fkMap={fkState.map}
 												heatmapInfo={heatmapInfo()}
 												onCellSave={handleCellSave}
 												onCellCancel={handleCellCancel}
@@ -1148,8 +1127,8 @@ export default function DataGrid(props: DataGridProps) {
 									currentSchema={currentSchema()}
 									currentTable={currentTable()}
 									database={props.database}
-									foreignKeys={foreignKeys}
-									fkMap={fkMap}
+									foreignKeys={() => fkState.keys}
+									fkMap={() => fkState.map}
 									visibleColumns={visibleColumns}
 									isReadOnly={isReadOnly}
 									onExportSelected={() => {
@@ -1164,10 +1143,9 @@ export default function DataGrid(props: DataGridProps) {
 												)
 											}
 										}
-										setExportInitialScope('selected')
-										setExportOpen(true)
+										setDgModal({ type: 'export', scope: 'selected' })
 									}}
-									onBatchEdit={() => setShowBatchEdit(true)}
+									onBatchEdit={() => setDgModal({ type: 'batch-edit' })}
 								/>
 							</div>
 
@@ -1252,14 +1230,14 @@ export default function DataGrid(props: DataGridProps) {
 			</Show>
 
 			<SaveViewDialog
-				open={saveViewOpen()}
+				open={dgModal()?.type === 'save-view'}
 				tabId={props.tabId}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				initialName={hasActiveView() ? undefined : generateAutoName()}
-				forceNew={saveViewForceNew()}
-				onClose={() => setSaveViewOpen(false)}
+				forceNew={(dgModal() as Extract<DataGridModal, { type: 'save-view' }> | null)?.forceNew ?? false}
+				onClose={() => setDgModal(null)}
 				onSaved={async (viewId, viewName, config) => {
 					tabsStore.setTabView(props.tabId, viewId, viewName)
 					gridStore.setActiveView(props.tabId, viewId, viewName)
@@ -1269,36 +1247,36 @@ export default function DataGrid(props: DataGridProps) {
 			/>
 
 			<ExportDialog
-				open={exportOpen()}
+				open={dgModal()?.type === 'export'}
 				tabId={props.tabId}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				database={props.database}
-				initialScope={exportInitialScope()}
-				onClose={() => setExportOpen(false)}
+				initialScope={(dgModal() as Extract<DataGridModal, { type: 'export' }> | null)?.scope}
+				onClose={() => setDgModal(null)}
 			/>
 
 			<AdvancedCopyDialog
-				open={advancedCopyOpen()}
+				open={dgModal()?.type === 'advanced-copy'}
 				tabId={props.tabId}
 				visibleColumns={visibleColumns()}
-				onClose={() => setAdvancedCopyOpen(false)}
+				onClose={() => setDgModal(null)}
 			/>
 
 			<ImportDialog
-				open={importOpen()}
+				open={dgModal()?.type === 'import'}
 				connectionId={props.connectionId}
 				schema={currentSchema()}
 				table={currentTable()}
 				database={props.database}
-				onClose={() => setImportOpen(false)}
+				onClose={() => setDgModal(null)}
 				onImported={() => {
 					gridStore.refreshData(props.tabId)
 				}}
 			/>
 
-			<Show when={showBatchEdit()}>
+			<Show when={dgModal()?.type === 'batch-edit'}>
 				{(_) => {
 					const t = tab()!
 					return (
@@ -1307,30 +1285,30 @@ export default function DataGrid(props: DataGridProps) {
 							tabId={props.tabId}
 							columns={t.columns}
 							selectedRows={new Set(getSelectedRowIndices(t.selection))}
-							fkMap={fkMap()}
+							fkMap={fkState.map}
 							connectionId={props.connectionId}
 							database={props.database}
-							onClose={() => setShowBatchEdit(false)}
+							onClose={() => setDgModal(null)}
 						/>
 					)
 				}}
 			</Show>
 
-			<Show when={pastePreview()}>
+			<Show when={dgModal()?.type === 'paste-preview'}>
 				{(_) => {
 					const t = tab()!
-					const p = pastePreview()!
+					const m = dgModal() as Extract<DataGridModal, { type: 'paste-preview' }>
 					return (
 						<PastePreviewDialog
 							open={true}
-							parsedRows={p.rows}
-							delimiter={p.delimiter}
+							parsedRows={m.rows}
+							delimiter={m.delimiter}
 							columns={visibleColumns()}
 							startColumn={visibleColumns()[t.selection.focusedCell?.col ?? 0]?.name ?? ''}
 							startRow={t.selection.focusedCell?.row ?? 0}
 							totalExistingRows={t.rows.length}
 							onConfirm={handlePastePreviewConfirm}
-							onClose={() => setPastePreview(null)}
+							onClose={() => setDgModal(null)}
 						/>
 					)
 				}}
@@ -1345,31 +1323,28 @@ export default function DataGrid(props: DataGridProps) {
 				currentSchema={currentSchema}
 				currentTable={currentTable}
 				database={props.database}
-				fkMap={fkMap}
+				fkMap={() => fkState.map}
 				visibleColumns={visibleColumns}
 				isReadOnly={isReadOnly}
 				onPaste={handlePaste}
-				onAdvancedCopy={() => setAdvancedCopyOpen(true)}
+				onAdvancedCopy={() => setDgModal({ type: 'advanced-copy' })}
 				onDuplicateRow={handleDuplicateRow}
 				onFkClick={(rowIndex, column) => sidePanelHandle()?.handleFkClick(rowIndex, column)}
 				onSetSidePanelOpen={(open) => sidePanelHandle()?.setSidePanelOpen(open)}
 			/>
 
-			<Show when={fkPickerOpen() && fkPickerContext()}>
+			<Show when={dgModal()?.type === 'fk-picker'}>
 				{(_) => {
-					const ctx = fkPickerContext()!
+					const m = dgModal() as Extract<DataGridModal, { type: 'fk-picker' }>
 					return (
 						<FkPickerModal
 							open={true}
-							onClose={() => {
-								setFkPickerOpen(false)
-								setFkPickerContext(null)
-							}}
+							onClose={() => setDgModal(null)}
 							onSelect={handleFkPickerSelect}
 							connectionId={props.connectionId}
-							schema={ctx.target.schema}
-							table={ctx.target.table}
-							column={ctx.target.column}
+							schema={m.target.schema}
+							table={m.target.table}
+							column={m.target.column}
 							database={props.database}
 						/>
 					)

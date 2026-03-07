@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createSignal, Show } from 'solid-js'
+import { createStore, reconcile, unwrap } from 'solid-js/store'
 import type {
 	AiProvider,
 	BinaryDisplay,
@@ -27,85 +28,49 @@ interface SettingsDialogProps {
 
 export default function SettingsDialog(props: SettingsDialogProps) {
 	const [section, setSection] = createSignal<SettingsSection>('appearance')
-
-	// ── Appearance signals ──
-	const [colorTheme, setColorTheme] = createSignal<ColorTheme>('dark')
+	const [appearance, setAppearance] = createStore({ colorTheme: 'dark' as ColorTheme })
+	const [dataFormat, setDataFormat] = createStore<FormatProfile>({
+		dateFormat: 'YYYY-MM-DD HH:mm:ss',
+		decimalSeparator: '.',
+		thousandsSeparator: '',
+		decimalPlaces: -1,
+		nullDisplay: 'NULL',
+		booleanDisplay: 'true/false',
+		binaryDisplay: 'size',
+	})
+	const [ai, setAi] = createStore({ provider: 'anthropic' as AiProvider, apiKey: '', model: '', endpoint: '' })
+	const [session, setSession] = createStore<SessionConfig>({ defaultConnectionMode: 'pool', autoPin: 'on-begin', autoUnpin: 'never' })
+	const [grid, setGrid] = createStore({ autoCount: false })
 	let savedTheme: ColorTheme = 'dark'
-
-	// ── Data Format signals ──
-	const [dateFormat, setDateFormat] = createSignal<DateFormat>('YYYY-MM-DD HH:mm:ss')
-	const [decimalSeparator, setDecimalSeparator] = createSignal<DecimalSeparator>('.')
-	const [thousandsSeparator, setThousandsSeparator] = createSignal<ThousandsSeparator>('')
-	const [decimalPlaces, setDecimalPlaces] = createSignal(-1)
-	const [nullDisplay, setNullDisplay] = createSignal<NullDisplay>('NULL')
-	const [booleanDisplay, setBooleanDisplay] = createSignal<BooleanDisplay>('true/false')
-	const [binaryDisplay, setBinaryDisplay] = createSignal<BinaryDisplay>('size')
-
-	// ── AI signals ──
-	const [aiProvider, setAiProvider] = createSignal<AiProvider>('anthropic')
-	const [apiKey, setApiKey] = createSignal('')
-	const [aiModel, setAiModel] = createSignal('')
-	const [aiEndpoint, setAiEndpoint] = createSignal('')
-
-	// ── Session signals ──
-	const [connMode, setConnMode] = createSignal<ConnectionMode>('pool')
-	const [autoPin, setAutoPin] = createSignal<AutoPin>('on-begin')
-	const [autoUnpin, setAutoUnpin] = createSignal<AutoUnpin>('never')
-
-	// ── Grid signals ──
-	const [autoCount, setAutoCount] = createSignal(false)
 
 	// Load all values when dialog opens
 	createEffect(() => {
 		if (props.open) {
-			// Set initial section
 			setSection(props.initialSection ?? 'appearance')
 
-			// Appearance
-			const appearance = settingsStore.appearanceConfig
-			setColorTheme(appearance.colorTheme)
-			savedTheme = appearance.colorTheme
+			const app = settingsStore.appearanceConfig
+			setAppearance(reconcile({ colorTheme: app.colorTheme }))
+			savedTheme = app.colorTheme
 
-			// Data Format
-			const p = settingsStore.formatProfile
-			setDateFormat(p.dateFormat)
-			setDecimalSeparator(p.decimalSeparator)
-			setThousandsSeparator(p.thousandsSeparator)
-			setDecimalPlaces(p.decimalPlaces)
-			setNullDisplay(p.nullDisplay)
-			setBooleanDisplay(p.booleanDisplay)
-			setBinaryDisplay(p.binaryDisplay)
-
-			// AI
-			const ai = settingsStore.aiConfig
-			setAiProvider(ai.provider)
-			setApiKey(ai.apiKey)
-			setAiModel(ai.model)
-			setAiEndpoint(ai.endpoint)
-
-			// Session
-			const sess = settingsStore.sessionConfig
-			setConnMode(sess.defaultConnectionMode)
-			setAutoPin(sess.autoPin)
-			setAutoUnpin(sess.autoUnpin)
-
-			// Grid
-			setAutoCount(settingsStore.gridConfig.autoCount)
+			setDataFormat(reconcile({ ...unwrap(settingsStore.formatProfile) }))
+			setAi(reconcile({ ...unwrap(settingsStore.aiConfig) }))
+			setSession(reconcile({ ...unwrap(settingsStore.sessionConfig) }))
+			setGrid(reconcile({ autoCount: settingsStore.gridConfig.autoCount }))
 		}
 	})
 
 	const numberPreview = createMemo(() => {
 		const num = 1234567.891
-		return formatNumberPreview(num, decimalSeparator(), thousandsSeparator(), decimalPlaces())
+		return formatNumberPreview(num, dataFormat.decimalSeparator, dataFormat.thousandsSeparator, dataFormat.decimalPlaces)
 	})
 
 	const datePreview = createMemo(() => {
 		const now = new Date(2026, 2, 2, 14, 30, 45)
-		return formatDatePreview(now, dateFormat())
+		return formatDatePreview(now, dataFormat.dateFormat)
 	})
 
 	function defaultModel(): string {
-		switch (aiProvider()) {
+		switch (ai.provider) {
 			case 'anthropic':
 				return 'claude-sonnet-4-20250514'
 			case 'openai':
@@ -116,52 +81,21 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 	}
 
 	function handleCancel() {
-		// Revert theme to saved value
 		settingsStore.applyTheme(savedTheme)
 		props.onClose()
 	}
 
 	function handleThemeChange(theme: ColorTheme) {
-		setColorTheme(theme)
-		// Live preview
+		setAppearance('colorTheme', theme)
 		settingsStore.applyTheme(theme)
 	}
 
 	function handleSave() {
-		// Save Appearance
-		settingsStore.saveAppearanceConfig({ colorTheme: colorTheme() })
-
-		// Save Data Format
-		const profile: FormatProfile = {
-			dateFormat: dateFormat(),
-			decimalSeparator: decimalSeparator(),
-			thousandsSeparator: thousandsSeparator(),
-			decimalPlaces: decimalPlaces(),
-			nullDisplay: nullDisplay(),
-			booleanDisplay: booleanDisplay(),
-			binaryDisplay: binaryDisplay(),
-		}
-		settingsStore.saveFormatProfile(profile)
-
-		// Save AI
-		settingsStore.saveAiConfig({
-			provider: aiProvider(),
-			apiKey: apiKey(),
-			model: aiModel(),
-			endpoint: aiEndpoint(),
-		})
-
-		// Save Session
-		const sessionConfig: SessionConfig = {
-			defaultConnectionMode: connMode(),
-			autoPin: autoPin(),
-			autoUnpin: autoUnpin(),
-		}
-		settingsStore.saveSessionConfig(sessionConfig)
-
-		// Save Grid
-		settingsStore.saveGridConfig({ autoCount: autoCount() })
-
+		settingsStore.saveAppearanceConfig({ colorTheme: appearance.colorTheme })
+		settingsStore.saveFormatProfile({ ...unwrap(dataFormat) })
+		settingsStore.saveAiConfig({ ...unwrap(ai) })
+		settingsStore.saveSessionConfig({ ...unwrap(session) })
+		settingsStore.saveGridConfig({ autoCount: grid.autoCount })
 		props.onClose()
 	}
 
@@ -209,60 +143,60 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 				<div class="settings-content">
 					<Show when={section() === 'appearance'}>
 						<AppearanceSection
-							colorTheme={colorTheme()}
+							colorTheme={appearance.colorTheme}
 							setColorTheme={handleThemeChange}
 						/>
 					</Show>
 					<Show when={section() === 'data-format'}>
 						<DataFormatSection
-							dateFormat={dateFormat()}
-							setDateFormat={setDateFormat}
-							decimalSeparator={decimalSeparator()}
-							setDecimalSeparator={setDecimalSeparator}
-							thousandsSeparator={thousandsSeparator()}
-							setThousandsSeparator={setThousandsSeparator}
-							decimalPlaces={decimalPlaces()}
-							setDecimalPlaces={setDecimalPlaces}
-							nullDisplay={nullDisplay()}
-							setNullDisplay={setNullDisplay}
-							booleanDisplay={booleanDisplay()}
-							setBooleanDisplay={setBooleanDisplay}
-							binaryDisplay={binaryDisplay()}
-							setBinaryDisplay={setBinaryDisplay}
+							dateFormat={dataFormat.dateFormat}
+							setDateFormat={(v) => setDataFormat('dateFormat', v)}
+							decimalSeparator={dataFormat.decimalSeparator}
+							setDecimalSeparator={(v) => setDataFormat('decimalSeparator', v)}
+							thousandsSeparator={dataFormat.thousandsSeparator}
+							setThousandsSeparator={(v) => setDataFormat('thousandsSeparator', v)}
+							decimalPlaces={dataFormat.decimalPlaces}
+							setDecimalPlaces={(v) => setDataFormat('decimalPlaces', v)}
+							nullDisplay={dataFormat.nullDisplay}
+							setNullDisplay={(v) => setDataFormat('nullDisplay', v)}
+							booleanDisplay={dataFormat.booleanDisplay}
+							setBooleanDisplay={(v) => setDataFormat('booleanDisplay', v)}
+							binaryDisplay={dataFormat.binaryDisplay}
+							setBinaryDisplay={(v) => setDataFormat('binaryDisplay', v)}
 							datePreview={datePreview()}
 							numberPreview={numberPreview()}
 						/>
 					</Show>
 					<Show when={section() === 'ai'}>
 						<AiSection
-							provider={aiProvider()}
+							provider={ai.provider}
 							setProvider={(p) => {
-								setAiProvider(p)
-								if (!aiModel()) setAiModel(defaultModel())
+								setAi('provider', p)
+								if (!ai.model) setAi('model', defaultModel())
 							}}
-							apiKey={apiKey()}
-							setApiKey={setApiKey}
-							model={aiModel()}
-							setModel={setAiModel}
-							endpoint={aiEndpoint()}
-							setEndpoint={setAiEndpoint}
+							apiKey={ai.apiKey}
+							setApiKey={(v) => setAi('apiKey', v)}
+							model={ai.model}
+							setModel={(v) => setAi('model', v)}
+							endpoint={ai.endpoint}
+							setEndpoint={(v) => setAi('endpoint', v)}
 							defaultModel={defaultModel()}
 						/>
 					</Show>
 					<Show when={section() === 'session'}>
 						<SessionSection
-							mode={connMode()}
-							setMode={setConnMode}
-							autoPin={autoPin()}
-							setAutoPin={setAutoPin}
-							autoUnpin={autoUnpin()}
-							setAutoUnpin={setAutoUnpin}
+							mode={session.defaultConnectionMode}
+							setMode={(v) => setSession('defaultConnectionMode', v)}
+							autoPin={session.autoPin}
+							setAutoPin={(v) => setSession('autoPin', v)}
+							autoUnpin={session.autoUnpin}
+							setAutoUnpin={(v) => setSession('autoUnpin', v)}
 						/>
 					</Show>
 					<Show when={section() === 'grid'}>
 						<GridSection
-							autoCount={autoCount()}
-							setAutoCount={setAutoCount}
+							autoCount={grid.autoCount}
+							setAutoCount={(v) => setGrid('autoCount', v)}
 						/>
 					</Show>
 				</div>

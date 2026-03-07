@@ -2,6 +2,7 @@ import AlertTriangle from 'lucide-solid/icons/alert-triangle'
 import Eye from 'lucide-solid/icons/eye'
 import Upload from 'lucide-solid/icons/upload'
 import { createEffect, createSignal, For, Show } from 'solid-js'
+import { createStore, reconcile } from 'solid-js/store'
 import type { ColumnInfo } from '../../../shared/types/database'
 import type { ColumnMapping, CsvDelimiter, ImportFormat, ImportPreviewResult } from '../../../shared/types/import'
 import { getCapabilities } from '../../lib/capabilities'
@@ -37,45 +38,44 @@ const FILE_ACCEPT: Record<ImportFormat, string> = {
 	json: '.json',
 }
 
+type ImportPhase =
+	| { status: 'idle' }
+	| { status: 'importing'; rows: number }
+	| { status: 'done'; result: { rowCount: number } }
+	| { status: 'error'; message: string }
+
 export default function ImportDialog(props: ImportDialogProps) {
 	let fileInputRef: HTMLInputElement | undefined
 
-	const [format, setFormat] = createSignal<ImportFormat>('csv')
-	const [delimiter, setDelimiter] = createSignal<CsvDelimiter>(',')
-	const [hasHeader, setHasHeader] = createSignal(true)
-	const [fileContent, setFileContent] = createSignal<string | null>(null)
-	const [filePath, setFilePath] = createSignal<string | null>(null)
-	const [fileName, setFileName] = createSignal<string | null>(null)
-	const [selectedFile, setSelectedFile] = createSignal<File | null>(null)
+	const [file, setFile] = createStore({
+		content: null as string | null,
+		path: null as string | null,
+		name: null as string | null,
+		file: null as File | null,
+	})
+	const [importOptions, setImportOptions] = createStore({
+		format: 'csv' as ImportFormat,
+		delimiter: ',' as CsvDelimiter,
+		hasHeader: true,
+	})
+	const [phase, setPhase] = createSignal<ImportPhase>({ status: 'idle' })
 	const [preview, setPreview] = createSignal<ImportPreviewResult | null>(null)
 	const [previewLoading, setPreviewLoading] = createSignal(false)
 	const [mappings, setMappings] = createSignal<ColumnMapping[]>([])
 	const [tableColumns, setTableColumns] = createSignal<ColumnInfo[]>([])
-	const [importing, setImporting] = createSignal(false)
-	const [progressRows, setProgressRows] = createSignal(0)
-	const [importResult, setImportResult] = createSignal<{ rowCount: number } | null>(null)
-	const [error, setError] = createSignal<string | null>(null)
 
 	const caps = () => getCapabilities()
 
 	// Reset form when dialog opens
 	createEffect(() => {
 		if (props.open) {
-			setFormat('csv')
-			setDelimiter(',')
-			setHasHeader(true)
-			setFileContent(null)
-			setFilePath(null)
-			setFileName(null)
-			setSelectedFile(null)
+			setImportOptions(reconcile({ format: 'csv' as ImportFormat, delimiter: ',' as CsvDelimiter, hasHeader: true }))
+			setFile(reconcile({ content: null, path: null, name: null, file: null }))
 			setPreview(null)
 			setPreviewLoading(false)
 			setMappings([])
 			setTableColumns([])
-			setImporting(false)
-			setProgressRows(0)
-			setImportResult(null)
-			setError(null)
+			setPhase({ status: 'idle' })
 			if (fileInputRef) fileInputRef.value = ''
 			loadTableColumns()
 		}
@@ -98,25 +98,23 @@ export default function ImportDialog(props: ImportDialogProps) {
 		if (caps().hasFileSystem && caps().hasNativeDialogs) {
 			// Desktop: use native file dialog -> store file path (not content)
 			try {
-				const exts = FILE_ACCEPT[format()].split(',').map(s => s.replace('.', ''))
+				const exts = FILE_ACCEPT[importOptions.format].split(',').map(s => s.replace('.', ''))
 				const result = await rpc.system.showOpenDialog({
-					filters: [{ name: FORMAT_LABELS[format()], extensions: exts }],
+					filters: [{ name: FORMAT_LABELS[importOptions.format], extensions: exts }],
 					multiple: false,
 				})
 				if (result.cancelled || result.paths.length === 0) return
 				const path = result.paths[0]
-				setFilePath(path)
-				setFileName(path.split('/').pop() ?? path)
-				setFileContent(null)
-				setError(null)
+				setFile({ path, name: path.split('/').pop() ?? path, content: null })
+				setPhase({ status: 'idle' })
 				await loadPreview()
 			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err))
+				setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 			}
 		} else {
 			// Demo/Web: use browser file input
 			if (fileInputRef) {
-				fileInputRef.accept = FILE_ACCEPT[format()]
+				fileInputRef.accept = FILE_ACCEPT[importOptions.format]
 				fileInputRef.click()
 			}
 		}
@@ -124,39 +122,37 @@ export default function ImportDialog(props: ImportDialogProps) {
 
 	async function handleFileChange(e: Event) {
 		const input = e.currentTarget as HTMLInputElement
-		const file = input.files?.[0]
-		if (!file) return
+		const f = input.files?.[0]
+		if (!f) return
 
-		setFileName(file.name)
-		setFilePath(null)
-		setError(null)
+		setFile({ name: f.name, path: null, file: f })
+		setPhase({ status: 'idle' })
 
 		try {
 			if (caps().hasHttpStreaming) {
 				// Web mode: store File object for HTTP upload, read 64KB prefix for preview
-				setSelectedFile(file)
-				const prefix = await file.slice(0, 65536).text()
-				setFileContent(prefix)
+				const prefix = await f.slice(0, 65536).text()
+				setFile('content', prefix)
 				await loadPreview(prefix)
 			} else {
 				// Demo mode: read entire file content via WS
-				const content = await file.text()
-				setFileContent(content)
+				const content = await f.text()
+				setFile('content', content)
 				await loadPreview(content)
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err))
+			setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 		}
 	}
 
 	async function loadPreview(content?: string) {
-		const fp = filePath()
-		const fc = content ?? fileContent()
+		const fp = file.path
+		const fc = content ?? file.content
 		if (!fp && !fc) return
 
 		setPreviewLoading(true)
 		setPreview(null)
-		setError(null)
+		setPhase({ status: 'idle' })
 
 		try {
 			const result = await rpc.import.preview({
@@ -165,16 +161,16 @@ export default function ImportDialog(props: ImportDialogProps) {
 				table: props.table,
 				database: props.database,
 				...(fp ? { filePath: fp } : { fileContent: fc! }),
-				format: format(),
-				delimiter: format() === 'csv' ? delimiter() : undefined,
-				hasHeader: format() === 'csv' ? hasHeader() : undefined,
+				format: importOptions.format,
+				delimiter: importOptions.format === 'csv' ? importOptions.delimiter : undefined,
+				hasHeader: importOptions.format === 'csv' ? importOptions.hasHeader : undefined,
 				limit: 20,
 			})
 
 			setPreview(result)
 			autoMapColumns(result.fileColumns)
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err))
+			setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 		} finally {
 			setPreviewLoading(false)
 		}
@@ -212,9 +208,9 @@ export default function ImportDialog(props: ImportDialogProps) {
 	}
 
 	async function handleImport() {
-		const fp = filePath()
-		const fc = fileContent()
-		const sf = selectedFile()
+		const fp = file.path
+		const fc = file.content
+		const sf = file.file
 		if (!fp && !fc && !sf) return
 
 		// Web mode: use HTTP streaming
@@ -222,15 +218,12 @@ export default function ImportDialog(props: ImportDialogProps) {
 			return handleWebImport(sf)
 		}
 
-		setError(null)
-		setImportResult(null)
-		setProgressRows(0)
-		setImporting(true)
+		setPhase({ status: 'importing', rows: 0 })
 
 		// Subscribe to progress events
 		const unsub = transport.addMessageListener<{ rowCount: number }>(
 			'import.progress',
-			(payload) => setProgressRows(payload.rowCount),
+			(payload) => setPhase({ status: 'importing', rows: payload.rowCount }),
 		)
 
 		try {
@@ -240,32 +233,28 @@ export default function ImportDialog(props: ImportDialogProps) {
 				table: props.table,
 				database: props.database,
 				...(fp ? { filePath: fp } : { fileContent: fc! }),
-				format: format(),
-				delimiter: format() === 'csv' ? delimiter() : undefined,
-				hasHeader: format() === 'csv' ? hasHeader() : undefined,
+				format: importOptions.format,
+				delimiter: importOptions.format === 'csv' ? importOptions.delimiter : undefined,
+				hasHeader: importOptions.format === 'csv' ? importOptions.hasHeader : undefined,
 				mappings: mappings(),
 			})
 
-			setImportResult(result)
+			setPhase({ status: 'done', result })
 			props.onImported?.()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err))
+			setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 		} finally {
 			unsub()
-			setImporting(false)
 		}
 	}
 
-	async function handleWebImport(file: File) {
-		setError(null)
-		setImportResult(null)
-		setProgressRows(0)
-		setImporting(true)
+	async function handleWebImport(f: File) {
+		setPhase({ status: 'importing', rows: 0 })
 
 		// Subscribe to progress events
 		const unsub = transport.addMessageListener<{ rowCount: number }>(
 			'import.progress',
-			(payload) => setProgressRows(payload.rowCount),
+			(payload) => setPhase({ status: 'importing', rows: payload.rowCount }),
 		)
 
 		const abortController = new AbortController()
@@ -277,16 +266,16 @@ export default function ImportDialog(props: ImportDialogProps) {
 				database: props.database,
 				schema: props.schema,
 				table: props.table,
-				format: format(),
-				delimiter: format() === 'csv' ? delimiter() : undefined,
-				hasHeader: format() === 'csv' ? hasHeader() : undefined,
+				format: importOptions.format,
+				delimiter: importOptions.format === 'csv' ? importOptions.delimiter : undefined,
+				hasHeader: importOptions.format === 'csv' ? importOptions.hasHeader : undefined,
 				mappings: mappings(),
 			})
 
 			// POST the file to the HTTP endpoint
 			const response = await fetch(`/api/stream/import/${token}`, {
 				method: 'POST',
-				body: file,
+				body: f,
 				signal: abortController.signal,
 			})
 
@@ -295,17 +284,16 @@ export default function ImportDialog(props: ImportDialogProps) {
 				throw new Error(result.error ?? 'Import failed')
 			}
 
-			setImportResult({ rowCount: result.rowCount })
+			setPhase({ status: 'done', result: { rowCount: result.rowCount } })
 			props.onImported?.()
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
-				setError('Import cancelled')
+				setPhase({ status: 'error', message: 'Import cancelled' })
 			} else {
-				setError(err instanceof Error ? err.message : String(err))
+				setPhase({ status: 'error', message: err instanceof Error ? err.message : String(err) })
 			}
 		} finally {
 			unsub()
-			setImporting(false)
 		}
 	}
 
@@ -319,13 +307,13 @@ export default function ImportDialog(props: ImportDialogProps) {
 		return n.toLocaleString()
 	}
 
-	const hasFile = () => filePath() !== null || fileContent() !== null || selectedFile() !== null
+	const hasFile = () => file.path !== null || file.content !== null || file.file !== null
 
 	const canImport = () =>
 		hasFile()
 		&& activeMappingCount() > 0
-		&& !importing()
-		&& !importResult()
+		&& phase().status !== 'importing'
+		&& phase().status !== 'done'
 
 	/** Whether preview was from a 64KB prefix (streaming mode without totalRows) */
 	const isPartialPreview = () => {
@@ -346,7 +334,7 @@ export default function ImportDialog(props: ImportDialogProps) {
 						ref={fileInputRef}
 						type="file"
 						style={{ display: 'none' }}
-						accept={FILE_ACCEPT[format()]}
+						accept={FILE_ACCEPT[importOptions.format]}
 						onChange={handleFileChange}
 					/>
 				</Show>
@@ -359,17 +347,13 @@ export default function ImportDialog(props: ImportDialogProps) {
 							{([fmt, label]) => (
 								<button
 									class="import-dialog__format-btn"
-									classList={{ 'import-dialog__format-btn--active': format() === fmt }}
+									classList={{ 'import-dialog__format-btn--active': importOptions.format === fmt }}
 									onClick={() => {
-										setFormat(fmt)
-										setFileContent(null)
-										setFilePath(null)
-										setFileName(null)
-										setSelectedFile(null)
+										setImportOptions('format', fmt)
+										setFile(reconcile({ content: null, path: null, name: null, file: null }))
 										setPreview(null)
 										setMappings([])
-										setImportResult(null)
-										setError(null)
+										setPhase({ status: 'idle' })
 										if (fileInputRef) fileInputRef.value = ''
 									}}
 								>
@@ -386,14 +370,14 @@ export default function ImportDialog(props: ImportDialogProps) {
 					<div class="import-dialog__file-row">
 						<div
 							class="import-dialog__file-name"
-							classList={{ 'import-dialog__file-name--empty': !fileName() }}
+							classList={{ 'import-dialog__file-name--empty': !file.name }}
 						>
-							{fileName() ?? 'No file selected'}
+							{file.name ?? 'No file selected'}
 						</div>
 						<button
 							class="import-dialog__browse-btn"
 							onClick={handleBrowseClick}
-							disabled={importing()}
+							disabled={phase().status === 'importing'}
 						>
 							Browse...
 						</button>
@@ -401,7 +385,7 @@ export default function ImportDialog(props: ImportDialogProps) {
 				</div>
 
 				{/* CSV options */}
-				<Show when={format() === 'csv'}>
+				<Show when={importOptions.format === 'csv'}>
 					<div class="import-dialog__section">
 						<label class="import-dialog__label">Options</label>
 						<div class="import-dialog__options">
@@ -409,9 +393,9 @@ export default function ImportDialog(props: ImportDialogProps) {
 								<label class="import-dialog__field-label">Delimiter</label>
 								<Select
 									class="import-dialog__select"
-									value={delimiter()}
+									value={importOptions.delimiter}
 									onChange={(v) => {
-										setDelimiter(v as CsvDelimiter)
+										setImportOptions('delimiter', v as CsvDelimiter)
 										if (hasFile()) loadPreview()
 									}}
 									options={Object.entries(DELIMITER_LABELS).map(([value, label]) => ({ value, label }))}
@@ -420,9 +404,9 @@ export default function ImportDialog(props: ImportDialogProps) {
 							<label class="import-dialog__checkbox-label">
 								<input
 									type="checkbox"
-									checked={hasHeader()}
+									checked={importOptions.hasHeader}
 									onChange={(e) => {
-										setHasHeader(e.currentTarget.checked)
+										setImportOptions('hasHeader', e.currentTarget.checked)
 										if (hasFile()) loadPreview()
 									}}
 								/>
@@ -532,19 +516,19 @@ export default function ImportDialog(props: ImportDialogProps) {
 				</Show>
 
 				{/* Import progress */}
-				<Show when={importing()}>
+				<Show when={phase().status === 'importing'}>
 					<div class="import-dialog__progress">
 						<div class="import-dialog__progress-bar">
 							<div class="import-dialog__progress-bar-fill" />
 						</div>
 						<span class="import-dialog__progress-text">
-							Importing... {progressRows() > 0 ? `${formatNumber(progressRows())} rows` : ''}
+							Importing... {(phase() as Extract<ImportPhase, { status: 'importing' }>).rows > 0 ? `${formatNumber((phase() as Extract<ImportPhase, { status: 'importing' }>).rows)} rows` : ''}
 						</span>
 					</div>
 				</Show>
 
 				{/* Import result */}
-				<Show when={importResult()}>
+				<Show when={phase().status === 'done' ? (phase() as Extract<ImportPhase, { status: 'done' }>).result : undefined}>
 					{(result) => (
 						<div class="import-dialog__result">
 							Successfully imported {formatNumber(result().rowCount)} row{result().rowCount !== 1 ? 's' : ''}
@@ -553,12 +537,12 @@ export default function ImportDialog(props: ImportDialogProps) {
 				</Show>
 
 				{/* Error */}
-				<Show when={error()}>
-					<div class="import-dialog__error">{error()}</div>
+				<Show when={phase().status === 'error' ? (phase() as Extract<ImportPhase, { status: 'error' }>).message : undefined}>
+					<div class="import-dialog__error">{(phase() as Extract<ImportPhase, { status: 'error' }>).message}</div>
 				</Show>
 
 				{/* Info */}
-				<Show when={preview() && !importResult()}>
+				<Show when={preview() && phase().status !== 'done'}>
 					<div class="import-dialog__info">
 						{preview()!.totalRows !== undefined
 							? `${formatNumber(preview()!.totalRows!)} row${preview()!.totalRows !== 1 ? 's' : ''}`
@@ -575,15 +559,15 @@ export default function ImportDialog(props: ImportDialogProps) {
 						class="btn btn--secondary"
 						onClick={props.onClose}
 					>
-						{importResult() ? 'Close' : 'Cancel'}
+						{phase().status === 'done' ? 'Close' : 'Cancel'}
 					</button>
-					<Show when={!importResult()}>
+					<Show when={phase().status !== 'done'}>
 						<button
 							class="btn btn--primary"
 							onClick={handleImport}
 							disabled={!canImport()}
 						>
-							<Upload size={14} /> {importing() ? 'Importing...' : 'Import'}
+							<Upload size={14} /> {phase().status === 'importing' ? 'Importing...' : 'Import'}
 						</button>
 					</Show>
 				</div>
