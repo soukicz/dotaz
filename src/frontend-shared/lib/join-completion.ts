@@ -1,6 +1,5 @@
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo, SchemaData } from '../../shared/types/database'
-import { connectionsStore } from '../stores/connections'
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -207,8 +206,7 @@ export function buildJoinCompletions(
  * Works for all JOIN types (INNER, LEFT, RIGHT, FULL, CROSS, NATURAL).
  */
 export function createJoinCompletionSource(
-	connectionId: string,
-	database: string | undefined,
+	getSchemaData: () => SchemaData | undefined,
 	isSqlite: boolean,
 ): (context: CompletionContext) => CompletionResult | null {
 	const defaultSchema = isSqlite ? '' : 'public'
@@ -220,7 +218,7 @@ export function createJoinCompletionSource(
 		const joinCtx = detectJoinContext(textBefore)
 		if (!joinCtx) return null
 
-		const schemaData = connectionsStore.getSchemaData(connectionId, database)
+		const schemaData = getSchemaData()
 		if (!schemaData) return null
 
 		// Parse all table references before the current JOIN

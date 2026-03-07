@@ -1,5 +1,5 @@
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete'
-import { connectionsStore } from '../stores/connections'
+import type { SchemaData } from '../../shared/types/database'
 import { parseTableReferences } from './join-completion'
 
 /**
@@ -60,8 +60,7 @@ export function parseCteNames(text: string): string[] {
  * Also completes CTE names as table references.
  */
 export function createAliasCompletionSource(
-	connectionId: string,
-	database: string | undefined,
+	getSchemaData: () => SchemaData | undefined,
 	isSqlite: boolean,
 ): (context: CompletionContext) => CompletionResult | null {
 	const defaultSchema = isSqlite ? 'main' : 'public'
@@ -76,7 +75,7 @@ export function createAliasCompletionSource(
 			const partial = dotMatch[2]
 			const from = context.pos - partial.length
 
-			const schemaData = connectionsStore.getSchemaData(connectionId, database)
+			const schemaData = getSchemaData()
 			if (!schemaData) return null
 
 			const tableKey = resolveTableKey(alias, textBefore, defaultSchema)

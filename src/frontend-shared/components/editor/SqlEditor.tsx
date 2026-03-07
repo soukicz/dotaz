@@ -379,21 +379,14 @@ export default function SqlEditor(props: SqlEditorProps) {
 		})
 
 		const sqlite = isSingleSchemaConnection(props.connectionId)
-		const joinCompletionSource = createJoinCompletionSource(
-			props.connectionId,
-			props.database,
-			sqlite,
-		)
-		const aliasCompletionSource = createAliasCompletionSource(
-			props.connectionId,
-			props.database,
-			sqlite,
-		)
+		const getSchemaData = () => connectionsStore.getSchemaData(props.connectionId, props.database)
+		const joinCompletionSource = createJoinCompletionSource(getSchemaData, sqlite)
+		const aliasCompletionSource = createAliasCompletionSource(getSchemaData, sqlite)
 		const customCompletionExtension = EditorState.languageData.of(() => [
 			{ autocomplete: joinCompletionSource },
 			{ autocomplete: aliasCompletionSource },
 		])
-		const sqlLinterExtension = createSqlLinter(props.connectionId, props.database, sqlite)
+		const sqlLinterExtension = createSqlLinter(getSchemaData, sqlite)
 
 		// Alt+Click to add cursor at clicked position (multi-cursor support)
 		const altClickCursor = EditorView.domEventHandlers({
