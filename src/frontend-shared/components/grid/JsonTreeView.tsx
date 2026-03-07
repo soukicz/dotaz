@@ -190,9 +190,7 @@ function TreeNode(props: TreeNodeProps) {
 
 	const filteredEntries = createMemo(() => {
 		if (!props.searchQuery) return entries()
-		return entries().filter((entry) =>
-			subtreeMatchesSearch(entry.key, entry.value, props.searchQuery),
-		)
+		return entries().filter((entry) => subtreeMatchesSearch(entry.key, entry.value, props.searchQuery))
 	})
 
 	const isArray = () => Array.isArray(props.value)
@@ -235,12 +233,20 @@ function TreeNode(props: TreeNodeProps) {
 								<span class="json-tree__index">{props.keyName}</span>
 							</Show>
 						</span>
-						<span class="json-tree__colon">: </span>
+						<span class="json-tree__colon">:</span>
 					</Show>
 
 					<Show
 						when={isExpandable()}
-						fallback={<span class={`json-tree__value json-tree__value--${typeof props.value === 'string' ? 'string' : props.value === null ? 'null' : typeof props.value}`}>{getValuePreview(props.value)}</span>}
+						fallback={
+							<span
+								class={`json-tree__value json-tree__value--${
+									typeof props.value === 'string' ? 'string' : props.value === null ? 'null' : typeof props.value
+								}`}
+							>
+								{getValuePreview(props.value)}
+							</span>
+						}
 					>
 						<span class="json-tree__preview">
 							{isArray() ? `[${(props.value as unknown[]).length}]` : `{${Object.keys(props.value as Record<string, unknown>).length}}`}
@@ -251,7 +257,10 @@ function TreeNode(props: TreeNodeProps) {
 						<button
 							class="json-tree__copy-btn"
 							classList={{ 'json-tree__copy-btn--copied': props.copiedPath === copyId() }}
-							onClick={(e) => { e.stopPropagation(); props.onCopyPath(userPath(), copyId()) }}
+							onClick={(e) => {
+								e.stopPropagation()
+								props.onCopyPath(userPath(), copyId())
+							}}
 							title={`Copy path: ${userPath()}`}
 						>
 							{props.copiedPath === copyId() ? 'Copied!' : 'Path'}

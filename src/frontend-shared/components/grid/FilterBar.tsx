@@ -2,9 +2,9 @@ import FilterX from 'lucide-solid/icons/funnel-x'
 import Plus from 'lucide-solid/icons/plus'
 import X from 'lucide-solid/icons/x'
 import { createSignal, For, Show } from 'solid-js'
+import { getColumnCategory } from '../../../shared/column-types'
 import type { DatabaseDataType } from '../../../shared/types/database'
 import type { ColumnFilter, FilterOperator, GridColumnDef } from '../../../shared/types/grid'
-import { getColumnCategory } from '../../../shared/column-types'
 import Select from '../common/Select'
 import './FilterBar.css'
 
@@ -201,9 +201,7 @@ export default function FilterBar(props: FilterBarProps) {
 								<Select
 									class="filter-bar__chip-inline-select filter-bar__chip-op-select"
 									value={filter.operator}
-									onChange={(v) =>
-										props.onAddFilter({ ...filter, operator: v as FilterOperator })
-									}
+									onChange={(v) => props.onAddFilter({ ...filter, operator: v as FilterOperator })}
 									options={operators().map((op) => ({ value: op.value, label: op.label }))}
 								/>
 								<Show when={operatorNeedsValue(filter.operator)}>

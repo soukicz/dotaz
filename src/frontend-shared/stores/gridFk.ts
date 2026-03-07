@@ -4,8 +4,8 @@ import type { GridColumnDef } from '../../shared/types/grid'
 import type { ColumnFilter } from '../../shared/types/grid'
 import { rpc } from '../lib/rpc'
 import { connectionsStore } from './connections'
-import { settingsStore } from './settings'
 import type { FkBreadcrumb, GridStoreState, TabGridState } from './grid'
+import { settingsStore } from './settings'
 
 export function createGridFkActions(
 	state: GridStoreState,

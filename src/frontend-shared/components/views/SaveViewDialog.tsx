@@ -141,7 +141,8 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 				<div class="save-view-dialog__summary">
 					{configSummary().filters} filter{configSummary().filters !== 1 ? 's' : ''}, {configSummary().sortRules}{' '}
 					sort rule{configSummary().sortRules !== 1 ? 's' : ''}, {configSummary().hiddenColumns}{' '}
-					hidden column{configSummary().hiddenColumns !== 1 ? 's' : ''}{configSummary().colorRules > 0 ? `, ${configSummary().colorRules} color rule${configSummary().colorRules !== 1 ? 's' : ''}` : ''}
+					hidden column{configSummary().hiddenColumns !== 1 ? 's' : ''}
+					{configSummary().colorRules > 0 ? `, ${configSummary().colorRules} color rule${configSummary().colorRules !== 1 ? 's' : ''}` : ''}
 				</div>
 
 				<Show when={error()}>

@@ -88,7 +88,7 @@ export default function GridRow(props: GridRowProps) {
 				{(col, colIdx) => {
 					const isEditing = createMemo(() =>
 						props.editingCell?.row === props.index
-						&& props.editingCell?.column === col.name,
+						&& props.editingCell?.column === col.name
 					)
 					const isChanged = createMemo(() => props.changedCells?.has(col.name) ?? false)
 					const isSelected = createMemo(() => props.isCellSelected(colIdx()))

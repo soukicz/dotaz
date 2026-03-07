@@ -1,9 +1,9 @@
-import { commandRegistry } from '../commands'
-import { platformShortcut } from '../keyboard'
-import type { AppCommandActions } from '../app-commands'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore } from '../../stores/editor'
 import { tabsStore } from '../../stores/tabs'
+import type { AppCommandActions } from '../app-commands'
+import { commandRegistry } from '../commands'
+import { platformShortcut } from '../keyboard'
 
 export function registerQueryCommands(actions: AppCommandActions): void {
 	commandRegistry.register({

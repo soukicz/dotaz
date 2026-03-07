@@ -35,13 +35,27 @@ export default function RowDetailTab(props: RowDetailTabProps) {
 	const dialect = () => connectionsStore.getDialect(props.connectionId)
 
 	const detail = useRowDetail({
-		get connectionId() { return props.connectionId },
-		get schema() { return props.schema },
-		get table() { return props.table },
-		get database() { return props.database },
-		get columns() { return columns() },
-		get row() { return row() },
-		get foreignKeys() { return foreignKeys() },
+		get connectionId() {
+			return props.connectionId
+		},
+		get schema() {
+			return props.schema
+		},
+		get table() {
+			return props.table
+		},
+		get database() {
+			return props.database
+		},
+		get columns() {
+			return columns()
+		},
+		get row() {
+			return row()
+		},
+		get foreignKeys() {
+			return foreignKeys()
+		},
 	})
 
 	// Track dirty state

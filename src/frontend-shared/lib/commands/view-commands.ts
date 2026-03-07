@@ -1,6 +1,6 @@
-import { commandRegistry } from '../commands'
-import type { AppCommandActions } from '../app-commands'
 import { uiStore } from '../../stores/ui'
+import type { AppCommandActions } from '../app-commands'
+import { commandRegistry } from '../commands'
 
 export function registerViewCommands(actions: AppCommandActions): void {
 	commandRegistry.register({

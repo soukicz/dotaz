@@ -24,7 +24,9 @@ export interface RpcAdapter {
 	// ── Connections ────────────────────────────────────────
 	listConnections(): ConnectionInfo[]
 	createConnection(params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo
+	updateConnection(
+		params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+	): ConnectionInfo
 	setConnectionReadOnly(id: string, readOnly: boolean): ConnectionInfo
 	setConnectionGroup(id: string, groupName: string | null): ConnectionInfo
 	listConnectionGroups(): string[]
@@ -49,7 +51,15 @@ export interface RpcAdapter {
 	deactivateDatabase(connectionId: string, database: string): Promise<void>
 
 	// ── Query execution ───────────────────────────────────
-	executeQuery(connectionId: string, sql: string, params?: unknown[], queryId?: string, database?: string, sessionId?: string, searchPath?: string): Promise<QueryResult[]>
+	executeQuery(
+		connectionId: string,
+		sql: string,
+		params?: unknown[],
+		queryId?: string,
+		database?: string,
+		sessionId?: string,
+		searchPath?: string,
+	): Promise<QueryResult[]>
 	/** Execute a batch of parameterized statements sequentially, auto-wrapped in transaction. */
 	executeStatements(
 		connectionId: string,

@@ -5,8 +5,8 @@ import PanelRightClose from 'lucide-solid/icons/panel-right-close'
 import Settings from 'lucide-solid/icons/settings'
 import { createSignal, For, type JSX, Show } from 'solid-js'
 import type { GridColumnDef } from '../../../shared/types/grid'
-import type { ColumnConfig } from '../../stores/grid'
 import { useClickOutside } from '../../lib/hooks'
+import type { ColumnConfig } from '../../stores/grid'
 import './ColumnManager.css'
 
 interface ColumnManagerProps {

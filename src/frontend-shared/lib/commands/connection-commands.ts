@@ -1,6 +1,6 @@
-import { commandRegistry } from '../commands'
-import type { AppCommandActions } from '../app-commands'
 import { connectionsStore } from '../../stores/connections'
+import type { AppCommandActions } from '../app-commands'
+import { commandRegistry } from '../commands'
 
 export function registerConnectionCommands(actions: AppCommandActions): void {
 	commandRegistry.register({

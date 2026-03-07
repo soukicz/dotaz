@@ -71,7 +71,9 @@ export class BackendAdapter implements RpcAdapter {
 		return this.cm.createConnection(params)
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
+	updateConnection(
+		params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+	): ConnectionInfo {
 		return this.cm.updateConnection(params)
 	}
 
@@ -219,7 +221,14 @@ export class BackendAdapter implements RpcAdapter {
 		await this.queryExecutor.cancelQuery(queryId)
 	}
 
-	async explainQuery(connectionId: string, sql: string, analyze: boolean, database?: string, sessionId?: string, searchPath?: string): Promise<ExplainResult> {
+	async explainQuery(
+		connectionId: string,
+		sql: string,
+		analyze: boolean,
+		database?: string,
+		sessionId?: string,
+		searchPath?: string,
+	): Promise<ExplainResult> {
 		return this.queryExecutor.explainQuery(connectionId, sql, analyze, database, sessionId, searchPath)
 	}
 

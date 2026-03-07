@@ -1,12 +1,12 @@
 import type { ConnectionInfo } from '../../../shared/types/connection'
 import { CONNECTION_TYPE_META, getDefaultDatabase } from '../../../shared/types/connection'
 import type { SavedView } from '../../../shared/types/rpc'
-import type { ContextMenuEntry } from '../common/ContextMenu'
 import { rpc } from '../../lib/rpc'
 import { connectionsStore } from '../../stores/connections'
 import { editorStore } from '../../stores/editor'
 import { tabsStore } from '../../stores/tabs'
 import { viewsStore } from '../../stores/views'
+import type { ContextMenuEntry } from '../common/ContextMenu'
 
 export interface TreeMenuCallbacks {
 	onEditConnection: (conn: ConnectionInfo) => void
@@ -96,11 +96,13 @@ export function connectionMenuItems(conn: ConnectionInfo, callbacks: TreeMenuCal
 		{
 			label: 'Move to Group...',
 			action: () => {
-				const existingGroups = Array.from(new Set(
-					connectionsStore.connections
-						.map((c) => c.groupName)
-						.filter((g): g is string => !!g && g !== conn.groupName),
-				)).sort()
+				const existingGroups = Array.from(
+					new Set(
+						connectionsStore.connections
+							.map((c) => c.groupName)
+							.filter((g): g is string => !!g && g !== conn.groupName),
+					),
+				).sort()
 
 				const options = existingGroups.length > 0
 					? `Existing groups: ${existingGroups.join(', ')}\n\nEnter group name (or leave empty to remove from group):`
@@ -184,7 +186,13 @@ export function databaseMenuItems(connectionId: string, dbName: string, isDefaul
 	return items
 }
 
-export function tableMenuItems(connectionId: string, schemaName: string, tableName: string, callbacks: TreeMenuCallbacks, database?: string): ContextMenuEntry[] {
+export function tableMenuItems(
+	connectionId: string,
+	schemaName: string,
+	tableName: string,
+	callbacks: TreeMenuCallbacks,
+	database?: string,
+): ContextMenuEntry[] {
 	const conn = connectionsStore.connections.find((c) => c.id === connectionId)
 	const items: ContextMenuEntry[] = [
 		{

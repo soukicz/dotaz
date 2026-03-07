@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, type Accessor } from 'solid-js'
+import { type Accessor, createEffect, onCleanup } from 'solid-js'
 
 /**
  * Close a popover/dropdown when clicking outside of it.

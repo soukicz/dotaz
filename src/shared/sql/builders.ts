@@ -293,14 +293,30 @@ export function buildReadableSelectQuery(
 		for (const filter of filters) {
 			const col = dialect.quoteIdentifier(filter.column)
 			switch (filter.operator) {
-				case 'eq': whereConditions.push(`${col} = ${sqlLiteral(filter.value)}`); break
-				case 'neq': whereConditions.push(`${col} != ${sqlLiteral(filter.value)}`); break
-				case 'gt': whereConditions.push(`${col} > ${sqlLiteral(filter.value)}`); break
-				case 'gte': whereConditions.push(`${col} >= ${sqlLiteral(filter.value)}`); break
-				case 'lt': whereConditions.push(`${col} < ${sqlLiteral(filter.value)}`); break
-				case 'lte': whereConditions.push(`${col} <= ${sqlLiteral(filter.value)}`); break
-				case 'like': whereConditions.push(`${col} LIKE ${sqlLiteral(filter.value)}`); break
-				case 'notLike': whereConditions.push(`${col} NOT LIKE ${sqlLiteral(filter.value)}`); break
+				case 'eq':
+					whereConditions.push(`${col} = ${sqlLiteral(filter.value)}`)
+					break
+				case 'neq':
+					whereConditions.push(`${col} != ${sqlLiteral(filter.value)}`)
+					break
+				case 'gt':
+					whereConditions.push(`${col} > ${sqlLiteral(filter.value)}`)
+					break
+				case 'gte':
+					whereConditions.push(`${col} >= ${sqlLiteral(filter.value)}`)
+					break
+				case 'lt':
+					whereConditions.push(`${col} < ${sqlLiteral(filter.value)}`)
+					break
+				case 'lte':
+					whereConditions.push(`${col} <= ${sqlLiteral(filter.value)}`)
+					break
+				case 'like':
+					whereConditions.push(`${col} LIKE ${sqlLiteral(filter.value)}`)
+					break
+				case 'notLike':
+					whereConditions.push(`${col} NOT LIKE ${sqlLiteral(filter.value)}`)
+					break
 				case 'in': {
 					const vals = (Array.isArray(filter.value) ? filter.value : [filter.value]).map(sqlLiteral)
 					whereConditions.push(`${col} IN (${vals.join(', ')})`)
@@ -311,8 +327,12 @@ export function buildReadableSelectQuery(
 					whereConditions.push(`${col} NOT IN (${vals.join(', ')})`)
 					break
 				}
-				case 'isNull': whereConditions.push(`${col} IS NULL`); break
-				case 'isNotNull': whereConditions.push(`${col} IS NOT NULL`); break
+				case 'isNull':
+					whereConditions.push(`${col} IS NULL`)
+					break
+				case 'isNotNull':
+					whereConditions.push(`${col} IS NOT NULL`)
+					break
 			}
 		}
 	}

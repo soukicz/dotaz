@@ -7,8 +7,8 @@ import X from 'lucide-solid/icons/x'
 import { createEffect, createSignal, For, on, Show } from 'solid-js'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
-import type { FkBreadcrumb } from '../../stores/grid'
 import { formatDisplayValue } from '../../lib/value-format'
+import type { FkBreadcrumb } from '../../stores/grid'
 import Resizer from '../layout/Resizer'
 import RowDetailEditFields from './RowDetailEditFields'
 import './RowDetailPanel.css'
@@ -59,13 +59,27 @@ interface RowDetailPanelProps {
 
 export default function RowDetailPanel(props: RowDetailPanelProps) {
 	const detail = useRowDetail({
-		get connectionId() { return props.connectionId },
-		get schema() { return props.schema },
-		get table() { return props.table },
-		get database() { return props.database },
-		get columns() { return props.columns },
-		get row() { return props.row },
-		get foreignKeys() { return props.foreignKeys },
+		get connectionId() {
+			return props.connectionId
+		},
+		get schema() {
+			return props.schema
+		},
+		get table() {
+			return props.table
+		},
+		get database() {
+			return props.database
+		},
+		get columns() {
+			return props.columns
+		},
+		get row() {
+			return props.row
+		},
+		get foreignKeys() {
+			return props.foreignKeys
+		},
 		onSave: props.onSave,
 	})
 

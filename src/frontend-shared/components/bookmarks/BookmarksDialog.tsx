@@ -320,7 +320,10 @@ export default function BookmarksDialog(props: BookmarksDialogProps) {
 							class="bookmarks-dialog__connection-filter"
 							value={connectionFilter()}
 							onChange={(v) => handleConnectionFilterChange(v)}
-							options={[{ value: '', label: 'Select connection' }, ...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name }))]}
+							options={[
+								{ value: '', label: 'Select connection' },
+								...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name })),
+							]}
 						/>
 						<button
 							class="bookmarks-dialog__add-btn"

@@ -1,10 +1,10 @@
 import Plus from 'lucide-solid/icons/plus'
 import X from 'lucide-solid/icons/x'
 import { createSignal, For, Show } from 'solid-js'
+import { getColumnCategory } from '../../../shared/column-types'
 import type { DatabaseDataType } from '../../../shared/types/database'
 import type { FilterOperator, GridColumnDef } from '../../../shared/types/grid'
 import type { RowColorRule } from '../../../shared/types/rpc'
-import { getColumnCategory } from '../../../shared/column-types'
 import Select from '../common/Select'
 import './RowColoringPanel.css'
 
@@ -91,7 +91,7 @@ export default function RowColoringPanel(props: RowColoringPanelProps) {
 
 	function handleValueKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
-			(e.currentTarget as HTMLInputElement).blur()
+			;(e.currentTarget as HTMLInputElement).blur()
 		}
 	}
 

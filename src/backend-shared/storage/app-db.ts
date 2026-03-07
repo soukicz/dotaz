@@ -194,19 +194,43 @@ export class AppDatabase {
 		return this.createConnectionWithId(id, params)
 	}
 
-	createConnectionWithId(id: string, params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
+	createConnectionWithId(
+		id: string,
+		params: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+	): ConnectionInfo {
 		const now = new Date().toISOString()
 		this.db.prepare(
 			'INSERT INTO connections (id, name, type, config, read_only, color, group_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-		).run(id, params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, params.groupName || null, now, now)
+		).run(
+			id,
+			params.name,
+			params.config.type,
+			this.encryptConfigJson(params.config),
+			params.readOnly ? 1 : 0,
+			params.color || null,
+			params.groupName || null,
+			now,
+			now,
+		)
 		return this.getConnectionById(id)!
 	}
 
-	updateConnection(params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }): ConnectionInfo {
+	updateConnection(
+		params: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+	): ConnectionInfo {
 		const now = new Date().toISOString()
 		this.db.prepare(
 			'UPDATE connections SET name = ?, type = ?, config = ?, read_only = ?, color = ?, group_name = ?, updated_at = ? WHERE id = ?',
-		).run(params.name, params.config.type, this.encryptConfigJson(params.config), params.readOnly ? 1 : 0, params.color || null, params.groupName !== undefined ? (params.groupName || null) : null, now, params.id)
+		).run(
+			params.name,
+			params.config.type,
+			this.encryptConfigJson(params.config),
+			params.readOnly ? 1 : 0,
+			params.color || null,
+			params.groupName !== undefined ? (params.groupName || null) : null,
+			now,
+			params.id,
+		)
 		const result = this.getConnectionById(params.id)
 		if (!result) throw new Error(`Connection not found: ${params.id}`)
 		return result
@@ -220,7 +244,9 @@ export class AppDatabase {
 	}
 
 	listConnectionGroups(): string[] {
-		const rows = this.db.prepare('SELECT DISTINCT group_name FROM connections WHERE group_name IS NOT NULL ORDER BY group_name').all() as { group_name: string }[]
+		const rows = this.db.prepare('SELECT DISTINCT group_name FROM connections WHERE group_name IS NOT NULL ORDER BY group_name').all() as {
+			group_name: string
+		}[]
 		return rows.map(r => r.group_name)
 	}
 

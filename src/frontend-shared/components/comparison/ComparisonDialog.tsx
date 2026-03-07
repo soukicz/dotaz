@@ -249,7 +249,10 @@ export default function ComparisonDialog(props: ComparisonDialogProps) {
 						class="comparison-dialog__select"
 						value={state().connectionId}
 						onChange={(v) => handleConnectionChange(side, v)}
-						options={[{ value: '', label: 'Select connection...' }, ...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name }))]}
+						options={[
+							{ value: '', label: 'Select connection...' },
+							...connectionsStore.connectedConnections.map((conn) => ({ value: conn.id, label: conn.name })),
+						]}
 					/>
 				</div>
 

@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, type Accessor } from 'solid-js'
+import { type Accessor, createEffect, createMemo, createSignal, on } from 'solid-js'
 import { buildCountQuery } from '../../../shared/sql'
 import type { ForeignKeyInfo, ReferencingForeignKeyInfo } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'

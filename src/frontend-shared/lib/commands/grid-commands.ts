@@ -1,7 +1,7 @@
-import { commandRegistry } from '../commands'
-import type { AppCommandActions } from '../app-commands'
 import { gridStore } from '../../stores/grid'
 import { tabsStore } from '../../stores/tabs'
+import type { AppCommandActions } from '../app-commands'
+import { commandRegistry } from '../commands'
 
 export function registerGridCommands(actions: AppCommandActions): void {
 	commandRegistry.register({

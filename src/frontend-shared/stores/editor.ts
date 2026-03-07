@@ -271,7 +271,14 @@ async function runQuery(tabId: string, sql: string, baseOffset = 0, applyLimit =
 	try {
 		// Resolve session (auto-pin if configured)
 		const sessionId = await sessionStore.resolveSessionForExecution(tabId, tab.connectionId, sql, tab.database)
-		const results = await rpc.query.execute({ connectionId: tab.connectionId, sql: executeSql, queryId, database: tab.database, sessionId, searchPath: tab.searchPath ?? undefined })
+		const results = await rpc.query.execute({
+			connectionId: tab.connectionId,
+			sql: executeSql,
+			queryId,
+			database: tab.database,
+			sessionId,
+			searchPath: tab.searchPath ?? undefined,
+		})
 
 		// Discard stale results if a newer query was started
 		if (state.tabs[tabId]?.queryId !== queryId) return

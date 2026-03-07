@@ -21,17 +21,10 @@ import { tabsStore } from '../../stores/tabs'
 import { uiStore } from '../../stores/ui'
 import { viewsStore } from '../../stores/views'
 import ContextMenu, { type ContextMenuEntry } from '../common/ContextMenu'
-import {
-	connectionMenuItems,
-	databaseMenuItems,
-	schemaMenuItems,
-	tableMenuItems,
-	viewMenuItems,
-	type TreeMenuCallbacks,
-} from './connectionTreeMenus'
 import Icon from '../common/Icon'
 import ConnectionTreeItem from './ConnectionTreeItem'
 import type { TreeItemAction } from './ConnectionTreeItem'
+import { connectionMenuItems, databaseMenuItems, schemaMenuItems, tableMenuItems, type TreeMenuCallbacks, viewMenuItems } from './connectionTreeMenus'
 import './ConnectionTree.css'
 
 interface ConnectionTreeProps {

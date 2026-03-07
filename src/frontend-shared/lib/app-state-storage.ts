@@ -6,7 +6,14 @@ import type { WorkspaceState } from '../../shared/types/workspace'
 export interface AppStateStorage {
 	// Connections
 	listConnections(): Promise<ConnectionInfo[]>
-	createConnection(name: string, config: ConnectionConfig, rememberPassword?: boolean, readOnly?: boolean, color?: string, groupName?: string): Promise<ConnectionInfo>
+	createConnection(
+		name: string,
+		config: ConnectionConfig,
+		rememberPassword?: boolean,
+		readOnly?: boolean,
+		color?: string,
+		groupName?: string,
+	): Promise<ConnectionInfo>
 	updateConnection(
 		id: string,
 		name: string,

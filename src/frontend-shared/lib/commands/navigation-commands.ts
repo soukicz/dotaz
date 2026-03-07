@@ -1,8 +1,8 @@
-import { commandRegistry } from '../commands'
-import { platformShortcut } from '../keyboard'
-import type { AppCommandActions } from '../app-commands'
 import { navigationStore } from '../../stores/navigation'
 import { tabsStore } from '../../stores/tabs'
+import type { AppCommandActions } from '../app-commands'
+import { commandRegistry } from '../commands'
+import { platformShortcut } from '../keyboard'
 
 export function registerNavigationCommands(actions: AppCommandActions): void {
 	commandRegistry.register({

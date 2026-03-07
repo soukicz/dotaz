@@ -17,11 +17,20 @@ export function createHandlers(adapter: RpcAdapter) {
 		'connections.list': () => {
 			return adapter.listConnections()
 		},
-		'connections.create': ({ name, config, readOnly, color, groupName }: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string }) => {
+		'connections.create': (
+			{ name, config, readOnly, color, groupName }: { name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+		) => {
 			return adapter.createConnection({ name, config, readOnly, color, groupName })
 		},
 		'connections.update': (
-			{ id, name, config, readOnly, color, groupName }: { id: string; name: string; config: ConnectionConfig; readOnly?: boolean; color?: string; groupName?: string },
+			{ id, name, config, readOnly, color, groupName }: {
+				id: string
+				name: string
+				config: ConnectionConfig
+				readOnly?: boolean
+				color?: string
+				groupName?: string
+			},
 		) => {
 			return adapter.updateConnection({ id, name, config, readOnly, color, groupName })
 		},

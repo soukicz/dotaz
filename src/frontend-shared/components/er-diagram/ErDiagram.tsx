@@ -56,9 +56,7 @@ export default function ErDiagram(props: ErDiagramProps) {
 	let panStart = { x: 0, y: 0 }
 	let panOrigin = { x: 0, y: 0 }
 
-	const schemaData = createMemo<SchemaData | undefined>(() =>
-		connectionsStore.getSchemaData(props.connectionId, props.database),
-	)
+	const schemaData = createMemo<SchemaData | undefined>(() => connectionsStore.getSchemaData(props.connectionId, props.database))
 
 	const tables = createMemo<TableInfo[]>(() => {
 		const data = schemaData()
@@ -520,8 +518,14 @@ export default function ErDiagram(props: ErDiagramProps) {
 									<div
 										class={`er-table${highlightedTables().has(node.id) ? ' highlighted' : ''}`}
 										style={{ left: `${node.x}px`, top: `${node.y}px`, width: `${node.width}px` }}
-										onClick={(e) => { e.stopPropagation(); handleTableClick(node) }}
-										onDblClick={(e) => { e.stopPropagation(); handleTableDblClick(node) }}
+										onClick={(e) => {
+											e.stopPropagation()
+											handleTableClick(node)
+										}}
+										onDblClick={(e) => {
+											e.stopPropagation()
+											handleTableDblClick(node)
+										}}
 									>
 										<div class="er-table__header">
 											<Icon name="table" size={14} class="er-table__header-icon" />
