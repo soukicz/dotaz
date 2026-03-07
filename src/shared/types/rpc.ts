@@ -1,4 +1,4 @@
-import type { ColumnFilter, SortColumn } from './grid'
+import type { ColumnFilter, FilterOperator, SortColumn } from './grid'
 
 // ---- Session types ----
 
@@ -51,12 +51,20 @@ export interface HistoryListParams {
 	endDate?: string
 }
 
+export interface RowColorRule {
+	column: string
+	operator: FilterOperator
+	value: unknown
+	color: string
+}
+
 export interface SavedViewConfig {
 	columns?: string[]
 	sort?: SortColumn[]
 	filters?: ColumnFilter[]
 	columnWidths?: Record<string, number>
 	customFilter?: string
+	rowColorRules?: RowColorRule[]
 }
 
 export interface SavedView {

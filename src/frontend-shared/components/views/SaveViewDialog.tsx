@@ -41,9 +41,9 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 		}
 	})
 
-	function configSummary(): { filters: number; sortRules: number; hiddenColumns: number } {
+	function configSummary(): { filters: number; sortRules: number; hiddenColumns: number; colorRules: number } {
 		const t = tab()
-		if (!t) return { filters: 0, sortRules: 0, hiddenColumns: 0 }
+		if (!t) return { filters: 0, sortRules: 0, hiddenColumns: 0, colorRules: 0 }
 		const hiddenCount = t.columns.filter(
 			(col) => t.columnConfig[col.name]?.visible === false,
 		).length
@@ -51,6 +51,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 			filters: t.filters.length,
 			sortRules: t.sort.length,
 			hiddenColumns: hiddenCount,
+			colorRules: t.rowColorRules.length,
 		}
 	}
 
@@ -140,7 +141,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 				<div class="save-view-dialog__summary">
 					{configSummary().filters} filter{configSummary().filters !== 1 ? 's' : ''}, {configSummary().sortRules}{' '}
 					sort rule{configSummary().sortRules !== 1 ? 's' : ''}, {configSummary().hiddenColumns}{' '}
-					hidden column{configSummary().hiddenColumns !== 1 ? 's' : ''}
+					hidden column{configSummary().hiddenColumns !== 1 ? 's' : ''}{configSummary().colorRules > 0 ? `, ${configSummary().colorRules} color rule${configSummary().colorRules !== 1 ? 's' : ''}` : ''}
 				</div>
 
 				<Show when={error()}>

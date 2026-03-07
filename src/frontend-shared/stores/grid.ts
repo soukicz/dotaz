@@ -2,7 +2,7 @@ import { createStore } from 'solid-js/store'
 import { buildCountQuery, buildQuickSearchClause, buildReadableSelectQuery, buildSelectQuery, generateChangesPreview, generateChangeSql } from '../../shared/sql'
 import type { ForeignKeyInfo } from '../../shared/types/database'
 import type { ColumnFilter, GridColumnDef, SortColumn } from '../../shared/types/grid'
-import type { DataChange, SavedViewConfig } from '../../shared/types/rpc'
+import type { DataChange, RowColorRule, SavedViewConfig } from '../../shared/types/rpc'
 import { DEFAULT_COLUMN_WIDTH } from '../lib/layout-constants'
 import { rpc } from '../lib/rpc'
 import { createTabHelpers } from '../lib/tab-store-helpers'
@@ -301,6 +301,8 @@ export interface TabGridState {
 	valueEditorOpen: boolean
 	valueEditorWidth: number
 	heatmapColumns: Record<string, HeatmapMode>
+	rowColorRules: RowColorRule[]
+	rowColoringEnabled: boolean
 }
 
 function createDefaultPendingChanges(): PendingChanges {
@@ -348,6 +350,8 @@ function createDefaultTabState(
 		valueEditorOpen: false,
 		valueEditorWidth: 350,
 		heatmapColumns: {},
+		rowColorRules: [],
+		rowColoringEnabled: true,
 	}
 }
 
@@ -1387,6 +1391,8 @@ async function applyViewConfig(tabId: string, config: SavedViewConfig) {
 		setState('tabs', tabId, 'columnOrder', config.columns)
 	}
 
+	setState('tabs', tabId, 'rowColorRules', config.rowColorRules ?? [])
+
 	setState('tabs', tabId, 'currentPage', 1)
 	setState('tabs', tabId, 'selection', createDefaultSelection())
 	await fetchData(tabId)
@@ -1400,6 +1406,7 @@ async function resetToDefault(tabId: string) {
 	setState('tabs', tabId, 'quickSearch', '')
 	setState('tabs', tabId, 'columnConfig', {})
 	setState('tabs', tabId, 'columnOrder', [])
+	setState('tabs', tabId, 'rowColorRules', [])
 	setState('tabs', tabId, 'activeViewId', null)
 	setState('tabs', tabId, 'activeViewName', null)
 	setState('tabs', tabId, 'currentPage', 1)
@@ -1441,6 +1448,11 @@ function isViewModified(tabId: string, savedConfig: SavedViewConfig): boolean {
 		if (visibleCols.join(',') !== savedConfig.columns.join(',')) return true
 	}
 
+	// Compare row color rules
+	const currentRules = JSON.stringify(tab.rowColorRules)
+	const savedRules = JSON.stringify(savedConfig.rowColorRules ?? [])
+	if (currentRules !== savedRules) return true
+
 	return false
 }
 
@@ -1460,6 +1472,7 @@ function captureViewConfig(tabId: string): SavedViewConfig {
 		filters: [...tab.filters],
 		columnWidths: Object.keys(columnWidths).length > 0 ? columnWidths : undefined,
 		customFilter: tab.customFilter || undefined,
+		rowColorRules: tab.rowColorRules.length > 0 ? [...tab.rowColorRules] : undefined,
 	}
 }
 
@@ -1485,6 +1498,71 @@ function setValueEditorWidth(tabId: string, width: number) {
 		'valueEditorWidth',
 		Math.min(800, Math.max(200, width)),
 	)
+}
+
+// ── Row coloring ─────────────────────────────────────────
+
+function setRowColorRules(tabId: string, rules: RowColorRule[]) {
+	ensureTab(tabId)
+	setState('tabs', tabId, 'rowColorRules', rules)
+}
+
+function toggleRowColoring(tabId: string) {
+	const tab = ensureTab(tabId)
+	setState('tabs', tabId, 'rowColoringEnabled', !tab.rowColoringEnabled)
+}
+
+function evaluateRowColor(row: Record<string, unknown>, rules: RowColorRule[]): string | undefined {
+	for (const rule of rules) {
+		const cellValue = row[rule.column]
+		if (matchesRule(cellValue, rule.operator, rule.value)) {
+			return rule.color
+		}
+	}
+	return undefined
+}
+
+function matchesRule(cellValue: unknown, operator: string, ruleValue: unknown): boolean {
+	if (operator === 'isNull') return cellValue == null
+	if (operator === 'isNotNull') return cellValue != null
+
+	if (cellValue == null) return false
+
+	const strCell = String(cellValue)
+	const strRule = String(ruleValue ?? '')
+
+	switch (operator) {
+		case 'eq':
+			return strCell === strRule
+		case 'neq':
+			return strCell !== strRule
+		case 'gt':
+			return Number(cellValue) > Number(ruleValue)
+		case 'gte':
+			return Number(cellValue) >= Number(ruleValue)
+		case 'lt':
+			return Number(cellValue) < Number(ruleValue)
+		case 'lte':
+			return Number(cellValue) <= Number(ruleValue)
+		case 'like': {
+			const pattern = strRule.replace(/%/g, '.*').replace(/_/g, '.')
+			return new RegExp(`^${pattern}$`, 'i').test(strCell)
+		}
+		case 'notLike': {
+			const pattern = strRule.replace(/%/g, '.*').replace(/_/g, '.')
+			return !new RegExp(`^${pattern}$`, 'i').test(strCell)
+		}
+		case 'in': {
+			const values = Array.isArray(ruleValue) ? ruleValue.map(String) : strRule.split(',').map((v) => v.trim())
+			return values.includes(strCell)
+		}
+		case 'notIn': {
+			const values = Array.isArray(ruleValue) ? ruleValue.map(String) : strRule.split(',').map((v) => v.trim())
+			return !values.includes(strCell)
+		}
+		default:
+			return false
+	}
 }
 
 function removeTab(tabId: string) {
@@ -1567,6 +1645,11 @@ export const gridStore = {
 	removeHeatmap: heatmapActions.removeHeatmap,
 	computeHeatmapStats,
 	computeHeatmapColor,
+
+	// Row coloring
+	setRowColorRules,
+	toggleRowColoring,
+	evaluateRowColor,
 
 	// Transpose
 	toggleTranspose,

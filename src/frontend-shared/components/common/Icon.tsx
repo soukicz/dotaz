@@ -21,6 +21,7 @@ import Info from 'lucide-solid/icons/info'
 import Key from 'lucide-solid/icons/key'
 import Layers from 'lucide-solid/icons/layers'
 import Link from 'lucide-solid/icons/link'
+import Paintbrush from 'lucide-solid/icons/paintbrush'
 import PanelLeft from 'lucide-solid/icons/panel-left'
 import Pencil from 'lucide-solid/icons/pencil'
 import Pin from 'lucide-solid/icons/pin'
@@ -95,6 +96,7 @@ export type IconName =
 	| 'bookmark'
 	| 'sparkles'
 	| 'er-diagram'
+	| 'palette'
 	| 'spinner'
 
 interface IconProps {
@@ -152,6 +154,7 @@ const ICON_MAP: Record<Exclude<IconName, 'spinner'>, LucideComponent> = {
 	bookmark: Bookmark,
 	sparkles: Sparkles,
 	'er-diagram': Workflow,
+	palette: Paintbrush,
 }
 
 export default function Icon(props: IconProps) {

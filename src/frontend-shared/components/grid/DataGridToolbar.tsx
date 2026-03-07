@@ -29,6 +29,8 @@ export interface DataGridToolbarProps {
 	onExportOpen: () => void
 	onImportOpen: () => void
 	sidePanelToggle: JSX.Element
+	rowColoringOpen: boolean
+	onToggleRowColoring: () => void
 }
 
 export default function DataGridToolbar(props: DataGridToolbarProps) {
@@ -328,6 +330,16 @@ export default function DataGridToolbar(props: DataGridToolbarProps) {
 											}}
 										>
 											<ArrowLeftRight size={12} /> Transpose
+										</button>
+										<button
+											class="data-grid__more-item"
+											classList={{ 'data-grid__more-item--active': props.rowColoringOpen }}
+											onClick={() => {
+												props.onToggleRowColoring()
+												setMoreMenuOpen(false)
+											}}
+										>
+											<Icon name="palette" size={12} /> Row Colors
 										</button>
 									</div>
 								</Show>

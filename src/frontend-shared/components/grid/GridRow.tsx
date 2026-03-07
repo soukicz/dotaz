@@ -31,6 +31,7 @@ interface GridRowProps {
 	onFkClick?: (column: string, anchorEl: HTMLElement) => void
 	onPkClick?: (column: string, anchorEl: HTMLElement) => void
 	onCellBrowseFk?: (column: string) => void
+	rowColor?: string
 }
 
 function getColumnWidth(col: string, config: Record<string, ColumnConfig>): number {
@@ -69,7 +70,10 @@ export default function GridRow(props: GridRowProps) {
 				'grid-row--new': !!props.isNewRow,
 			}}
 			data-row-index={props.index}
-			style={props.style}
+			style={{
+				...props.style,
+				...(props.rowColor ? { 'background-color': props.rowColor } : {}),
+			}}
 			onMouseDown={handleMouseDown}
 			onDblClick={handleDblClick}
 		>

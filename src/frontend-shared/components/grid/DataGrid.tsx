@@ -26,6 +26,7 @@ import DataGridContextMenu from './DataGridContextMenu'
 import type { DataGridSidePanelHandle } from './DataGridSidePanel'
 import DataGridSidePanel from './DataGridSidePanel'
 import DataGridToolbar from './DataGridToolbar'
+import RowColoringPanel from './RowColoringPanel'
 import GridHeader from './GridHeader'
 import Pagination from './Pagination'
 import PastePreviewDialog from './PastePreviewDialog'
@@ -56,6 +57,7 @@ export default function DataGrid(props: DataGridProps) {
 	const [savingChanges, setSavingChanges] = createSignal(false)
 	const [saveError, setSaveError] = createSignal<string | null>(null)
 	const [savedViewConfig, setSavedViewConfig] = createSignal<SavedViewConfig | null>(null)
+	const [rowColoringOpen, setRowColoringOpen] = createSignal(false)
 
 	let scrollRef: HTMLDivElement | undefined
 	let gridRef: HTMLDivElement | undefined
@@ -164,6 +166,14 @@ export default function DataGrid(props: DataGridProps) {
 		if (!t) return new Map()
 		return gridStore.computeHeatmapStats(t)
 	})
+
+	function getRowColor(rowIndex: number): string | undefined {
+		const t = tab()
+		if (!t || !t.rowColoringEnabled || t.rowColorRules.length === 0) return undefined
+		const row = t.rows[rowIndex]
+		if (!row) return undefined
+		return gridStore.evaluateRowColor(row, t.rowColorRules)
+	}
 
 	// Wait for the connection to be ready AND schema to be loaded before initial data load.
 	let didInitialLoad = false
@@ -419,6 +429,8 @@ export default function DataGrid(props: DataGridProps) {
 				onSaveViewOpen={(forceNew) => modals.openSaveView(forceNew)}
 				onExportOpen={() => modals.openExport()}
 				onImportOpen={() => modals.openImport()}
+				rowColoringOpen={rowColoringOpen()}
+				onToggleRowColoring={() => setRowColoringOpen(!rowColoringOpen())}
 				sidePanelToggle={
 					<button
 						class="data-grid__toolbar-btn"
@@ -439,6 +451,16 @@ export default function DataGrid(props: DataGridProps) {
 					</button>
 				}
 			/>
+
+			<Show when={rowColoringOpen() && tab()}>
+				<RowColoringPanel
+					columns={tab()!.columns}
+					rules={tab()!.rowColorRules}
+					enabled={tab()!.rowColoringEnabled}
+					onSetRules={(rules) => gridStore.setRowColorRules(props.tabId, rules)}
+					onToggle={() => gridStore.toggleRowColoring(props.tabId)}
+				/>
+			</Show>
 
 			<Show when={tab()}>
 				{(_tabAccessor) => {
@@ -572,6 +594,7 @@ export default function DataGrid(props: DataGridProps) {
 														isRowNew={(idx) => gridStore.isRowNew(props.tabId, idx)}
 														fkMap={fkState.map}
 														heatmapInfo={heatmapInfo()}
+														getRowColor={getRowColor}
 														onCellSave={cellEdit.handleCellSave}
 														onCellCancel={cellEdit.handleCellCancel}
 														onCellMoveNext={cellEdit.handleCellMoveNext}
