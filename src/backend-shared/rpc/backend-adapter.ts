@@ -368,6 +368,7 @@ export class BackendAdapter implements RpcAdapter {
 				filters: opts.filters,
 				sort: opts.sort,
 				limit: opts.limit,
+				autoJoins: opts.autoJoins,
 			},
 			opts.filePath,
 			undefined,
@@ -387,13 +388,14 @@ export class BackendAdapter implements RpcAdapter {
 			filters: req.filters,
 			sort: req.sort,
 			limit: req.limit,
+			autoJoins: req.autoJoins,
 		})
 	}
 
 	async exportPreviewRows(req: ExportRawPreviewRequest): Promise<ExportRawPreviewResponse> {
 		const driver = this.cm.getDriver(req.connectionId, req.database)
 		const { sql: baseSql, params: queryParams } = buildExportSelectQuery(
-			{ schema: req.schema, table: req.table, format: 'csv', columns: req.columns, filters: req.filters, sort: req.sort },
+			{ schema: req.schema, table: req.table, format: 'csv', columns: req.columns, filters: req.filters, sort: req.sort, autoJoins: req.autoJoins },
 			driver,
 		)
 		const paramIndex = queryParams.length + 1

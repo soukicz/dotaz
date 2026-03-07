@@ -4,7 +4,7 @@ import Eye from 'lucide-solid/icons/eye'
 import { createEffect, createMemo, createSignal, For, Show } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import type { CsvDelimiter, CsvEncoding, ExportFormat, ExportPreviewRequest } from '../../../shared/types/export'
-import type { ColumnFilter, SortColumn } from '../../../shared/types/grid'
+import type { AutoJoinDef, ColumnFilter, SortColumn } from '../../../shared/types/grid'
 import { getCapabilities } from '../../lib/capabilities'
 import { formatPreview } from '../../lib/export-formatters'
 import { rpc } from '../../lib/rpc'
@@ -195,6 +195,22 @@ export default function ExportDialog(props: ExportDialogProps) {
 		return undefined
 	}
 
+	function getExportAutoJoins(): AutoJoinDef[] | undefined {
+		const t = tab()
+		if (!t) return undefined
+		return t.autoJoins.length > 0 ? t.autoJoins : undefined
+	}
+
+	function getExportColumns(): string[] | undefined {
+		if (options.scope === 'selected') return selectedColumnNames()
+		// When autoJoins are active, pass explicit column names so joined columns are included
+		const t = tab()
+		if (t && t.autoJoins.length > 0) {
+			return t.columns.map((c) => c.name)
+		}
+		return undefined
+	}
+
 	async function loadPreview() {
 		setPreviewData({ rows: null, columns: [], loading: true })
 		setPhase({ status: 'idle' })
@@ -205,9 +221,10 @@ export default function ExportDialog(props: ExportDialogProps) {
 				schema: props.schema,
 				table: props.table,
 				limit: 10,
-				columns: options.scope === 'selected' ? selectedColumnNames() : undefined,
+				columns: getExportColumns(),
 				filters: getExportFilters(),
 				sort: getExportSort(),
+				autoJoins: getExportAutoJoins(),
 				database: props.database,
 			})
 			setPreviewData({ rows: result.rows, columns: result.columns, loading: false })
@@ -262,7 +279,7 @@ export default function ExportDialog(props: ExportDialogProps) {
 				table: props.table,
 				format: options.format,
 				filePath: exportFilePath ?? defaultName,
-				columns: options.scope === 'selected' ? selectedColumnNames() : undefined,
+				columns: getExportColumns(),
 				delimiter: options.format === 'csv' ? options.delimiter : undefined,
 				encoding: options.format === 'csv' ? options.encoding : undefined,
 				utf8Bom: options.format === 'csv' && options.encoding === 'utf-8' ? options.utf8Bom : undefined,
@@ -270,6 +287,7 @@ export default function ExportDialog(props: ExportDialogProps) {
 				batchSize: options.format === 'sql' ? options.batchSize : undefined,
 				filters: getExportFilters(),
 				sort: getExportSort(),
+				autoJoins: getExportAutoJoins(),
 				database: props.database,
 			})
 
@@ -309,7 +327,7 @@ export default function ExportDialog(props: ExportDialogProps) {
 					schema: props.schema,
 					table: props.table,
 					format: options.format,
-					columns: options.scope === 'selected' ? selectedColumnNames() : undefined,
+					columns: getExportColumns(),
 					delimiter: options.format === 'csv' ? options.delimiter : undefined,
 					encoding: options.format === 'csv' ? options.encoding : undefined,
 					utf8Bom: options.format === 'csv' && options.encoding === 'utf-8'
@@ -319,6 +337,7 @@ export default function ExportDialog(props: ExportDialogProps) {
 					batchSize: options.format === 'sql' ? options.batchSize : undefined,
 					filters: getExportFilters(),
 					sort: getExportSort(),
+					autoJoins: getExportAutoJoins(),
 				},
 			)
 
@@ -363,10 +382,11 @@ export default function ExportDialog(props: ExportDialogProps) {
 				table: props.table,
 				format: options.format,
 				limit: Number.MAX_SAFE_INTEGER,
-				columns: options.scope === 'selected' ? selectedColumnNames() : undefined,
+				columns: getExportColumns(),
 				delimiter: options.format === 'csv' ? options.delimiter : undefined,
 				filters: getExportFilters(),
 				sort: getExportSort(),
+				autoJoins: getExportAutoJoins(),
 				database: props.database,
 			}
 

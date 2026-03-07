@@ -1,6 +1,6 @@
 // Export types
 
-import type { ColumnFilter, SortColumn } from './grid'
+import type { AutoJoinDef, ColumnFilter, SortColumn } from './grid'
 
 export type ExportFormat = 'csv' | 'json' | 'sql' | 'markdown' | 'sql_update' | 'html' | 'xml'
 
@@ -35,6 +35,8 @@ export interface ExportOptions {
 	sort?: SortColumn[]
 	/** Limit rows to export (undefined = all) */
 	limit?: number
+	/** Auto-join definitions for expanding FK columns */
+	autoJoins?: AutoJoinDef[]
 }
 
 export interface ExportPreviewRequest {
@@ -53,6 +55,8 @@ export interface ExportPreviewRequest {
 	filters?: ColumnFilter[]
 	/** Active sort to apply */
 	sort?: SortColumn[]
+	/** Auto-join definitions */
+	autoJoins?: AutoJoinDef[]
 }
 
 export interface ExportRawPreviewRequest {
@@ -65,6 +69,7 @@ export interface ExportRawPreviewRequest {
 	columns?: string[]
 	filters?: ColumnFilter[]
 	sort?: SortColumn[]
+	autoJoins?: AutoJoinDef[]
 }
 
 export interface ExportRawPreviewResponse {

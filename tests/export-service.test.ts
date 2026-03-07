@@ -960,7 +960,7 @@ describe('XML export', () => {
 		expect(result.rowCount).toBe(3)
 		const content = await Bun.file(filePath).text()
 		expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>')
-		expect(content).toContain('<rows>')
+		expect(content).toContain('<rows xmlns:xsi=')
 		expect(content).toContain('</rows>')
 		expect(content).toContain('<row>')
 		expect(content).toContain('<id>1</id>')
@@ -1000,7 +1000,7 @@ describe('XML export', () => {
 		await exportToFile(driver, { ...baseParams, format: 'xml' }, filePath)
 
 		const content = await Bun.file(filePath).text()
-		expect(content).toContain('<rows>')
+		expect(content).toContain('<rows xmlns:xsi=')
 		expect(content).toContain('</rows>')
 	})
 
