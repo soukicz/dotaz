@@ -1,4 +1,6 @@
+import { createStore } from 'solid-js/store'
 import type { ComparisonColumnMapping, ComparisonSource } from '../../shared/types/comparison'
+import { tabsStore } from './tabs'
 
 export interface ComparisonTabParams {
 	left: ComparisonSource
@@ -7,17 +9,31 @@ export interface ComparisonTabParams {
 	columnMappings: ComparisonColumnMapping[]
 }
 
-/** Module-level storage for comparison parameters per tab. */
-const comparisonParams = new Map<string, ComparisonTabParams>()
+/**
+ * Reactive store for comparison parameters keyed by tab ID.
+ *
+ * Uses Solid.js createStore so that reads inside JSX (e.g. accessing params
+ * for a newly opened comparison tab) are properly tracked and will trigger
+ * re-renders if the value changes.
+ */
+const [params, setParams] = createStore<Record<string, ComparisonTabParams>>({})
 
-export function setComparisonParams(tabId: string, params: ComparisonTabParams): void {
-	comparisonParams.set(tabId, params)
+tabsStore.onTabClosed((tabId) => {
+	if (params[tabId]) {
+		setParams(tabId, undefined!)
+	}
+})
+
+function setComparisonParams(tabId: string, value: ComparisonTabParams): void {
+	setParams(tabId, value)
 }
 
-export function getComparisonParams(tabId: string): ComparisonTabParams | undefined {
-	return comparisonParams.get(tabId)
+function getComparisonParams(tabId: string): ComparisonTabParams | undefined {
+	return params[tabId]
 }
 
-export function removeComparisonParams(tabId: string): void {
-	comparisonParams.delete(tabId)
+function removeComparisonParams(tabId: string): void {
+	setParams(tabId, undefined!)
 }
+
+export { getComparisonParams, removeComparisonParams, setComparisonParams }
