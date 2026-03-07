@@ -5,13 +5,13 @@ import Trash2 from 'lucide-solid/icons/trash-2'
 import WrapText from 'lucide-solid/icons/wrap-text'
 import X from 'lucide-solid/icons/x'
 import { createEffect, createSignal, Match, on, Show, Switch } from 'solid-js'
-import { isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
+import { isSqlDefault, SQL_DEFAULT } from '../../../shared/types/database'
 import type { ColumnFilter, GridColumnDef } from '../../../shared/types/grid'
 import { getDataTypeLabel, isBooleanType, isJsonType } from '../../lib/column-types'
-import AggregatePanel from './AggregatePanel'
 import RowDetailPanel from '../edit/RowDetailPanel'
 import Resizer from '../layout/Resizer'
+import AggregatePanel from './AggregatePanel'
 import './SidePanel.css'
 
 // ── Types ─────────────────────────────────────────
@@ -20,10 +20,17 @@ export type SidePanelMode =
 	| { type: 'fk' }
 	| { type: 'row-detail'; rowIndex: number }
 	| { type: 'value'; rowIndex: number; column: GridColumnDef; value: unknown }
-	| { type: 'selection'; rowCount: number; rows: Record<string, unknown>[]; columns: GridColumnDef[] }
+	| {
+		type: 'selection'
+		rowCount: number
+		cellCount: number
+		fallbackToAll: boolean
+		rows: Record<string, unknown>[]
+		columns: GridColumnDef[]
+	}
 
 export interface SidePanelProps {
-	mode: SidePanelMode
+	mode: SidePanelMode | null
 	width: number
 	onResize: (delta: number) => void
 	onClose: () => void
@@ -44,11 +51,25 @@ export interface SidePanelProps {
 		canGoNext: boolean
 		onPrev: () => void
 		onNext: () => void
-		breadcrumbs: { schema: string; table: string; column: string; value: unknown }[]
+		breadcrumbs: {
+			schema: string
+			table: string
+			column: string
+			value: unknown
+		}[]
 		onBack: () => void
 		onSave: (changes: Record<string, unknown>) => Promise<void>
-		onFkNavigate: (schema: string, table: string, column: string, value: unknown) => void
-		onReferencingNavigate: (schema: string, table: string, filters: ColumnFilter[]) => void
+		onFkNavigate: (
+			schema: string,
+			table: string,
+			column: string,
+			value: unknown,
+		) => void
+		onReferencingNavigate: (
+			schema: string,
+			table: string,
+			filters: ColumnFilter[],
+		) => void
 		onOpenInTab: () => void
 		subtitle: string
 		onClose: () => void
@@ -73,7 +94,11 @@ export interface SidePanelProps {
 		onNext: () => void
 		onSave: (changes: Record<string, unknown>) => void
 		pendingChangedColumns: Set<string>
-		onReferencingNavigate: (schema: string, table: string, filters: ColumnFilter[]) => void
+		onReferencingNavigate: (
+			schema: string,
+			table: string,
+			filters: ColumnFilter[],
+		) => void
 		onOpenInTab: () => void
 		subtitle: string
 		onClose: () => void
@@ -160,10 +185,12 @@ function ValueViewer(props: {
 		return typeof props.value
 	}
 
-	createEffect(on(
-		() => [props.rowIndex, props.column.name] as const,
-		() => setIsEditing(false),
-	))
+	createEffect(
+		on(
+			() => [props.rowIndex, props.column.name] as const,
+			() => setIsEditing(false),
+		),
+	)
 
 	function startEditing() {
 		if (props.readOnly) return
@@ -184,20 +211,37 @@ function ValueViewer(props: {
 				props.onSave(parsed)
 				setIsEditing(false)
 				return
-			} catch { /* save as string */ }
+			} catch {
+				/* save as string */
+			}
 		}
 		if (isBooleanType(props.column.dataType)) {
 			const lower = raw.toLowerCase().trim()
-			if (lower === 'true' || lower === '1' || lower === 't') { props.onSave(true); setIsEditing(false); return }
-			if (lower === 'false' || lower === '0' || lower === 'f') { props.onSave(false); setIsEditing(false); return }
+			if (lower === 'true' || lower === '1' || lower === 't') {
+				props.onSave(true)
+				setIsEditing(false)
+				return
+			}
+			if (lower === 'false' || lower === '0' || lower === 'f') {
+				props.onSave(false)
+				setIsEditing(false)
+				return
+			}
 		}
 		props.onSave(raw)
 		setIsEditing(false)
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setIsEditing(false) }
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSave() }
+		if (e.key === 'Escape') {
+			e.preventDefault()
+			e.stopPropagation()
+			setIsEditing(false)
+		}
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+			e.preventDefault()
+			handleSave()
+		}
 	}
 
 	return (
@@ -205,7 +249,9 @@ function ValueViewer(props: {
 			<div class="side-panel__value-header">
 				<div class="side-panel__value-title">
 					<span class="side-panel__value-column">{props.column.name}</span>
-					<span class="side-panel__value-type">{getDataTypeLabel(props.column.dataType)}</span>
+					<span class="side-panel__value-type">
+						{getDataTypeLabel(props.column.dataType)}
+					</span>
 				</div>
 				<div class="side-panel__value-actions">
 					<button
@@ -217,7 +263,11 @@ function ValueViewer(props: {
 						<WrapText size={14} />
 					</button>
 					<Show when={props.onClose}>
-						<button class="side-panel__icon-btn" onClick={props.onClose} title="Close panel">
+						<button
+							class="side-panel__icon-btn"
+							onClick={props.onClose}
+							title="Close panel"
+						>
 							<X size={14} />
 						</button>
 					</Show>
@@ -244,10 +294,22 @@ function ValueViewer(props: {
 									<button class="side-panel__action-btn" onClick={startEditing}>
 										<Pencil size={12} /> Edit
 									</button>
-									<button class="side-panel__action-btn" onClick={() => { props.onSave(null); setIsEditing(false) }}>
+									<button
+										class="side-panel__action-btn"
+										onClick={() => {
+											props.onSave(null)
+											setIsEditing(false)
+										}}
+									>
 										NULL
 									</button>
-									<button class="side-panel__action-btn" onClick={() => { props.onSave(SQL_DEFAULT); setIsEditing(false) }}>
+									<button
+										class="side-panel__action-btn"
+										onClick={() => {
+											props.onSave(SQL_DEFAULT)
+											setIsEditing(false)
+										}}
+									>
 										DEFAULT
 									</button>
 								</div>
@@ -265,16 +327,34 @@ function ValueViewer(props: {
 						spellcheck={false}
 					/>
 					<div class="side-panel__value-edit-actions">
-						<button class="side-panel__action-btn side-panel__action-btn--primary" onClick={handleSave}>
+						<button
+							class="side-panel__action-btn side-panel__action-btn--primary"
+							onClick={handleSave}
+						>
 							Save
 						</button>
-						<button class="side-panel__action-btn" onClick={() => setIsEditing(false)}>
+						<button
+							class="side-panel__action-btn"
+							onClick={() => setIsEditing(false)}
+						>
 							Cancel
 						</button>
-						<button class="side-panel__action-btn" onClick={() => { props.onSave(null); setIsEditing(false) }}>
+						<button
+							class="side-panel__action-btn"
+							onClick={() => {
+								props.onSave(null)
+								setIsEditing(false)
+							}}
+						>
 							NULL
 						</button>
-						<button class="side-panel__action-btn" onClick={() => { props.onSave(SQL_DEFAULT); setIsEditing(false) }}>
+						<button
+							class="side-panel__action-btn"
+							onClick={() => {
+								props.onSave(SQL_DEFAULT)
+								setIsEditing(false)
+							}}
+						>
 							DEFAULT
 						</button>
 					</div>
@@ -297,6 +377,9 @@ function SelectionView(props: {
 	rows: Record<string, unknown>[]
 	columns: GridColumnDef[]
 	visibleColumns: GridColumnDef[]
+	rowCount: number
+	cellCount: number
+	fallbackToAll: boolean
 	readOnly: boolean
 	onDelete: () => void
 	onExport: () => void
@@ -307,9 +390,18 @@ function SelectionView(props: {
 		<div class="side-panel__selection">
 			<div class="side-panel__selection-header">
 				<Check size={14} />
-				<span>{props.rows.length} row{props.rows.length !== 1 ? 's' : ''} selected</span>
+				<span>
+					{props.fallbackToAll
+						? `${props.rowCount} row${props.rowCount !== 1 ? 's' : ''} in current table`
+						: `${props.rowCount} row${props.rowCount !== 1 ? 's' : ''}, ${props.cellCount} cell${props.cellCount !== 1 ? 's' : ''} selected`}
+				</span>
 				<Show when={props.onClose}>
-					<button class="side-panel__icon-btn" style={{ 'margin-left': 'auto' }} onClick={props.onClose} title="Close panel">
+					<button
+						class="side-panel__icon-btn"
+						style={{ 'margin-left': 'auto' }}
+						onClick={props.onClose}
+						title="Close panel"
+					>
 						<X size={14} />
 					</button>
 				</Show>
@@ -317,7 +409,10 @@ function SelectionView(props: {
 
 			<div class="side-panel__selection-actions">
 				<Show when={!props.readOnly}>
-					<button class="side-panel__selection-btn side-panel__selection-btn--danger" onClick={props.onDelete}>
+					<button
+						class="side-panel__selection-btn side-panel__selection-btn--danger"
+						onClick={props.onDelete}
+					>
 						<Trash2 size={13} /> Delete selected
 					</button>
 				</Show>
@@ -345,9 +440,12 @@ function SelectionView(props: {
 // ── Main SidePanel ────────────────────────────────
 
 export default function SidePanel(props: SidePanelProps) {
+	const valueMode = () => (props.mode?.type === 'value' ? props.mode : null)
+	const selectionMode = () => props.mode?.type === 'selection' ? props.mode : null
+
 	return (
 		<Switch>
-			<Match when={props.mode.type === 'fk' && props.fkPanel}>
+			<Match when={props.mode?.type === 'fk' && props.fkPanel}>
 				<RowDetailPanel
 					connectionId={props.fkPanel!.connectionId}
 					schema={props.fkPanel!.schema}
@@ -376,7 +474,7 @@ export default function SidePanel(props: SidePanelProps) {
 				/>
 			</Match>
 
-			<Match when={props.mode.type === 'row-detail' && props.rowDetail}>
+			<Match when={props.mode?.type === 'row-detail' && props.rowDetail}>
 				<RowDetailPanel
 					connectionId={props.rowDetail!.connectionId}
 					schema={props.rowDetail!.schema}
@@ -402,13 +500,13 @@ export default function SidePanel(props: SidePanelProps) {
 				/>
 			</Match>
 
-			<Match when={props.mode.type === 'value' && props.valueProps}>
+			<Match when={valueMode() && props.valueProps}>
 				<Resizer onResize={(delta) => props.onResize(-delta)} />
 				<div class="side-panel" style={{ width: `${props.width}px` }}>
 					<ValueViewer
-						column={(props.mode as any).column}
-						rowIndex={(props.mode as any).rowIndex}
-						value={(props.mode as any).value}
+						column={valueMode()!.column}
+						rowIndex={valueMode()!.rowIndex}
+						value={valueMode()!.value}
 						readOnly={props.valueProps!.readOnly}
 						onSave={props.valueProps!.onSave}
 						onClose={props.onClose}
@@ -416,13 +514,16 @@ export default function SidePanel(props: SidePanelProps) {
 				</div>
 			</Match>
 
-			<Match when={props.mode.type === 'selection' && props.selectionProps}>
+			<Match when={selectionMode() && props.selectionProps}>
 				<Resizer onResize={(delta) => props.onResize(-delta)} />
 				<div class="side-panel" style={{ width: `${props.width}px` }}>
 					<SelectionView
-						rows={(props.mode as any).rows}
-						columns={(props.mode as any).columns}
+						rows={selectionMode()!.rows}
+						columns={selectionMode()!.columns}
 						visibleColumns={props.selectionProps!.visibleColumns}
+						rowCount={selectionMode()!.rowCount}
+						cellCount={selectionMode()!.cellCount}
+						fallbackToAll={selectionMode()!.fallbackToAll}
 						readOnly={props.selectionProps!.readOnly}
 						onDelete={props.selectionProps!.onDelete}
 						onExport={props.selectionProps!.onExport}

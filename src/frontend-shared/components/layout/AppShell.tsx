@@ -4,8 +4,8 @@ import type { ConnectionInfo } from '../../../shared/types/connection'
 import type { SearchScope } from '../../../shared/types/rpc'
 import type { WorkspaceState, WorkspaceTab } from '../../../shared/types/workspace'
 import { commandRegistry } from '../../lib/commands'
-import { keyboardManager, platformShortcut } from '../../lib/keyboard'
 import type { ShortcutContext } from '../../lib/keyboard'
+import { keyboardManager, platformShortcut } from '../../lib/keyboard'
 import { friendlyErrorMessage, messages } from '../../lib/rpc'
 import { loadWorkspace, saveWorkspaceNow, scheduleWorkspaceSave, setWorkspaceStateCollector } from '../../lib/workspace'
 import { getComparisonParams, removeComparisonParams, setComparisonParams } from '../../stores/comparison'
@@ -20,8 +20,8 @@ import { uiStore } from '../../stores/ui'
 import BookmarksDialog from '../bookmarks/BookmarksDialog'
 import CommandPalette from '../common/CommandPalette'
 import Icon from '../common/Icon'
-import SettingsDialog from '../common/SettingsDialog'
 import type { SettingsSection } from '../common/SettingsDialog'
+import SettingsDialog from '../common/SettingsDialog'
 import TabSwitcher from '../common/TabSwitcher'
 import ToastContainer from '../common/Toast'
 import ComparisonDialog from '../comparison/ComparisonDialog'
@@ -44,8 +44,8 @@ import SchemaViewer from '../schema/SchemaViewer'
 import DatabaseSearchDialog from '../search/DatabaseSearchDialog'
 import Resizer from './Resizer'
 import Sidebar, { SidebarExpandButton } from './Sidebar'
-import TabBar from './TabBar'
 import type { TabStatus } from './TabBar'
+import TabBar from './TabBar'
 import './AppShell.css'
 
 // Clean up grid/editor/comparison/session/navigation state when tabs are closed
@@ -70,28 +70,49 @@ export default function AppShell() {
 	const [dbPickerConnection, setDbPickerConnection] = createSignal<ConnectionInfo | null>(null)
 	const [historyOpen, setHistoryOpen] = createSignal(false)
 	const [bookmarksOpen, setBookmarksOpen] = createSignal(false)
-	const [bookmarksInitialSql, setBookmarksInitialSql] = createSignal<string | undefined>(undefined)
-	const [bookmarksInitialConn, setBookmarksInitialConn] = createSignal<string | undefined>(undefined)
-	const [bookmarksInitialDb, setBookmarksInitialDb] = createSignal<string | undefined>(undefined)
+	const [bookmarksInitialSql, setBookmarksInitialSql] = createSignal<
+		string | undefined
+	>(undefined)
+	const [bookmarksInitialConn, setBookmarksInitialConn] = createSignal<
+		string | undefined
+	>(undefined)
+	const [bookmarksInitialDb, setBookmarksInitialDb] = createSignal<
+		string | undefined
+	>(undefined)
 	const [paletteOpen, setPaletteOpen] = createSignal(false)
 	const [tabSwitcherOpen, setTabSwitcherOpen] = createSignal(false)
 	const [compareOpen, setCompareOpen] = createSignal(false)
 	const [compareInitialLeft, setCompareInitialLeft] = createSignal<
-		{ connectionId: string; schema: string; table: string; database?: string } | undefined
+		| { connectionId: string; schema: string; table: string; database?: string }
+		| undefined
 	>(undefined)
 	const [searchOpen, setSearchOpen] = createSignal(false)
-	const [searchInitialConn, setSearchInitialConn] = createSignal<string | undefined>(undefined)
-	const [searchInitialScope, setSearchInitialScope] = createSignal<SearchScope | undefined>(undefined)
-	const [searchInitialSchema, setSearchInitialSchema] = createSignal<string | undefined>(undefined)
-	const [searchInitialTable, setSearchInitialTable] = createSignal<string | undefined>(undefined)
-	const [searchInitialDatabase, setSearchInitialDatabase] = createSignal<string | undefined>(undefined)
+	const [searchInitialConn, setSearchInitialConn] = createSignal<
+		string | undefined
+	>(undefined)
+	const [searchInitialScope, setSearchInitialScope] = createSignal<
+		SearchScope | undefined
+	>(undefined)
+	const [searchInitialSchema, setSearchInitialSchema] = createSignal<
+		string | undefined
+	>(undefined)
+	const [searchInitialTable, setSearchInitialTable] = createSignal<
+		string | undefined
+	>(undefined)
+	const [searchInitialDatabase, setSearchInitialDatabase] = createSignal<
+		string | undefined
+	>(undefined)
 	const [settingsOpen, setSettingsOpen] = createSignal(false)
 	const [settingsSection, setSettingsSection] = createSignal<SettingsSection>('data-format')
 	const [txLogOpen, setTxLogOpen] = createSignal(false)
 	const [txWarningOpen, setTxWarningOpen] = createSignal(false)
 	const [txWarningTabId, setTxWarningTabId] = createSignal<string | null>(null)
-	const [txWarningContext, setTxWarningContext] = createSignal<'close' | 'disconnect'>('close')
-	const [txWarningConnectionId, setTxWarningConnectionId] = createSignal<string | null>(null)
+	const [txWarningContext, setTxWarningContext] = createSignal<
+		'close' | 'disconnect'
+	>('close')
+	const [txWarningConnectionId, setTxWarningConnectionId] = createSignal<
+		string | null
+	>(null)
 
 	function handleResize(deltaX: number) {
 		setSidebarWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + deltaX)))
@@ -145,13 +166,15 @@ export default function AppShell() {
 	}
 
 	function handleOpenSearch(e: Event) {
-		const detail = (e as CustomEvent).detail as {
-			connectionId?: string
-			scope?: SearchScope
-			schema?: string
-			table?: string
-			database?: string
-		} | undefined
+		const detail = (e as CustomEvent).detail as
+			| {
+				connectionId?: string
+				scope?: SearchScope
+				schema?: string
+				table?: string
+				database?: string
+			}
+			| undefined
 		setSearchInitialConn(detail?.connectionId)
 		setSearchInitialScope(detail?.scope)
 		setSearchInitialSchema(detail?.schema)
@@ -215,11 +238,22 @@ export default function AppShell() {
 	// ── Global error handlers ─────────────────────────────
 	function handleUnhandledError(event: ErrorEvent) {
 		event.preventDefault()
-		uiStore.addToast('error', friendlyErrorMessage(event.error ?? event.message))
+		console.error('Unhandled window error', {
+			message: event.message,
+			filename: event.filename,
+			lineno: event.lineno,
+			colno: event.colno,
+			error: event.error,
+		})
+		uiStore.addToast(
+			'error',
+			friendlyErrorMessage(event.error ?? event.message),
+		)
 	}
 
 	function handleUnhandledRejection(event: PromiseRejectionEvent) {
 		event.preventDefault()
+		console.error('Unhandled promise rejection', event.reason)
 		uiStore.addToast('error', friendlyErrorMessage(event.reason))
 	}
 
@@ -259,7 +293,10 @@ export default function AppShell() {
 			}
 			if (event.transactionLost) {
 				editorStore.resetTransactionStateForConnection(event.connectionId)
-				uiStore.addToast('warning', 'Connection was lost. Active transactions have been discarded.')
+				uiStore.addToast(
+					'warning',
+					'Connection was lost. Active transactions have been discarded.',
+				)
 			}
 		})
 
@@ -298,7 +335,10 @@ export default function AppShell() {
 		// Transaction warning on disconnect
 		connectionsStore.setBeforeDisconnectHook((connectionId) => {
 			for (const openTab of tabsStore.openTabs) {
-				if (openTab.connectionId === connectionId && openTab.type === 'sql-console') {
+				if (
+					openTab.connectionId === connectionId
+					&& openTab.type === 'sql-console'
+				) {
 					const editorTab = editorStore.getTab(openTab.id)
 					if (editorTab?.inTransaction) {
 						setTxWarningTabId(openTab.id)
@@ -384,7 +424,9 @@ export default function AppShell() {
 		const workspace = await loadWorkspace()
 		if (!workspace || workspace.tabs.length === 0) return
 
-		const connectionIds = new Set(connectionsStore.connections.map((c) => c.id))
+		const connectionIds = new Set(
+			connectionsStore.connections.map((c) => c.id),
+		)
 		const tabConnectionIds = new Set<string>()
 
 		// Collect which connections are needed and start reconnecting immediately
@@ -437,7 +479,9 @@ export default function AppShell() {
 
 		// Restore active tab
 		if (workspace.activeTabId) {
-			const exists = tabsStore.openTabs.some((t) => t.id === workspace.activeTabId)
+			const exists = tabsStore.openTabs.some(
+				(t) => t.id === workspace.activeTabId,
+			)
 			if (exists) {
 				tabsStore.setActiveTab(workspace.activeTabId)
 			}
@@ -609,7 +653,9 @@ export default function AppShell() {
 				const tab = tabsStore.activeTab
 				setBookmarksInitialSql(undefined)
 				setBookmarksInitialConn(tab?.connectionId)
-				setBookmarksInitialDb(tab?.type === 'sql-console' ? tab.database : undefined)
+				setBookmarksInitialDb(
+					tab?.type === 'sql-console' ? tab.database : undefined,
+				)
 				setBookmarksOpen(true)
 			},
 		})
@@ -708,7 +754,9 @@ export default function AppShell() {
 				// Dispatched as custom event so DataGrid (which owns the save dialog) can handle it
 				const tab = tabsStore.activeTab
 				if (tab?.type === 'data-grid') {
-					window.dispatchEvent(new CustomEvent('dotaz:save-view', { detail: { tabId: tab.id } }))
+					window.dispatchEvent(
+						new CustomEvent('dotaz:save-view', { detail: { tabId: tab.id } }),
+					)
 				}
 			},
 		})
@@ -843,7 +891,9 @@ export default function AppShell() {
 			shortcut: 'Ctrl+=',
 			handler: () => {
 				const current = parseFloat(document.documentElement.style.zoom || '1')
-				document.documentElement.style.zoom = String(Math.min(current + 0.1, 2))
+				document.documentElement.style.zoom = String(
+					Math.min(current + 0.1, 2),
+				)
 			},
 		})
 
@@ -854,7 +904,9 @@ export default function AppShell() {
 			shortcut: 'Ctrl+-',
 			handler: () => {
 				const current = parseFloat(document.documentElement.style.zoom || '1')
-				document.documentElement.style.zoom = String(Math.max(current - 0.1, 0.5))
+				document.documentElement.style.zoom = String(
+					Math.max(current - 0.1, 0.5),
+				)
 			},
 		})
 
@@ -938,7 +990,15 @@ export default function AppShell() {
 		keyboardManager.register('Ctrl+B', 'toggle-sidebar')
 
 		// Platform-aware shortcuts (Ctrl-based in desktop, Alt-based in browser)
-		for (const cmdId of ['new-sql-console', 'close-tab', 'next-tab', 'prev-tab', 'tab-switcher'] as const) {
+		for (
+			const cmdId of [
+				'new-sql-console',
+				'close-tab',
+				'next-tab',
+				'prev-tab',
+				'tab-switcher',
+			] as const
+		) {
 			keyboardManager.register(platformShortcut(cmdId), cmdId)
 		}
 		keyboardManager.register('Ctrl+Shift+L', 'focus-navigator-filter')
@@ -949,8 +1009,16 @@ export default function AppShell() {
 		keyboardManager.register('Ctrl+Enter', 'run-query', 'sql-console')
 		keyboardManager.register('Ctrl+Shift+F', 'format-sql', 'sql-console')
 		keyboardManager.register('Ctrl+D', 'bookmark-query', 'sql-console')
-		keyboardManager.register('Ctrl+Shift+Enter', 'commit-transaction', 'sql-console')
-		keyboardManager.register('Ctrl+Shift+R', 'rollback-transaction', 'sql-console')
+		keyboardManager.register(
+			'Ctrl+Shift+Enter',
+			'commit-transaction',
+			'sql-console',
+		)
+		keyboardManager.register(
+			'Ctrl+Shift+R',
+			'rollback-transaction',
+			'sql-console',
+		)
 		keyboardManager.register('Ctrl+G', 'ai-generate-sql', 'sql-console')
 
 		// Data grid context
@@ -959,7 +1027,11 @@ export default function AppShell() {
 		keyboardManager.register('Delete', 'delete-rows', 'data-grid')
 		keyboardManager.register('Ctrl+S', 'save-view', 'data-grid')
 		keyboardManager.register('Ctrl+Shift+T', 'toggle-transpose', 'data-grid')
-		keyboardManager.register('Ctrl+Shift+E', 'toggle-value-editor', 'data-grid')
+		keyboardManager.register(
+			'Ctrl+Shift+E',
+			'toggle-value-editor',
+			'data-grid',
+		)
 	}
 
 	return (
@@ -979,7 +1051,11 @@ export default function AppShell() {
 						setSettingsOpen(true)
 					}}
 				>
-					<ConnectionTree onAddConnection={openAddConnectionDialog} onEditConnection={openEditConnectionDialog} onManageDatabases={openManageDatabases} />
+					<ConnectionTree
+						onAddConnection={openAddConnectionDialog}
+						onEditConnection={openEditConnectionDialog}
+						onManageDatabases={openManageDatabases}
+					/>
 				</Sidebar>
 
 				<Show when={!sidebarCollapsed()}>
@@ -1006,10 +1082,14 @@ export default function AppShell() {
 								}
 							}
 							for (const tab of tabsStore.openTabs) {
-								const conn = connectionsStore.connections.find(c => c.id === tab.connectionId)
+								const conn = connectionsStore.connections.find(
+									(c) => c.id === tab.connectionId,
+								)
 								const status: TabStatus = {}
 								if (conn?.color) status.color = conn.color
-								if (connectionsStore.isReadOnly(tab.connectionId)) status.readOnly = true
+								if (connectionsStore.isReadOnly(tab.connectionId)) {
+									status.readOnly = true
+								}
 								if (connTx.has(tab.connectionId)) status.inTransaction = true
 								if (status.color || status.readOnly || status.inTransaction) {
 									map.set(tab.id, status)
@@ -1032,7 +1112,10 @@ export default function AppShell() {
 								<p class="welcome-screen__subtitle">
 									Open a connection and select a table to get started.
 								</p>
-								<button class="btn btn--primary welcome-screen__cta" onClick={openAddConnectionDialog}>
+								<button
+									class="btn btn--primary welcome-screen__cta"
+									onClick={openAddConnectionDialog}
+								>
 									Add Connection
 								</button>
 							</div>
