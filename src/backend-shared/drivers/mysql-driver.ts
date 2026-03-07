@@ -62,6 +62,15 @@ interface MysqlTableRow {
 	table_type: string
 }
 
+interface SessionState {
+	conn: ReservedSQL
+	txActive: boolean
+	activeQuery: ReturnType<SQL['unsafe']> | null
+}
+
+/** Internal session ID used for backward-compatible beginTransaction() without sessionId */
+const DEFAULT_SESSION = '__default__'
+
 /** Map MySQL information_schema data_type to DatabaseDataType. */
 function mapMysqlDataType(dataType: string): DatabaseDataType {
 	switch (dataType.toLowerCase()) {
@@ -118,10 +127,8 @@ function mapMysqlDataType(dataType: string): DatabaseDataType {
 export class MysqlDriver implements DatabaseDriver {
 	private db: SQL | null = null
 	private connected = false
-	private txActive = false
-	private reservedConn: ReservedSQL | null = null
-	private activeQuery: ReturnType<SQL['unsafe']> | null = null
-	private sessionIds = new Set<string>()
+	private sessions = new Map<string, SessionState>()
+	private poolActiveQuery: ReturnType<SQL['unsafe']> | null = null
 
 	async connect(config: ConnectionConfig): Promise<void> {
 		if (config.type !== 'mysql') {
@@ -144,16 +151,21 @@ export class MysqlDriver implements DatabaseDriver {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.reservedConn) {
-			this.reservedConn.release()
-			this.reservedConn = null
+		// Release all sessions
+		for (const [, session] of this.sessions) {
+			if (session.txActive) {
+				try {
+					await session.conn.unsafe('ROLLBACK')
+				} catch { /* ignore */ }
+			}
+			session.conn.release()
 		}
+		this.sessions.clear()
+
 		if (this.db) {
 			await this.db.close()
 			this.db = null
 			this.connected = false
-			this.txActive = false
-			this.sessionIds.clear()
 		}
 	}
 
@@ -162,23 +174,43 @@ export class MysqlDriver implements DatabaseDriver {
 	}
 
 	async reserveSession(sessionId: string): Promise<void> {
-		this.sessionIds.add(sessionId)
+		this.ensureConnected()
+		if (this.sessions.has(sessionId)) {
+			throw new Error(`Session "${sessionId}" already exists`)
+		}
+		const conn = await this.db!.reserve()
+		this.sessions.set(sessionId, { conn, txActive: false, activeQuery: null })
 	}
 
 	async releaseSession(sessionId: string): Promise<void> {
-		this.sessionIds.delete(sessionId)
+		const session = this.sessions.get(sessionId)
+		if (!session) {
+			throw new Error(`Session "${sessionId}" not found`)
+		}
+		if (session.txActive) {
+			try {
+				await session.conn.unsafe('ROLLBACK')
+			} catch { /* ignore */ }
+		}
+		session.conn.release()
+		this.sessions.delete(sessionId)
 	}
 
 	getSessionIds(): string[] {
-		return [...this.sessionIds]
+		return [...this.sessions.keys()].filter((id) => id !== DEFAULT_SESSION)
 	}
 
-	async execute(sql: string, params?: unknown[], _sessionId?: string): Promise<QueryResult> {
+	async execute(sql: string, params?: unknown[], sessionId?: string): Promise<QueryResult> {
 		this.ensureConnected()
-		const conn = this.reservedConn ?? this.db!
+		const session = this.resolveSession(sessionId)
+		const conn = session ? session.conn : this.db!
 		const start = performance.now()
 		const query = conn.unsafe(sql, params ?? [])
-		this.activeQuery = query
+		if (session) {
+			session.activeQuery = query
+		} else {
+			this.poolActiveQuery = query
+		}
 		try {
 			const result = await query
 			const durationMs = Math.round(performance.now() - start)
@@ -201,20 +233,33 @@ export class MysqlDriver implements DatabaseDriver {
 		} catch (err) {
 			throw err instanceof DatabaseError ? err : mapMysqlError(err)
 		} finally {
-			this.activeQuery = null
+			if (session) {
+				session.activeQuery = null
+			} else {
+				this.poolActiveQuery = null
+			}
 		}
 	}
 
-	async cancel(_sessionId?: string): Promise<void> {
-		if (this.activeQuery) {
-			this.activeQuery.cancel()
-			this.activeQuery = null
+	async cancel(sessionId?: string): Promise<void> {
+		if (sessionId) {
+			const session = this.sessions.get(sessionId)
+			if (session?.activeQuery) {
+				session.activeQuery.cancel()
+				session.activeQuery = null
+			}
+		} else {
+			if (this.poolActiveQuery) {
+				this.poolActiveQuery.cancel()
+				this.poolActiveQuery = null
+			}
 		}
 	}
 
-	async loadSchema(_sessionId?: string): Promise<SchemaData> {
+	async loadSchema(sessionId?: string): Promise<SchemaData> {
 		this.ensureConnected()
-		const conn = this.reservedConn ?? this.db!
+		const session = this.resolveSession(sessionId)
+		const conn = session ? session.conn : this.db!
 
 		const schemas = await this.getSchemas()
 		const schemaNames = schemas.map((s) => s.name)
@@ -382,14 +427,14 @@ export class MysqlDriver implements DatabaseDriver {
 
 	private async getSchemas(): Promise<SchemaInfo[]> {
 		this.ensureConnected()
-		const conn = this.reservedConn ?? this.db!
+		const conn = this.db!
 		const rows = await conn.unsafe('SELECT DATABASE() AS name')
 		return [...rows] as SchemaInfo[]
 	}
 
 	private async getTables(schema: string): Promise<TableInfo[]> {
 		this.ensureConnected()
-		const conn = this.reservedConn ?? this.db!
+		const conn = this.db!
 		const rows = await conn.unsafe(
 			`SELECT table_name AS name, table_type
 			FROM information_schema.tables
@@ -409,16 +454,17 @@ export class MysqlDriver implements DatabaseDriver {
 		params?: unknown[],
 		batchSize = 1000,
 		signal?: AbortSignal,
-		_sessionId?: string,
+		sessionId?: string,
 	): AsyncGenerator<Record<string, unknown>[]> {
 		this.ensureConnected()
+		const session = this.resolveSession(sessionId)
+		const conn = session ? session.conn : this.db!
 		let offset = 0
 		while (true) {
 			if (signal?.aborted) {
 				throw new DOMException('Aborted', 'AbortError')
 			}
 			const pagedSql = `${sql} LIMIT ? OFFSET ?`
-			const conn = this.reservedConn ?? this.db!
 			const result = await conn.unsafe(pagedSql, [...(params ?? []), batchSize, offset])
 			const rows = [...result] as Record<string, unknown>[]
 			if (rows.length === 0) break
@@ -432,7 +478,7 @@ export class MysqlDriver implements DatabaseDriver {
 		qualifiedTable: string,
 		columns: string[],
 		rows: Record<string, unknown>[],
-		_sessionId?: string,
+		sessionId?: string,
 	): Promise<number> {
 		this.ensureConnected()
 		if (rows.length === 0) return 0
@@ -448,47 +494,62 @@ export class MysqlDriver implements DatabaseDriver {
 			valueTuples.push(`(${placeholders.join(', ')})`)
 		}
 		const sql = `INSERT INTO ${qualifiedTable} (${quotedCols}) VALUES ${valueTuples.join(', ')}`
-		const result = await this.execute(sql, allParams)
+		const result = await this.execute(sql, allParams, sessionId)
 		return result.affectedRows ?? rows.length
 	}
 
-	async beginTransaction(_sessionId?: string): Promise<void> {
+	async beginTransaction(sessionId?: string): Promise<void> {
 		this.ensureConnected()
-		const conn = await this.db!.reserve()
-		try {
-			await conn.unsafe('START TRANSACTION')
-		} catch (err) {
-			conn.release()
-			throw err
+		if (sessionId) {
+			const session = this.sessions.get(sessionId)
+			if (!session) throw new Error(`Session "${sessionId}" not found`)
+			await session.conn.unsafe('START TRANSACTION')
+			session.txActive = true
+		} else {
+			// Backward compat: reserve into __default__ session
+			const conn = await this.db!.reserve()
+			try {
+				await conn.unsafe('START TRANSACTION')
+			} catch (err) {
+				conn.release()
+				throw err
+			}
+			this.sessions.set(DEFAULT_SESSION, { conn, txActive: true, activeQuery: null })
 		}
-		this.reservedConn = conn
-		this.txActive = true
 	}
 
-	async commit(_sessionId?: string): Promise<void> {
+	async commit(sessionId?: string): Promise<void> {
 		this.ensureConnected()
-		if (!this.reservedConn) {
-			throw new Error('No active transaction')
+		const id = sessionId ?? DEFAULT_SESSION
+		const session = this.sessions.get(id)
+		if (!session) throw new Error('No active transaction')
+		await session.conn.unsafe('COMMIT')
+		session.txActive = false
+		// If __default__ session, release it after commit
+		if (id === DEFAULT_SESSION) {
+			session.conn.release()
+			this.sessions.delete(DEFAULT_SESSION)
 		}
-		await this.reservedConn.unsafe('COMMIT')
-		this.reservedConn.release()
-		this.reservedConn = null
-		this.txActive = false
 	}
 
-	async rollback(_sessionId?: string): Promise<void> {
+	async rollback(sessionId?: string): Promise<void> {
 		this.ensureConnected()
-		if (!this.reservedConn) {
-			throw new Error('No active transaction')
+		const id = sessionId ?? DEFAULT_SESSION
+		const session = this.sessions.get(id)
+		if (!session) throw new Error('No active transaction')
+		await session.conn.unsafe('ROLLBACK')
+		session.txActive = false
+		// If __default__ session, release it after rollback
+		if (id === DEFAULT_SESSION) {
+			session.conn.release()
+			this.sessions.delete(DEFAULT_SESSION)
 		}
-		await this.reservedConn.unsafe('ROLLBACK')
-		this.reservedConn.release()
-		this.reservedConn = null
-		this.txActive = false
 	}
 
-	inTransaction(_sessionId?: string): boolean {
-		return this.txActive
+	inTransaction(sessionId?: string): boolean {
+		const id = sessionId ?? DEFAULT_SESSION
+		const session = this.sessions.get(id)
+		return session?.txActive ?? false
 	}
 
 	getDriverType(): 'mysql' {
@@ -515,5 +576,15 @@ export class MysqlDriver implements DatabaseDriver {
 		if (!this.db || !this.connected) {
 			throw new Error('Not connected. Call connect() first.')
 		}
+	}
+
+	private resolveSession(sessionId?: string): SessionState | undefined {
+		if (!sessionId) {
+			// Check for __default__ session (backward compat for tx without sessionId)
+			return this.sessions.get(DEFAULT_SESSION)
+		}
+		const session = this.sessions.get(sessionId)
+		if (!session) throw new Error(`Session "${sessionId}" not found`)
+		return session
 	}
 }

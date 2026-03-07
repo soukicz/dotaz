@@ -45,27 +45,33 @@ export async function importFromStream(
 		batchSize,
 	}
 
-	await driver.beginTransaction()
+	// Reserve an ephemeral session so the import transaction doesn't
+	// conflict with other transactions on the same driver.
+	const sessionId = `__import_${crypto.randomUUID()}`
+	await driver.reserveSession(sessionId)
 	try {
+		await driver.beginTransaction(sessionId)
 		let totalInserted = 0
 
 		for await (const { rows } of parseCsvStream(stream, csvOptions)) {
 			if (signal?.aborted) throw new Error('Import cancelled')
 			const mappedRows = rows.map((row) => mapRow(row, activeMappings))
-			await driver.importBatch(qualifiedTable, columns, mappedRows)
+			await driver.importBatch(qualifiedTable, columns, mappedRows, sessionId)
 			totalInserted += rows.length
 			onProgress?.(totalInserted)
 		}
 
-		await driver.commit()
+		await driver.commit(sessionId)
 		return { rowCount: totalInserted }
 	} catch (err) {
 		try {
-			await driver.rollback()
+			await driver.rollback(sessionId)
 		} catch (rbErr) {
 			console.debug('Rollback after import error failed:', rbErr instanceof Error ? rbErr.message : rbErr)
 		}
 		throw err
+	} finally {
+		await driver.releaseSession(sessionId)
 	}
 }
 
@@ -126,28 +132,32 @@ async function importJsonFromStream(
 	const columns = activeMappings.map((m) => m.tableColumn!)
 	const batchSize = params.batchSize ?? DEFAULT_BATCH_SIZE
 
-	await driver.beginTransaction()
+	const sessionId = `__import_${crypto.randomUUID()}`
+	await driver.reserveSession(sessionId)
 	try {
+		await driver.beginTransaction(sessionId)
 		let totalInserted = 0
 
 		for (let offset = 0; offset < rows.length; offset += batchSize) {
 			if (signal?.aborted) throw new Error('Import cancelled')
 			const batch = rows.slice(offset, offset + batchSize)
 			const mappedRows = batch.map((row) => mapRow(row, activeMappings))
-			await driver.importBatch(qualifiedTable, columns, mappedRows)
+			await driver.importBatch(qualifiedTable, columns, mappedRows, sessionId)
 			totalInserted += batch.length
 			onProgress?.(totalInserted)
 		}
 
-		await driver.commit()
+		await driver.commit(sessionId)
 		return { rowCount: totalInserted }
 	} catch (err) {
 		try {
-			await driver.rollback()
+			await driver.rollback(sessionId)
 		} catch (rbErr) {
 			console.debug('Rollback after import error failed:', rbErr instanceof Error ? rbErr.message : rbErr)
 		}
 		throw err
+	} finally {
+		await driver.releaseSession(sessionId)
 	}
 }
 

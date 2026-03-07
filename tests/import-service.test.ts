@@ -22,6 +22,8 @@ function mockDriver(type: 'postgresql' | 'sqlite' = 'postgresql'): DatabaseDrive
 	return {
 		importBatchCalls,
 		execute: mock(async () => ({ columns: [], rows: [], rowCount: 0, durationMs: 0 })),
+		reserveSession: mock(async () => {}),
+		releaseSession: mock(async () => {}),
 		quoteIdentifier,
 		getDriverType: () => type,
 		qualifyTable: (schema: string, table: string) => {
