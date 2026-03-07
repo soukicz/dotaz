@@ -1,3 +1,23 @@
+import ArrowDown from 'lucide-solid/icons/arrow-down'
+import ArrowUp from 'lucide-solid/icons/arrow-up'
+import ClipboardCopy from 'lucide-solid/icons/clipboard-copy'
+import ClipboardPaste from 'lucide-solid/icons/clipboard-paste'
+import Copy from 'lucide-solid/icons/copy'
+import CopyPlus from 'lucide-solid/icons/copy-plus'
+import ExternalLink from 'lucide-solid/icons/external-link'
+import EyeOff from 'lucide-solid/icons/eye-off'
+import FilterIcon from 'lucide-solid/icons/funnel'
+import FilterXIcon from 'lucide-solid/icons/funnel-x'
+import Link from 'lucide-solid/icons/link'
+import PanelRight from 'lucide-solid/icons/panel-right'
+import PanelRightOpen from 'lucide-solid/icons/panel-right-open'
+import Pencil from 'lucide-solid/icons/pencil'
+import PinLeft from 'lucide-solid/icons/panel-left-close'
+import PinRight from 'lucide-solid/icons/panel-right-close'
+import Rows3 from 'lucide-solid/icons/rows-3'
+import Slash from 'lucide-solid/icons/ban'
+import Thermometer from 'lucide-solid/icons/thermometer'
+import Trash2 from 'lucide-solid/icons/trash-2'
 import { createSignal, Show } from 'solid-js'
 import type { GridColumnDef } from '../../../shared/types/grid'
 import { isNumericType } from '../../lib/column-types'
@@ -107,6 +127,15 @@ export default function DataGridContextMenu(
 		closeContextMenus,
 	})
 
+	function sortDescending(column: string) {
+		const t = tab()
+		const existing = t?.sort.find((s) => s.column === column)
+		if (!existing || existing.direction === 'desc') {
+			gridStore.toggleSort(props.tabId, column, false)
+		}
+		gridStore.toggleSort(props.tabId, column, false)
+	}
+
 	const cellContextMenuItems = (): ContextMenuEntry[] => {
 		const ctx = cellContextMenu()
 		if (!ctx) return []
@@ -118,9 +147,13 @@ export default function DataGridContextMenu(
 		const isDeleted = gridStore.isRowDeleted(props.tabId, rowIndex)
 
 		const ro = props.isReadOnly()
+		const currentSort = t.sort.find((s) => s.column === column)
+
 		const items: ContextMenuEntry[] = [
+			{ type: 'label', label: 'Clipboard' },
 			{
 				label: 'Copy Value',
+				icon: () => <Copy size={14} />,
 				action: async () => {
 					await navigator.clipboard.writeText(
 						gridStore.formatCellForClipboard(value),
@@ -129,6 +162,7 @@ export default function DataGridContextMenu(
 			},
 			{
 				label: 'Copy Row',
+				icon: () => <Rows3 size={14} />,
 				action: async () => {
 					const cols = props.visibleColumns()
 					const header = cols.map((c) => c.name).join('\t')
@@ -140,54 +174,86 @@ export default function DataGridContextMenu(
 			},
 			{
 				label: 'Advanced Copy...',
+				icon: () => <ClipboardCopy size={14} />,
 				action: () => props.onAdvancedCopy(),
 			},
 			{
 				label: 'Paste',
+				icon: () => <ClipboardPaste size={14} />,
 				action: () => props.onPaste(),
 				disabled: isDeleted || ro,
 			},
 			'separator',
+			{ type: 'label', label: 'Edit' },
 			{
 				label: 'Edit Cell',
+				icon: () => <Pencil size={14} />,
 				action: () => gridStore.startEditing(props.tabId, rowIndex, column),
 				disabled: isDeleted || ro,
 			},
 			{
 				label: 'Set NULL',
+				icon: () => <Slash size={14} />,
 				action: () => gridStore.setCellValue(props.tabId, rowIndex, column, null),
 				disabled: isDeleted || ro,
 			},
 			'separator',
+			{ type: 'label', label: 'Sort' },
 			{
-				label: 'Filter by This Value',
-				action: () => {
-					const filterValue = value === null ? '' : String(value)
-					const operator = value === null ? ('isNull' as const) : ('eq' as const)
-					gridStore.setFilter(props.tabId, {
-						column,
-						operator,
-						value: filterValue,
-					})
-				},
-			},
-			{
-				label: 'Sort Ascending',
-				action: () => gridStore.toggleSort(props.tabId, column, false),
-			},
-			{
-				label: 'Sort Descending',
-				action: () => {
-					const existing = t?.sort.find((s) => s.column === column)
-					if (!existing || existing.direction === 'desc') {
-						gridStore.toggleSort(props.tabId, column, false)
-					}
-					gridStore.toggleSort(props.tabId, column, false)
-				},
+				type: 'button-row',
+				buttons: [
+					{
+						label: 'Asc',
+						icon: () => <ArrowUp size={14} />,
+						active: currentSort?.direction === 'asc',
+						action: () => gridStore.toggleSort(props.tabId, column, false),
+					},
+					{
+						label: 'Desc',
+						icon: () => <ArrowDown size={14} />,
+						active: currentSort?.direction === 'desc',
+						action: () => sortDescending(column),
+					},
+				],
 			},
 			'separator',
+			{ type: 'label', label: 'Filter' },
+			{
+				type: 'button-row',
+				buttons: [
+					{
+						label: value === null ? 'Is NULL' : 'Include',
+						icon: () => <FilterIcon size={14} />,
+						action: () => {
+							const filterValue = value === null ? '' : String(value)
+							const operator = value === null ? ('isNull' as const) : ('eq' as const)
+							gridStore.setFilter(props.tabId, {
+								column,
+								operator,
+								value: filterValue,
+							})
+						},
+					},
+					{
+						label: value === null ? 'Not NULL' : 'Exclude',
+						icon: () => <FilterXIcon size={14} />,
+						action: () => {
+							const filterValue = value === null ? '' : String(value)
+							const operator = value === null ? ('isNotNull' as const) : ('neq' as const)
+							gridStore.setFilter(props.tabId, {
+								column,
+								operator,
+								value: filterValue,
+							})
+						},
+					},
+				],
+			},
+			'separator',
+			{ type: 'label', label: 'Row' },
 			{
 				label: 'Row Detail',
+				icon: () => <PanelRight size={14} />,
 				action: () => {
 					gridStore.selectFullRow(
 						props.tabId,
@@ -200,6 +266,7 @@ export default function DataGridContextMenu(
 			},
 			{
 				label: 'Open Row in Tab',
+				icon: () => <ExternalLink size={14} />,
 				action: () => {
 					const pkCols = t.columns.filter((c) => c.isPrimaryKey)
 					const pks: Record<string, unknown> = {}
@@ -220,7 +287,14 @@ export default function DataGridContextMenu(
 					|| gridStore.isRowNew(props.tabId, rowIndex),
 			},
 			{
+				label: 'Duplicate Row',
+				icon: () => <CopyPlus size={14} />,
+				action: () => props.onDuplicateRow(rowIndex),
+				disabled: ro,
+			},
+			{
 				label: 'Delete Row',
+				icon: () => <Trash2 size={14} />,
 				action: () => {
 					gridStore.selectFullRow(
 						props.tabId,
@@ -231,22 +305,20 @@ export default function DataGridContextMenu(
 				},
 				disabled: isDeleted || ro,
 			},
-			{
-				label: 'Duplicate Row',
-				action: () => props.onDuplicateRow(rowIndex),
-				disabled: ro,
-			},
 		]
 
 		const fkTarget = props.fkMap().get(column)
 		if (fkTarget && value !== null && value !== undefined) {
 			items.push('separator')
+			items.push({ type: 'label', label: 'Foreign Key' })
 			items.push({
 				label: 'Peek referenced row',
+				icon: () => <Link size={14} />,
 				action: () => props.onFkClick(rowIndex, column),
 			})
 			items.push({
 				label: `Open ${fkTarget.table} in Panel`,
+				icon: () => <PanelRightOpen size={14} />,
 				action: () => {
 					const colIdx = props
 						.visibleColumns()
@@ -262,6 +334,7 @@ export default function DataGridContextMenu(
 			})
 			items.push({
 				label: `Open ${fkTarget.table} in Tab`,
+				icon: () => <ExternalLink size={14} />,
 				action: () => {
 					tabsStore.openTab({
 						type: 'data-grid',
@@ -287,49 +360,37 @@ export default function DataGridContextMenu(
 		const colDef = t?.columns.find((c: GridColumnDef) => c.name === column)
 		const isNumeric = colDef ? isNumericType(colDef.dataType) : false
 		const currentHeatmap = t?.heatmapColumns[column]
+		const currentSort = t?.sort.find((s) => s.column === column)
 
 		const items: ContextMenuEntry[] = [
+			{ type: 'label', label: 'Sort' },
 			{
-				label: 'Sort Ascending',
-				action: () => gridStore.toggleSort(props.tabId, column, false),
-			},
-			{
-				label: 'Sort Descending',
-				action: () => {
-					const existing = t?.sort.find((s) => s.column === column)
-					if (!existing || existing.direction === 'desc') {
-						gridStore.toggleSort(props.tabId, column, false)
-					}
-					gridStore.toggleSort(props.tabId, column, false)
-				},
+				type: 'button-row',
+				buttons: [
+					{
+						label: 'Asc',
+						icon: () => <ArrowUp size={14} />,
+						active: currentSort?.direction === 'asc',
+						action: () => gridStore.toggleSort(props.tabId, column, false),
+					},
+					{
+						label: 'Desc',
+						icon: () => <ArrowDown size={14} />,
+						active: currentSort?.direction === 'desc',
+						action: () => sortDescending(column),
+					},
+				],
 			},
 			'separator',
+			{ type: 'label', label: 'Column' },
 			{
 				label: 'Hide Column',
+				icon: () => <EyeOff size={14} />,
 				action: () => gridStore.setColumnVisibility(props.tabId, column, false),
 			},
-			'separator',
-			{
-				label: 'Pin Left',
-				action: () => gridStore.setColumnPinned(props.tabId, column, 'left'),
-				disabled: pinned === 'left',
-			},
-			{
-				label: 'Pin Right',
-				action: () => gridStore.setColumnPinned(props.tabId, column, 'right'),
-				disabled: pinned === 'right',
-			},
-			...(pinned
-				? [
-					{
-						label: 'Unpin',
-						action: () => gridStore.setColumnPinned(props.tabId, column, undefined),
-					} as ContextMenuEntry,
-				]
-				: []),
-			'separator',
 			{
 				label: 'Filter by Column',
+				icon: () => <FilterIcon size={14} />,
 				action: () => {
 					gridStore.setFilter(props.tabId, {
 						column,
@@ -338,26 +399,59 @@ export default function DataGridContextMenu(
 					})
 				},
 			},
+			'separator',
+			{ type: 'label', label: 'Pin' },
+			{
+				type: 'button-row',
+				buttons: [
+					{
+						label: 'Left',
+						icon: () => <PinLeft size={14} />,
+						active: pinned === 'left',
+						action: () => gridStore.setColumnPinned(props.tabId, column, pinned === 'left' ? undefined : 'left'),
+					},
+					{
+						label: 'Right',
+						icon: () => <PinRight size={14} />,
+						active: pinned === 'right',
+						action: () => gridStore.setColumnPinned(props.tabId, column, pinned === 'right' ? undefined : 'right'),
+					},
+				],
+			},
 		]
 
 		if (isNumeric) {
 			items.push('separator')
+			items.push({ type: 'label', label: 'Heatmap' })
 			items.push({
-				label: 'Heatmap: Sequential',
-				action: () => gridStore.setHeatmap(props.tabId, column, 'sequential'),
-				disabled: currentHeatmap === 'sequential',
+				type: 'button-row',
+				buttons: [
+					{
+						label: 'Sequential',
+						icon: () => <Thermometer size={14} />,
+						active: currentHeatmap === 'sequential',
+						action: () => {
+							if (currentHeatmap === 'sequential') {
+								gridStore.removeHeatmap(props.tabId, column)
+							} else {
+								gridStore.setHeatmap(props.tabId, column, 'sequential')
+							}
+						},
+					},
+					{
+						label: 'Diverging',
+						icon: () => <Thermometer size={14} />,
+						active: currentHeatmap === 'diverging',
+						action: () => {
+							if (currentHeatmap === 'diverging') {
+								gridStore.removeHeatmap(props.tabId, column)
+							} else {
+								gridStore.setHeatmap(props.tabId, column, 'diverging')
+							}
+						},
+					},
+				],
 			})
-			items.push({
-				label: 'Heatmap: Diverging',
-				action: () => gridStore.setHeatmap(props.tabId, column, 'diverging'),
-				disabled: currentHeatmap === 'diverging',
-			})
-			if (currentHeatmap) {
-				items.push({
-					label: 'Remove Heatmap',
-					action: () => gridStore.removeHeatmap(props.tabId, column),
-				})
-			}
 		}
 
 		return items
