@@ -98,6 +98,13 @@ mock.module('../src/frontend-shared/lib/rpc', () => {
 	}
 })
 
+// ── Mock settings store (needed by grid store) ───────────
+mock.module('../src/frontend-shared/stores/settings', () => ({
+	settingsStore: {
+		get gridConfig() { return { autoCount: false } },
+	},
+}))
+
 // ── Mock connections store (needed by grid store) ────────
 mock.module('../src/frontend-shared/stores/connections', () => ({
 	connectionsStore: {
@@ -159,22 +166,21 @@ describe('grid store', () => {
 			expect(tab!.table).toBe('users')
 			expect(tab!.columns).toHaveLength(2)
 			expect(tab!.rows).toHaveLength(3)
-			expect(tab!.totalCount).toBe(50)
+			// totalCount is null by default (autoCount: false)
+			expect(tab!.totalCount).toBeNull()
 			expect(tab!.loading).toBe(false)
 
-			// 2 calls per fetch: data query + count query
-			expect(mockQueryExecute).toHaveBeenCalledTimes(2)
-			// First call is the data SELECT, second is COUNT
+			// 1 call per fetch: data query only (no auto-count)
+			expect(mockQueryExecute).toHaveBeenCalledTimes(1)
 			expect(mockQueryExecute.mock.calls[0][0].connectionId).toBe('conn-1')
-			expect(mockQueryExecute.mock.calls[1][0].connectionId).toBe('conn-1')
 		})
 
 		test('reuses existing tab state on subsequent calls', async () => {
 			await gridStore.loadTableData('tab-1', 'conn-1', 'public', 'users')
 			await gridStore.loadTableData('tab-1', 'conn-1', 'public', 'users')
 
-			// 2 calls per fetch × 2 fetches = 4
-			expect(mockQueryExecute).toHaveBeenCalledTimes(4)
+			// 1 call per fetch × 2 fetches = 2
+			expect(mockQueryExecute).toHaveBeenCalledTimes(2)
 			// Tab should still exist
 			expect(gridStore.getTab('tab-1')).toBeDefined()
 		})
@@ -182,13 +188,8 @@ describe('grid store', () => {
 
 	describe('per-tab isolation', () => {
 		test('each tab has independent state', async () => {
-			// Each fetch makes 2 calls (data + count).
 			// Use custom impl that returns different data per connectionId.
 			mockQueryExecute.mockImplementation((params: any) => {
-				if (params.sql.trimStart().toUpperCase().startsWith('SELECT COUNT(')) {
-					if (params.connectionId === 'conn-1') return Promise.resolve(makeQueryResult([{ count: 10 }]))
-					return Promise.resolve(makeQueryResult([{ count: 200 }]))
-				}
 				if (params.connectionId === 'conn-1') return Promise.resolve(makeQueryResult([{ id: 1, name: 'Alice' }]))
 				return Promise.resolve(makeQueryResult([{ id: 100, name: 'Zara' }]))
 			})
@@ -201,11 +202,12 @@ describe('grid store', () => {
 
 			expect(tab1.connectionId).toBe('conn-1')
 			expect(tab1.table).toBe('users')
-			expect(tab1.totalCount).toBe(10)
+			// totalCount is null (autoCount: false)
+			expect(tab1.totalCount).toBeNull()
 
 			expect(tab2.connectionId).toBe('conn-2')
 			expect(tab2.table).toBe('orders')
-			expect(tab2.totalCount).toBe(200)
+			expect(tab2.totalCount).toBeNull()
 		})
 
 		test('modifying one tab does not affect another', async () => {
@@ -224,8 +226,8 @@ describe('grid store', () => {
 
 			await gridStore.setPage('tab-1', 2)
 
-			// 2 fetches × 2 calls each = 4
-			expect(mockQueryExecute).toHaveBeenCalledTimes(4)
+			// 2 fetches × 1 call each = 2
+			expect(mockQueryExecute).toHaveBeenCalledTimes(2)
 			expect(gridStore.getTab('tab-1')!.currentPage).toBe(2)
 		})
 
@@ -276,8 +278,8 @@ describe('grid store', () => {
 
 			const tab = gridStore.getTab('tab-1')!
 			expect(tab.sort).toEqual([{ column: 'name', direction: 'asc' }])
-			// 2 fetches × 2 calls each = 4
-			expect(mockQueryExecute).toHaveBeenCalledTimes(4)
+			// 2 fetches × 1 call each = 2
+			expect(mockQueryExecute).toHaveBeenCalledTimes(2)
 		})
 
 		test('toggleSort changes to descending on second click', async () => {
@@ -335,8 +337,8 @@ describe('grid store', () => {
 				operator: 'eq',
 				value: 'Alice',
 			})
-			// 2 fetches × 2 calls each = 4
-			expect(mockQueryExecute).toHaveBeenCalledTimes(4)
+			// 2 fetches × 1 call each = 2
+			expect(mockQueryExecute).toHaveBeenCalledTimes(2)
 		})
 
 		test('setFilter updates existing filter for same column', async () => {

@@ -17,7 +17,7 @@ import Dialog from './Dialog'
 import Select from './Select'
 import './SettingsDialog.css'
 
-export type SettingsSection = 'appearance' | 'data-format' | 'ai' | 'session'
+export type SettingsSection = 'appearance' | 'data-format' | 'ai' | 'session' | 'grid'
 
 interface SettingsDialogProps {
 	open: boolean
@@ -52,6 +52,9 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 	const [autoPin, setAutoPin] = createSignal<AutoPin>('on-begin')
 	const [autoUnpin, setAutoUnpin] = createSignal<AutoUnpin>('never')
 
+	// ── Grid signals ──
+	const [autoCount, setAutoCount] = createSignal(false)
+
 	// Load all values when dialog opens
 	createEffect(() => {
 		if (props.open) {
@@ -85,6 +88,9 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 			setConnMode(sess.defaultConnectionMode)
 			setAutoPin(sess.autoPin)
 			setAutoUnpin(sess.autoUnpin)
+
+			// Grid
+			setAutoCount(settingsStore.gridConfig.autoCount)
 		}
 	})
 
@@ -153,6 +159,9 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 		}
 		settingsStore.saveSessionConfig(sessionConfig)
 
+		// Save Grid
+		settingsStore.saveGridConfig({ autoCount: autoCount() })
+
 		props.onClose()
 	}
 
@@ -187,6 +196,13 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 						onClick={() => setSection('session')}
 					>
 						Session
+					</button>
+					<button
+						class="settings-nav__item"
+						classList={{ 'settings-nav__item--active': section() === 'grid' }}
+						onClick={() => setSection('grid')}
+					>
+						Grid
 					</button>
 				</nav>
 
@@ -241,6 +257,12 @@ export default function SettingsDialog(props: SettingsDialogProps) {
 							setAutoPin={setAutoPin}
 							autoUnpin={autoUnpin()}
 							setAutoUnpin={setAutoUnpin}
+						/>
+					</Show>
+					<Show when={section() === 'grid'}>
+						<GridSection
+							autoCount={autoCount()}
+							setAutoCount={setAutoCount}
 						/>
 					</Show>
 				</div>
@@ -565,6 +587,32 @@ function SessionSection(props: {
 							{ value: 'never', label: 'Never (keep session)' },
 						]}
 					/>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+// ── Grid Section ─────────────────────────────────────────
+
+function GridSection(props: {
+	autoCount: boolean
+	setAutoCount: (v: boolean) => void
+}) {
+	return (
+		<div class="settings-form">
+			<div class="settings-form__section">
+				<h4 class="settings-form__section-title">Row Count</h4>
+				<div class="settings-form__field settings-form__field--inline">
+					<label class="settings-form__label">Auto-count rows</label>
+					<input
+						type="checkbox"
+						checked={props.autoCount}
+						onChange={(e) => props.setAutoCount(e.currentTarget.checked)}
+					/>
+				</div>
+				<div class="settings-form__preview">
+					When enabled, COUNT queries run automatically on every data load. When disabled, click "Count rows" in the pagination bar to count on demand.
 				</div>
 			</div>
 		</div>

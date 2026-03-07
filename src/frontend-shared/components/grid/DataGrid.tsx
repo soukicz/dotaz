@@ -1191,11 +1191,14 @@ export default function DataGrid(props: DataGridProps) {
 									currentPage={tabState().currentPage}
 									pageSize={tabState().pageSize}
 									totalCount={tabState().totalCount}
+									countLoading={tabState().countLoading}
+									rowCount={tabState().rows.length}
 									loading={tabState().loading}
 									lastLoadedAt={tabState().lastLoadedAt}
 									fetchDuration={tabState().fetchDuration}
 									onPageChange={(page) => gridStore.setPage(props.tabId, page)}
 									onPageSizeChange={(size) => gridStore.setPageSize(props.tabId, size)}
+									onCountRequest={() => gridStore.fetchGridCount(props.tabId)}
 								/>
 							</div>
 

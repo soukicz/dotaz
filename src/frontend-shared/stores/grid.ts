@@ -9,6 +9,7 @@ import { rpc } from '../lib/rpc'
 import { createTabHelpers } from '../lib/tab-store-helpers'
 import { connectionsStore } from './connections'
 import { sessionStore } from './session'
+import { settingsStore } from './settings'
 
 // ── Heatmap ───────────────────────────────────────────────
 
@@ -259,7 +260,8 @@ export interface FkPanelState {
 	columns: GridColumnDef[]
 	breadcrumbs: FkBreadcrumb[]
 	foreignKeys: ForeignKeyInfo[]
-	totalCount: number
+	totalCount: number | null
+	countLoading: boolean
 	currentPage: number
 	currentRowIndex: number
 	pageSize: number
@@ -273,7 +275,8 @@ export interface TabGridState {
 	database?: string
 	columns: GridColumnDef[]
 	rows: Record<string, unknown>[]
-	totalCount: number
+	totalCount: number | null
+	countLoading: boolean
 	currentPage: number
 	pageSize: number
 	sort: SortColumn[]
@@ -319,7 +322,8 @@ function createDefaultTabState(
 		database,
 		columns: [],
 		rows: [],
-		totalCount: 0,
+		totalCount: null,
+		countLoading: false,
 		currentPage: 1,
 		pageSize: 100,
 		sort: [],
@@ -370,6 +374,8 @@ async function fetchData(tabId: string) {
 
 	const fetchStart = Date.now()
 	setState('tabs', tabId, 'loading', true)
+	setState('tabs', tabId, 'totalCount', null)
+	setState('tabs', tabId, 'countLoading', false)
 	try {
 		const dialect = connectionsStore.getDialect(tab.connectionId)
 
@@ -419,49 +425,65 @@ async function fetchData(tabId: string) {
 			quickSearchClause,
 			customFilter,
 		)
-		const countQuery = buildCountQuery(
-			tab.schema,
-			tab.table,
-			filters,
-			dialect,
-			quickSearchClause,
-			customFilter,
-		)
 
-		// Execute both queries
+		// Execute data query (and optionally count query)
 		const queryId = `grid-${tabId}-${requestId}`
 		const sessionId = sessionStore.getSessionForTab(tabId)
-		const [dataResults, countResults] = await Promise.all([
-			rpc.query.execute({
+
+		let dataResults: Awaited<ReturnType<typeof rpc.query.execute>>
+		let totalRows: number | null = null
+
+		if (settingsStore.gridConfig.autoCount) {
+			const countQuery = buildCountQuery(
+				tab.schema,
+				tab.table,
+				filters,
+				dialect,
+				quickSearchClause,
+				customFilter,
+			)
+			const [dr, cr] = await Promise.all([
+				rpc.query.execute({
+					connectionId: tab.connectionId,
+					sql: selectQuery.sql,
+					queryId,
+					params: selectQuery.params,
+					database: tab.database,
+					sessionId,
+				}),
+				rpc.query.execute({
+					connectionId: tab.connectionId,
+					sql: countQuery.sql,
+					queryId: `${queryId}-count`,
+					params: countQuery.params,
+					database: tab.database,
+					sessionId,
+				}),
+			])
+			dataResults = dr
+			totalRows = Number(cr[0]?.rows[0]?.count ?? 0)
+		} else {
+			dataResults = await rpc.query.execute({
 				connectionId: tab.connectionId,
 				sql: selectQuery.sql,
 				queryId,
 				params: selectQuery.params,
 				database: tab.database,
 				sessionId,
-			}),
-			rpc.query.execute({
-				connectionId: tab.connectionId,
-				sql: countQuery.sql,
-				queryId: `${queryId}-count`,
-				params: countQuery.params,
-				database: tab.database,
-				sessionId,
-			}),
-		])
+			})
+		}
 
 		// Ignore stale responses — a newer request has been issued
 		if (latestFetchId.get(tabId) !== requestId) return
 
 		const rows = dataResults[0]?.rows ?? []
-		const totalRows = Number(countResults[0]?.rows[0]?.count ?? 0)
-
 		const fetchDuration = Date.now() - fetchStart
 
 		setState('tabs', tabId, {
 			columns: gridColumns,
 			rows,
 			totalCount: totalRows,
+			countLoading: false,
 			currentPage: tab.currentPage,
 			loading: false,
 			lastLoadedAt: Date.now(),
@@ -476,6 +498,54 @@ async function fetchData(tabId: string) {
 		setState('tabs', tabId, 'loading', false)
 		// Re-throw so the global unhandled rejection handler in AppShell shows a toast
 		throw err
+	}
+}
+
+async function fetchGridCount(tabId: string) {
+	const tab = getTab(tabId)
+	if (!tab) return
+	setState('tabs', tabId, 'countLoading', true)
+	try {
+		const dialect = connectionsStore.getDialect(tab.connectionId)
+		const cachedColumns = connectionsStore.getColumns(
+			tab.connectionId,
+			tab.schema,
+			tab.table,
+			tab.database,
+		)
+		const gridColumns: GridColumnDef[] = cachedColumns.map((c) => ({
+			name: c.name,
+			dataType: c.dataType,
+			nullable: c.nullable,
+			isPrimaryKey: c.isPrimaryKey,
+		}))
+		const filters = tab.filters.length > 0 ? tab.filters : undefined
+		const filterParamCount = (filters ?? []).reduce((sum, f) => {
+			if (f.operator === 'isNull' || f.operator === 'isNotNull') return sum
+			if (f.operator === 'in' || f.operator === 'notIn') {
+				return sum + (Array.isArray(f.value) ? f.value.length : 1)
+			}
+			return sum + 1
+		}, 0)
+		const quickSearchClause = tab.quickSearch
+			? buildQuickSearchClause(gridColumns, tab.quickSearch, dialect, filterParamCount)
+			: undefined
+		const customFilter = tab.customFilter || undefined
+		const countQuery = buildCountQuery(tab.schema, tab.table, filters, dialect, quickSearchClause, customFilter)
+		const sessionId = sessionStore.getSessionForTab(tabId)
+		const results = await rpc.query.execute({
+			connectionId: tab.connectionId,
+			sql: countQuery.sql,
+			queryId: `grid-count-${tabId}`,
+			params: countQuery.params,
+			database: tab.database,
+			sessionId,
+		})
+		setState('tabs', tabId, 'totalCount', Number(results[0]?.rows[0]?.count ?? 0))
+	} catch {
+		// Silently ignore count errors
+	} finally {
+		setState('tabs', tabId, 'countLoading', false)
 	}
 }
 
@@ -1884,7 +1954,8 @@ async function openFkPanel(
 		columns: [],
 		breadcrumbs: [breadcrumb],
 		foreignKeys: [],
-		totalCount: 0,
+		totalCount: null,
+		countLoading: false,
 		currentPage: 1,
 		currentRowIndex: 0,
 		pageSize: 100,
@@ -1924,29 +1995,39 @@ async function fetchFkPanelData(tabId: string) {
 			filters,
 			dialect,
 		)
-		const countQuery = buildCountQuery(
-			panel.schema,
-			panel.table,
-			filters,
-			dialect,
-		)
 
-		const [dataResults, countResults] = await Promise.all([
-			rpc.query.execute({
+		let dataResults: Awaited<ReturnType<typeof rpc.query.execute>>
+		let totalCount: number | null = null
+
+		if (settingsStore.gridConfig.autoCount) {
+			const countQuery = buildCountQuery(panel.schema, panel.table, filters, dialect)
+			const [dr, cr] = await Promise.all([
+				rpc.query.execute({
+					connectionId: tab.connectionId,
+					sql: selectQuery.sql,
+					queryId: `fk-panel-${tabId}`,
+					params: selectQuery.params,
+					database: tab.database,
+				}),
+				rpc.query.execute({
+					connectionId: tab.connectionId,
+					sql: countQuery.sql,
+					queryId: `fk-panel-count-${tabId}`,
+					params: countQuery.params,
+					database: tab.database,
+				}),
+			])
+			dataResults = dr
+			totalCount = Number(cr[0]?.rows[0]?.count ?? 0)
+		} else {
+			dataResults = await rpc.query.execute({
 				connectionId: tab.connectionId,
 				sql: selectQuery.sql,
 				queryId: `fk-panel-${tabId}`,
 				params: selectQuery.params,
 				database: tab.database,
-			}),
-			rpc.query.execute({
-				connectionId: tab.connectionId,
-				sql: countQuery.sql,
-				queryId: `fk-panel-count-${tabId}`,
-				params: countQuery.params,
-				database: tab.database,
-			}),
-		])
+			})
+		}
 
 		if (!state.tabs[tabId]?.fkPanel) return
 		const foreignKeys = connectionsStore.getForeignKeys(
@@ -1960,12 +2041,40 @@ async function fetchFkPanelData(tabId: string) {
 			...panel,
 			rows: dataResults[0]?.rows ?? [],
 			columns: gridColumns,
-			totalCount: Number(countResults[0]?.rows[0]?.count ?? 0),
+			totalCount,
+			countLoading: false,
 			foreignKeys,
 			loading: false,
 		})
 	} catch {
 		setState('tabs', tabId, 'fkPanel', null)
+	}
+}
+
+async function fetchFkPanelCount(tabId: string) {
+	const tab = getTab(tabId)
+	if (!tab?.fkPanel) return
+	setState('tabs', tabId, 'fkPanel', 'countLoading', true)
+	try {
+		const dialect = connectionsStore.getDialect(tab.connectionId)
+		const panel = tab.fkPanel
+		const filters = panel.filters.length > 0 ? panel.filters : undefined
+		const countQuery = buildCountQuery(panel.schema, panel.table, filters, dialect)
+		const results = await rpc.query.execute({
+			connectionId: tab.connectionId,
+			sql: countQuery.sql,
+			queryId: `fk-panel-count-${tabId}`,
+			params: countQuery.params,
+			database: tab.database,
+		})
+		if (!state.tabs[tabId]?.fkPanel) return
+		setState('tabs', tabId, 'fkPanel', 'totalCount', Number(results[0]?.rows[0]?.count ?? 0))
+	} catch {
+		// Silently ignore
+	} finally {
+		if (state.tabs[tabId]?.fkPanel) {
+			setState('tabs', tabId, 'fkPanel', 'countLoading', false)
+		}
 	}
 }
 
@@ -2006,6 +2115,8 @@ async function fkPanelNavigate(
 		table,
 		filters: newFilters,
 		breadcrumbs: newBreadcrumbs,
+		totalCount: null,
+		countLoading: false,
 		currentPage: 1,
 		currentRowIndex: 0,
 		loading: true,
@@ -2030,6 +2141,8 @@ async function fkPanelBack(tabId: string) {
 			{ column: prev.column, operator: 'eq', value: String(prev.value) },
 		],
 		breadcrumbs: prevBreadcrumbs,
+		totalCount: null,
+		countLoading: false,
 		currentPage: 1,
 		currentRowIndex: 0,
 		loading: true,
@@ -2190,6 +2303,7 @@ export const gridStore = {
 
 	loadTableData,
 	refreshData,
+	fetchGridCount,
 	setPage,
 	setPageSize,
 	toggleSort,
@@ -2251,6 +2365,7 @@ export const gridStore = {
 	openFkPanel,
 	closeFkPanel,
 	refreshFkPanel,
+	fetchFkPanelCount,
 	fkPanelNavigate,
 	fkPanelBack,
 	fkPanelResize,

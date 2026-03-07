@@ -138,47 +138,52 @@ export default function RowDetailPanel(props: RowDetailPanelProps) {
 			props.connectionId, props.schema, props.table, props.database,
 		)
 	)
-	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number>>({})
+	const [referencingCounts, setReferencingCounts] = createSignal<Record<string, number | null>>({})
+	const [countingFks, setCountingFks] = createSignal<Set<string>>(new Set())
 
+	// Reset counts when the row or FK list changes
 	createEffect(on([referencingFks, () => props.row], () => {
-		const fks = referencingFks()
+		setReferencingCounts({})
+		setCountingFks(new Set<string>())
+	}))
+
+	async function fetchReferencingCount(fk: ReferencingForeignKeyInfo) {
 		const row = props.row
-		if (!fks.length || !row) {
-			setReferencingCounts({})
+		if (!row) return
+
+		const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
+			column: fk.referencingColumns[i],
+			operator: 'eq' as const,
+			value: row[refCol],
+		}))
+
+		if (filters.some((f) => f.value === null || f.value === undefined)) {
+			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: 0 }))
 			return
 		}
 
-		const dialect = connectionsStore.getDialect(props.connectionId)
-		const counts: Record<string, number> = {}
-		const promises = fks.map(async (fk) => {
-			const filters: ColumnFilter[] = fk.referencedColumns.map((refCol, i) => ({
-				column: fk.referencingColumns[i],
-				operator: 'eq' as const,
-				value: row[refCol],
-			}))
-
-			if (filters.some((f) => f.value === null || f.value === undefined)) {
-				counts[fk.constraintName] = 0
-				return
-			}
-
-			try {
-				const countQuery = buildCountQuery(fk.referencingSchema, fk.referencingTable, filters, dialect)
-				const results = await rpc.query.execute({
-					connectionId: props.connectionId,
-					sql: countQuery.sql,
-					queryId: `ref-count-${fk.constraintName}`,
-					params: countQuery.params,
-					database: props.database,
-				})
-				counts[fk.constraintName] = Number(results[0]?.rows[0]?.count ?? 0)
-			} catch {
-				counts[fk.constraintName] = -1
-			}
-		})
-
-		Promise.all(promises).then(() => setReferencingCounts({ ...counts }))
-	}))
+		setCountingFks((prev) => new Set([...prev, fk.constraintName]))
+		try {
+			const dialect = connectionsStore.getDialect(props.connectionId)
+			const countQuery = buildCountQuery(fk.referencingSchema, fk.referencingTable, filters, dialect)
+			const results = await rpc.query.execute({
+				connectionId: props.connectionId,
+				sql: countQuery.sql,
+				queryId: `ref-count-${fk.constraintName}`,
+				params: countQuery.params,
+				database: props.database,
+			})
+			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: Number(results[0]?.rows[0]?.count ?? 0) }))
+		} catch {
+			setReferencingCounts((prev) => ({ ...prev, [fk.constraintName]: -1 }))
+		} finally {
+			setCountingFks((prev) => {
+				const next = new Set(prev)
+				next.delete(fk.constraintName)
+				return next
+			})
+		}
+	}
 
 	function handleReferencingClick(fk: ReferencingForeignKeyInfo) {
 		const row = props.row
@@ -626,6 +631,7 @@ export default function RowDetailPanel(props: RowDetailPanelProps) {
 									<For each={referencingFks()}>
 										{(fk) => {
 											const count = () => referencingCounts()[fk.constraintName]
+											const counting = () => countingFks().has(fk.constraintName)
 											return (
 												<button
 													class="row-detail__referenced-by-item"
@@ -641,7 +647,21 @@ export default function RowDetailPanel(props: RowDetailPanelProps) {
 													<span class="row-detail__referenced-by-cols">
 														({fk.referencingColumns.join(', ')})
 													</span>
-													<Show when={count() !== undefined}>
+													<Show
+														when={count() !== undefined && count() !== null}
+														fallback={
+															<span
+																class="row-detail__referenced-by-count row-detail__referenced-by-count--unknown"
+																onClick={(e) => {
+																	e.stopPropagation()
+																	fetchReferencingCount(fk)
+																}}
+																title="Click to count"
+															>
+																{counting() ? '…' : '?'}
+															</span>
+														}
+													>
 														<span class="row-detail__referenced-by-count">
 															{count() === -1 ? '?' : count()}
 														</span>

@@ -66,6 +66,26 @@ function sessionConfigToSettings(config: SessionConfig): Record<string, string> 
 	}
 }
 
+// ── Grid config ───────────────────────────────────────────
+
+export interface GridConfig {
+	autoCount: boolean
+}
+
+const DEFAULT_GRID_CONFIG: GridConfig = { autoCount: false }
+
+function settingsToGridConfig(settings: Record<string, string>): GridConfig {
+	return {
+		autoCount: settings['grid.autoCount'] === 'true',
+	}
+}
+
+function gridConfigToSettings(config: GridConfig): Record<string, string> {
+	return {
+		'grid.autoCount': String(config.autoCount),
+	}
+}
+
 // ── Theme application ─────────────────────────────────────
 
 function applyTheme(theme: ColorTheme) {
@@ -84,6 +104,7 @@ interface SettingsState {
 	sessionConfig: SessionConfig
 	consoleConfig: ConsoleConfig
 	appearanceConfig: AppearanceConfig
+	gridConfig: GridConfig
 	loaded: boolean
 }
 
@@ -93,6 +114,7 @@ const [state, setState] = createStore<SettingsState>({
 	sessionConfig: { ...DEFAULT_SESSION_CONFIG },
 	consoleConfig: { ...DEFAULT_CONSOLE_CONFIG },
 	appearanceConfig: { ...DEFAULT_APPEARANCE_CONFIG },
+	gridConfig: { ...DEFAULT_GRID_CONFIG },
 	loaded: false,
 })
 
@@ -103,6 +125,7 @@ async function loadSettings() {
 		setState('aiConfig', settingsToAiConfig(all))
 		setState('sessionConfig', settingsToSessionConfig(all))
 		setState('consoleConfig', settingsToConsoleConfig(all))
+		setState('gridConfig', settingsToGridConfig(all))
 		const appearance = settingsToAppearanceConfig(all)
 		setState('appearanceConfig', appearance)
 		applyTheme(appearance.colorTheme)
@@ -161,6 +184,18 @@ async function saveConsoleConfig(config: ConsoleConfig) {
 	}
 }
 
+async function saveGridConfig(config: GridConfig) {
+	setState('gridConfig', config)
+	const entries = gridConfigToSettings(config)
+	for (const [key, value] of Object.entries(entries)) {
+		try {
+			await rpc.settings.set({ key, value })
+		} catch {
+			console.debug('Failed to save setting', key)
+		}
+	}
+}
+
 async function saveAppearanceConfig(config: AppearanceConfig) {
 	setState('appearanceConfig', config)
 	applyTheme(config.colorTheme)
@@ -190,6 +225,9 @@ export const settingsStore = {
 	get appearanceConfig() {
 		return state.appearanceConfig
 	},
+	get gridConfig() {
+		return state.gridConfig
+	},
 	get loaded() {
 		return state.loaded
 	},
@@ -199,5 +237,6 @@ export const settingsStore = {
 	saveSessionConfig,
 	saveConsoleConfig,
 	saveAppearanceConfig,
+	saveGridConfig,
 	applyTheme,
 }

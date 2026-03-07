@@ -9,12 +9,15 @@ import './Pagination.css'
 interface PaginationProps {
 	currentPage: number
 	pageSize: number
-	totalCount: number
+	totalCount: number | null
+	countLoading: boolean
+	rowCount: number
 	loading: boolean
 	lastLoadedAt?: number | null
 	fetchDuration?: number | null
 	onPageChange: (page: number) => void
 	onPageSizeChange: (size: number) => void
+	onCountRequest: () => void
 }
 
 const PAGE_SIZES = [25, 50, 100, 250, 500]
@@ -65,11 +68,14 @@ function formatDuration(ms: number): string {
 }
 
 export default function Pagination(props: PaginationProps) {
-	const totalPages = () => Math.max(1, Math.ceil(props.totalCount / props.pageSize))
+	const countKnown = () => props.totalCount !== null
+	const totalPages = () => countKnown() ? Math.max(1, Math.ceil(props.totalCount! / props.pageSize)) : null
 	const rangeStart = () => props.totalCount === 0 ? 0 : (props.currentPage - 1) * props.pageSize + 1
-	const rangeEnd = () => Math.min(props.currentPage * props.pageSize, props.totalCount)
+	const rangeEnd = () => Math.min(props.currentPage * props.pageSize, props.totalCount!)
 	const isFirst = () => props.currentPage <= 1
-	const isLast = () => props.currentPage >= totalPages()
+	const isLast = () => countKnown()
+		? props.currentPage >= totalPages()!
+		: props.rowCount < props.pageSize
 
 	// Live-updating "fetched ago" timer
 	const [now, setNow] = createSignal(Date.now())
@@ -89,11 +95,22 @@ export default function Pagination(props: PaginationProps) {
 	return (
 		<div class="pagination">
 			<span class="pagination__info">
-				<Show
-					when={props.totalCount >= 0 && !props.loading}
-					fallback={<>counting...</>}
-				>
-					Showing {formatNumber(rangeStart())}–{formatNumber(rangeEnd())} of {formatNumber(props.totalCount)} rows
+				<Show when={!props.loading}>
+					<Show
+						when={countKnown()}
+						fallback={
+							<Show
+								when={!props.countLoading}
+								fallback={<>counting...</>}
+							>
+								<button class="pagination__count-btn" onClick={props.onCountRequest}>
+									Count rows
+								</button>
+							</Show>
+						}
+					>
+						Showing {formatNumber(rangeStart())}–{formatNumber(rangeEnd())} of {formatNumber(props.totalCount!)} rows
+					</Show>
 				</Show>
 				<Show when={fetchedAgo() && !props.loading}>
 					<span class="pagination__fetch-info">
@@ -106,14 +123,16 @@ export default function Pagination(props: PaginationProps) {
 			</span>
 
 			<div class="pagination__nav">
-				<button
-					class="pagination__btn"
-					disabled={isFirst()}
-					onClick={() => props.onPageChange(1)}
-					title="First page"
-				>
-					<ChevronsLeft size={14} />
-				</button>
+				<Show when={countKnown()}>
+					<button
+						class="pagination__btn"
+						disabled={isFirst()}
+						onClick={() => props.onPageChange(1)}
+						title="First page"
+					>
+						<ChevronsLeft size={14} />
+					</button>
+				</Show>
 				<button
 					class="pagination__btn"
 					disabled={isFirst()}
@@ -123,22 +142,24 @@ export default function Pagination(props: PaginationProps) {
 					<ChevronLeft size={14} />
 				</button>
 
-				<For each={getPageNumbers(props.currentPage, totalPages())}>
-					{(page) => (
-						<Show
-							when={typeof page === 'number'}
-							fallback={<span class="pagination__btn" style={{ cursor: 'default' }}>…</span>}
-						>
-							<button
-								class="pagination__btn"
-								classList={{ 'pagination__btn--active': page === props.currentPage }}
-								onClick={() => props.onPageChange(page as number)}
+				<Show when={countKnown()}>
+					<For each={getPageNumbers(props.currentPage, totalPages()!)}>
+						{(page) => (
+							<Show
+								when={typeof page === 'number'}
+								fallback={<span class="pagination__btn" style={{ cursor: 'default' }}>…</span>}
 							>
-								{page}
-							</button>
-						</Show>
-					)}
-				</For>
+								<button
+									class="pagination__btn"
+									classList={{ 'pagination__btn--active': page === props.currentPage }}
+									onClick={() => props.onPageChange(page as number)}
+								>
+									{page}
+								</button>
+							</Show>
+						)}
+					</For>
+				</Show>
 
 				<button
 					class="pagination__btn"
@@ -148,14 +169,16 @@ export default function Pagination(props: PaginationProps) {
 				>
 					<ChevronRight size={14} />
 				</button>
-				<button
-					class="pagination__btn"
-					disabled={isLast()}
-					onClick={() => props.onPageChange(totalPages())}
-					title="Last page"
-				>
-					<ChevronsRight size={14} />
-				</button>
+				<Show when={countKnown()}>
+					<button
+						class="pagination__btn"
+						disabled={isLast()}
+						onClick={() => props.onPageChange(totalPages()!)}
+						title="Last page"
+					>
+						<ChevronsRight size={14} />
+					</button>
+				</Show>
 			</div>
 
 			<div class="pagination__size">

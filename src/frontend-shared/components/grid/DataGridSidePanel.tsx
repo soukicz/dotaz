@@ -397,7 +397,7 @@ export default function DataGridSidePanel(
 		const panel = tab()?.fkPanel
 		if (!panel) return ''
 		const global = (panel.currentPage - 1) * panel.pageSize + panel.currentRowIndex + 1
-		return `${global} / ${panel.totalCount}`
+		return panel.totalCount !== null ? `${global} / ${panel.totalCount}` : `${global}`
 	}
 
 	function fkPanelCanPrev(): boolean {
@@ -409,14 +409,12 @@ export default function DataGridSidePanel(
 	function fkPanelCanNext(): boolean {
 		const panel = tab()?.fkPanel
 		if (!panel) return false
-		const totalPages = Math.max(
-			1,
-			Math.ceil(panel.totalCount / panel.pageSize),
-		)
-		return (
-			panel.currentRowIndex < panel.rows.length - 1
-			|| panel.currentPage < totalPages
-		)
+		if (panel.totalCount !== null) {
+			const totalPages = Math.max(1, Math.ceil(panel.totalCount / panel.pageSize))
+			return panel.currentRowIndex < panel.rows.length - 1 || panel.currentPage < totalPages
+		}
+		// Count unknown: can go next if there are more rows on this page or more rows available
+		return panel.currentRowIndex < panel.rows.length - 1 || panel.rows.length >= panel.pageSize
 	}
 
 	function fkPanelPrev() {
@@ -435,10 +433,9 @@ export default function DataGridSidePanel(
 		if (panel.currentRowIndex < panel.rows.length - 1) {
 			gridStore.fkPanelSetRowIndex(props.tabId, panel.currentRowIndex + 1)
 		} else {
-			const totalPages = Math.max(
-				1,
-				Math.ceil(panel.totalCount / panel.pageSize),
-			)
+			const totalPages = panel.totalCount !== null
+				? Math.max(1, Math.ceil(panel.totalCount / panel.pageSize))
+				: Infinity
 			if (panel.currentPage < totalPages) {
 				gridStore.fkPanelSetPage(props.tabId, panel.currentPage + 1)
 			}
