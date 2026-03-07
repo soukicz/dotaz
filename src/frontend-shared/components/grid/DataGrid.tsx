@@ -271,9 +271,13 @@ export default function DataGrid(props: DataGridProps) {
 
 		if (e.shiftKey && (e.ctrlKey || e.metaKey)) {
 			gridStore.extendLastRange(props.tabId, index, colIdx)
+			e.preventDefault()
+			gridRef?.focus()
 			return
 		} else if (e.shiftKey) {
 			gridStore.extendSelection(props.tabId, index, colIdx)
+			e.preventDefault()
+			gridRef?.focus()
 			return
 		} else if (e.ctrlKey || e.metaKey) {
 			gridStore.addCellRange(props.tabId, index, colIdx)
@@ -283,6 +287,7 @@ export default function DataGrid(props: DataGridProps) {
 		}
 
 		e.preventDefault()
+		gridRef?.focus()
 		isDragging = true
 
 		const onMouseMove = (ev: MouseEvent) => {
