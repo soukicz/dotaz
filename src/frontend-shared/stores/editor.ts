@@ -1,10 +1,11 @@
 import { createSignal } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { generateChangesPreview, generateChangeSql } from '../../shared/sql/builders'
-import { analyzeSelectSource } from '../../shared/sql/editability'
 import { detectDestructiveWithoutWhere, isUnlimitedSelect, splitStatements } from '../../shared/sql/statements'
 import type { ExplainResult, QueryEditability, QueryResult } from '../../shared/types/query'
 import type { DataChange } from '../../shared/types/rpc'
+import { buildDataChanges } from '../lib/data-changes'
+import { analyzeResultEditability } from '../lib/query-editability'
 import { friendlyErrorMessage, rpc } from '../lib/rpc'
 import { getStatementAtCursor } from '../lib/sql-utils'
 import { storage } from '../lib/storage'
@@ -585,6 +586,15 @@ function resetTransactionStateForConnection(connectionId: string) {
 // ── Result editability ────────────────────────────────────
 
 /**
+ * Get the default schema for a connection based on its type.
+ */
+function getDefaultSchema(connectionId: string): string {
+	const connType = connectionsStore.getConnectionType(connectionId)
+	if (connType === 'sqlite') return 'main'
+	return 'public' // PostgreSQL default
+}
+
+/**
  * Compute editability for query results using SQL analysis and schema metadata.
  * Called after query execution completes.
  */
@@ -592,79 +602,17 @@ function computeResultEditability(tabId: string, sql: string, results: QueryResu
 	const tab = getTab(tabId)
 	if (!tab) return
 
-	// Split into statements to analyze each one individually
-	const statements = splitStatements(sql)
-	const editability: Record<number, QueryEditability> = {}
-	const resultRows: Record<number, Record<string, unknown>[]> = {}
-
-	for (let i = 0; i < results.length; i++) {
-		const result = results[i]
-		// Only analyze results with columns (SELECT results, not DML)
-		if (!result.columns.length || result.error) continue
-
-		const stmt = statements[i] ?? sql
-		const analysis = analyzeSelectSource(stmt)
-
-		if (!analysis.editable) {
-			editability[i] = { editable: false, reason: analysis.reason }
-			continue
-		}
-
-		const source = analysis.source
-
-		// Look up the table in the connection's schema cache
-		const schema = source.schema ?? getDefaultSchema(tab.connectionId)
-		const columns = connectionsStore.getColumns(tab.connectionId, schema, source.table, tab.database)
-
-		if (columns.length === 0) {
-			editability[i] = { editable: false, reason: 'unknown_table' }
-			continue
-		}
-
-		// Find PK columns
-		const pkColumns = columns.filter((c) => c.isPrimaryKey).map((c) => c.name)
-		if (pkColumns.length === 0) {
-			editability[i] = { editable: false, reason: 'no_pk' }
-			continue
-		}
-
-		// Check if PK columns are in the result set
-		const resultColumnNames = new Set(result.columns.map((c) => c.name))
-		const missingPks = pkColumns.filter((pk) => !resultColumnNames.has(pk))
-		if (missingPks.length > 0) {
-			editability[i] = { editable: false, reason: 'no_pk' }
-			continue
-		}
-
-		// Determine which result columns map to table columns (those are editable)
-		const tableColumnNames = new Set(columns.map((c) => c.name))
-		const editableColumns = result.columns
-			.map((c) => c.name)
-			.filter((name) => tableColumnNames.has(name))
-
-		editability[i] = {
-			editable: true,
-			schema,
-			table: source.table,
-			primaryKeys: pkColumns,
-			editableColumns,
-		}
-
-		// Create mutable copy of rows
-		resultRows[i] = result.rows.map((row) => ({ ...row }))
-	}
+	const { editability, editableRows } = analyzeResultEditability(
+		sql,
+		results,
+		tab.connectionId,
+		getDefaultSchema(tab.connectionId),
+		tab.database,
+		connectionsStore,
+	)
 
 	setState('tabs', tabId, 'resultEditability', editability)
-	setState('tabs', tabId, 'resultRows', resultRows)
-}
-
-/**
- * Get the default schema for a connection based on its type.
- */
-function getDefaultSchema(connectionId: string): string {
-	const connType = connectionsStore.getConnectionType(connectionId)
-	if (connType === 'sqlite') return 'main'
-	return 'public' // PostgreSQL default
+	setState('tabs', tabId, 'resultRows', editableRows)
 }
 
 // ── Result editing actions ────────────────────────────────
@@ -764,42 +712,16 @@ function buildResultDataChanges(tabId: string, resultIndex: number): DataChange[
 	const pending = tab.resultPendingChanges[resultIndex]
 	if (!pending) return []
 
-	const pkColumns = editability.primaryKeys!
-	const changes: DataChange[] = []
+	const originalRows = tab.results[resultIndex]?.rows
+	if (!originalRows) return []
 
-	// Group cell edits by row
-	const editsByRow = new Map<number, Record<string, unknown>>()
-	for (const edit of Object.values(pending.cellEdits)) {
-		let rowEdits = editsByRow.get(edit.rowIndex)
-		if (!rowEdits) {
-			rowEdits = {}
-			editsByRow.set(edit.rowIndex, rowEdits)
-		}
-		rowEdits[edit.column] = edit.newValue
-	}
-
-	for (const [rowIndex, values] of editsByRow) {
-		// Use original row data for PK values
-		const originalRow = tab.results[resultIndex]?.rows[rowIndex]
-		if (!originalRow) continue
-
-		const primaryKeys: Record<string, unknown> = {}
-		for (const pk of pkColumns) {
-			// If PK was edited, use the original value
-			const pkEdit = pending.cellEdits[`${rowIndex}:${pk}`]
-			primaryKeys[pk] = pkEdit ? pkEdit.oldValue : originalRow[pk]
-		}
-
-		changes.push({
-			type: 'update',
-			schema: editability.schema!,
-			table: editability.table!,
-			primaryKeys,
-			values,
-		})
-	}
-
-	return changes
+	return buildDataChanges(
+		pending,
+		originalRows,
+		editability.schema!,
+		editability.table!,
+		editability.primaryKeys!,
+	)
 }
 
 async function applyResultChanges(tabId: string, resultIndex: number) {
