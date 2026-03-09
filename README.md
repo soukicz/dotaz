@@ -19,13 +19,13 @@
 
 Dotaz is a database client that gets out of your way. It focuses on what you do most — looking at data, editing rows, and running queries. It deliberately skips schema management (CREATE TABLE, ALTER, migrations) to keep things simple and fast.
 
-It runs in three modes:
+### Desktop
 
-| Mode        | How it works                                                                             |
-| ----------- | ---------------------------------------------------------------------------------------- |
-| **Desktop** | Native app via [Electrobun](https://electrobun.dev/) — Bun backend with a system webview |
-| **Web**     | Bun HTTP/WebSocket server with a browser frontend                                        |
-| **Demo**    | Fully in-browser with WASM SQLite — no server, no setup                                  |
+Native app built with [Electrobun](https://electrobun.dev/) — Bun backend with a system webview. Available for macOS, Linux, and Windows. App state (connections, views) is persisted in a local SQLite database.
+
+### Server
+
+A lightweight Bun HTTP server you can self-host or run via Docker. Like [Adminer](https://www.adminer.org/), the server has no database of its own — it acts as a proxy to databases you connect to. All app state (connections, views, query history) lives in the browser (IndexedDB), so the server itself is stateless.
 
 ## Features
 
