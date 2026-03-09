@@ -54,6 +54,8 @@ type DotazRequests = {
 		params: HandlerParams<M> extends void ? {} : HandlerParams<M>
 		response: HandlerReturn<M>
 	}
+} & {
+	'update.apply': { params: {}; response: void }
 }
 
 export type DotazRPC = {
@@ -68,6 +70,9 @@ export type DotazRPC = {
 			}
 			'menu.action': {
 				action: string
+			}
+			'update.ready': {
+				version: string
 			}
 		}
 	}>

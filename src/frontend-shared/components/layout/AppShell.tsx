@@ -10,7 +10,7 @@ import { getCapabilities } from '../../lib/capabilities'
 import { commandRegistry } from '../../lib/commands'
 import type { ShortcutContext } from '../../lib/keyboard'
 import { keyboardManager } from '../../lib/keyboard'
-import { friendlyErrorMessage, messages } from '../../lib/rpc'
+import { applyUpdate, friendlyErrorMessage, messages } from '../../lib/rpc'
 import { loadWorkspace, saveWorkspaceNow, scheduleWorkspaceSave, setWorkspaceStateCollector } from '../../lib/workspace'
 import { getComparisonParams, setComparisonParams } from '../../stores/comparison'
 import { connectionsStore } from '../../stores/connections'
@@ -90,6 +90,7 @@ export default function AppShell() {
 	const [sidebarWidth, setSidebarWidth] = createSignal(DEFAULT_WIDTH)
 	const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false)
 	const [modal, setModal] = createSignal<AppModal>(null)
+	const [updateVersion, setUpdateVersion] = createSignal<string | null>(null)
 	function modalAs<T extends NonNullable<AppModal>['type']>(type: T): Extract<NonNullable<AppModal>, { type: T }> | undefined {
 		const m = modal()
 		return m?.type === type ? m as Extract<NonNullable<AppModal>, { type: T }> : undefined
@@ -162,6 +163,7 @@ export default function AppShell() {
 	let removeMenuListener: (() => void) | undefined
 	let removeSessionListener: (() => void) | undefined
 	let removeStatusListener: (() => void) | undefined
+	let removeUpdateListener: (() => void) | undefined
 	let removeResizeListener: (() => void) | undefined
 
 	// ── Global error handlers ─────────────────────────────
@@ -236,6 +238,11 @@ export default function AppShell() {
 			}
 		})
 
+		// Listen for auto-update notifications
+		removeUpdateListener = messages.onUpdateReady(({ version }) => {
+			setUpdateVersion(version)
+		})
+
 		// Global error catching — prevents app crash on unhandled errors
 		window.addEventListener('error', handleUnhandledError)
 		window.addEventListener('unhandledrejection', handleUnhandledRejection)
@@ -295,6 +302,7 @@ export default function AppShell() {
 		removeMenuListener?.()
 		removeSessionListener?.()
 		removeStatusListener?.()
+		removeUpdateListener?.()
 		removeResizeListener?.()
 		tabsStore.setBeforeCloseHook(null)
 		connectionsStore.setBeforeDisconnectHook(null)
@@ -441,6 +449,16 @@ export default function AppShell() {
 
 	return (
 		<div class="app-shell">
+			<Show when={updateVersion()}>
+				{(version) => (
+					<div class="update-banner">
+						<span>Dotaz {version()} is ready.</span>
+						<button class="btn btn--primary btn--sm" onClick={() => applyUpdate()}>
+							Restart to Update
+						</button>
+					</div>
+				)}
+			</Show>
 			<div class="app-shell__body">
 				<Show when={sidebarCollapsed()}>
 					<SidebarExpandButton onClick={toggleCollapse} />

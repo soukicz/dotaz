@@ -27,4 +27,8 @@ export default {
 			bundleCEF: false,
 		},
 	},
+	release: {
+		baseUrl: 'https://github.com/contember/dotaz/releases/latest/download',
+		generatePatch: true,
+	},
 } satisfies ElectrobunConfig

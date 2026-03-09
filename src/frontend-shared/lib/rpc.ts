@@ -49,4 +49,13 @@ export const messages = {
 	) => {
 		return transport.addMessageListener('session.changed', handler)
 	},
+	onUpdateReady: (
+		handler: (event: { version: string }) => void,
+	) => {
+		return transport.addMessageListener('update.ready', handler)
+	},
+}
+
+export function applyUpdate(): Promise<void> {
+	return call('update.apply', {})
 }

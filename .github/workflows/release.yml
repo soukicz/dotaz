@@ -136,6 +136,13 @@ jobs:
             ${{ matrix.artifact }}.zip
           if-no-files-found: error
 
+      - name: Upload update artifacts
+        if: hashFiles('artifacts/*') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-${{ matrix.platform }}
+          path: artifacts/*
+
   # ── Docker image ──────────────────────────────────────────
   docker:
     needs: prepare
@@ -221,6 +228,13 @@ jobs:
         with:
           path: artifacts
           pattern: dotaz-*
+          merge-multiple: true
+
+      - name: Download update artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: update-*
           merge-multiple: true
 
       - name: Create GitHub Release

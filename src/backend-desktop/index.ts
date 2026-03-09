@@ -53,7 +53,12 @@ const { handlers, sessionManager } = createHandlers(connectionManager, undefined
 const rpc = BrowserView.defineRPC<DotazRPC>({
 	maxRequestTime: 30000,
 	handlers: {
-		requests: handlers,
+		requests: {
+			...handlers,
+			'update.apply': async () => {
+				await Updater.applyUpdate()
+			},
+		},
 		messages: {},
 	},
 })
@@ -176,5 +181,22 @@ Electrobun.events.on('application-menu-clicked', (e: any) => {
 		;(mainWindow as any).webview.rpc.send['menu.action']({ action })
 	}
 })
+
+// ── Auto-update ──────────────────────────────────────────
+const currentChannel = await Updater.localInfo.channel()
+if (currentChannel !== 'dev') {
+	setTimeout(async () => {
+		try {
+			const info = await Updater.checkForUpdate()
+			if (info.updateAvailable) {
+				console.log(`Update available: ${info.version}`)
+				await Updater.downloadUpdate()
+				emitToFrontend!('update.ready', { version: info.version })
+			}
+		} catch (e) {
+			console.error('Update check failed:', e)
+		}
+	}, 10_000)
+}
 
 console.log('Dotaz started!')

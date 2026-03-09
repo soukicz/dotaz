@@ -12,6 +12,18 @@
 	position: relative;
 }
 
+.update-banner {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 6px 16px;
+	background: var(--accent);
+	color: var(--on-accent, #fff);
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
 .app-shell__main {
 	flex: 1;
 	display: flex;
