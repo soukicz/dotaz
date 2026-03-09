@@ -51,10 +51,10 @@ import QueryHistory from '../history/QueryHistory'
 import SchemaViewer from '../schema/SchemaViewer'
 import DatabaseSearchDialog from '../search/DatabaseSearchDialog'
 import Resizer from './Resizer'
-import TitleBar from './TitleBar'
 import Sidebar, { SidebarExpandButton } from './Sidebar'
 import type { TabStatus } from './TabBar'
 import TabBar from './TabBar'
+import TitleBar from './TitleBar'
 import './AppShell.css'
 
 // Clean up grid/editor/session/navigation state when tabs are closed.

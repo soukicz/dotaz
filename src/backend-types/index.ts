@@ -49,17 +49,19 @@ export type NamespacedRpcClient = {
 
 // ── Electrobun RPC schema ───────────────────────────────
 
-type DotazRequests = {
-	[M in RpcMethod]: {
-		params: HandlerParams<M> extends void ? {} : HandlerParams<M>
-		response: HandlerReturn<M>
+type DotazRequests =
+	& {
+		[M in RpcMethod]: {
+			params: HandlerParams<M> extends void ? {} : HandlerParams<M>
+			response: HandlerReturn<M>
+		}
 	}
-} & {
-	'update.apply': { params: {}; response: void }
-	'window.minimize': { params: {}; response: void }
-	'window.maximize': { params: {}; response: void }
-	'window.close': { params: {}; response: void }
-}
+	& {
+		'update.apply': { params: {}; response: void }
+		'window.minimize': { params: {}; response: void }
+		'window.maximize': { params: {}; response: void }
+		'window.close': { params: {}; response: void }
+	}
 
 export type DotazRPC = {
 	bun: RPCSchema<{
