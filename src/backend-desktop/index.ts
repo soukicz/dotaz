@@ -5,7 +5,7 @@ import { AppDatabase, setDefaultDbPath } from '@dotaz/backend-shared/storage/app
 import type { DotazRPC } from '@dotaz/backend-types'
 import { BrowserView, BrowserWindow, Updater, Utils } from 'electrobun/bun'
 import { existsSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const DEV_SERVER_PORT = 6400
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
@@ -46,8 +46,15 @@ const connectionManager = new ConnectionManager(appDb)
 
 // Create RPC handlers with deferred message emitter (set after window creation)
 let emitToFrontend: ((channel: string, payload: unknown) => void) | undefined
+const userDataDir = Utils.paths.userData
+// Demo DB: try dev-time path first, then bundled resource next to the executable
+const devDemoPath = resolve(import.meta.dir, '../../scripts/seed/bookstore.db')
+const bundledDemoPath = resolve(import.meta.dir, '../resources/bookstore.db')
+const demoDbSourcePath = existsSync(devDemoPath) ? devDemoPath : bundledDemoPath
 const { handlers, sessionManager } = createHandlers(connectionManager, undefined, appDb, Utils, {
 	emitMessage: (channel, payload) => emitToFrontend?.(channel, payload),
+	demoDbSourcePath,
+	demoDbTargetPath: join(userDataDir, 'bookstore-demo.db'),
 })
 const rpc = BrowserView.defineRPC<DotazRPC>({
 	maxRequestTime: 30000,
@@ -111,7 +118,6 @@ connectionManager.onStatusChanged((event) => {
 		})
 	}
 })
-
 
 // ── Auto-update ──────────────────────────────────────────
 const currentChannel = await Updater.localInfo.channel()

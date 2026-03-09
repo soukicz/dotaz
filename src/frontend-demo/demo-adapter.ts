@@ -551,6 +551,15 @@ export class DemoAdapter implements RpcAdapter {
 		return null
 	}
 
+	// ── Demo ──────────────────────────────────────────────
+
+	async initializeDemo(): Promise<ConnectionInfo> {
+		// Demo mode already has the bookstore connection
+		const connections = this.state.listConnections()
+		if (connections.length > 0) return connections[0]
+		throw new Error('Demo connection not found')
+	}
+
 	// ── Private ──────────────────────────────────────────
 
 	private logHistory(connectionId: string, sql: string, results: QueryResult[]): void {

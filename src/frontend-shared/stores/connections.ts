@@ -245,6 +245,13 @@ async function deleteConnection(id: string) {
 	}
 }
 
+async function initializeDemo(): Promise<ConnectionInfo> {
+	const conn = await rpc.demo.initialize()
+	setState('connections', (prev) => [...prev, conn])
+	// Connection status will be updated via the statusChanged event
+	return conn
+}
+
 async function connectTo(id: string, password?: string) {
 	// If adapter needs config on connect and password not remembered, prompt for it
 	if (storage.passConfigOnConnect && !password) {
@@ -444,6 +451,7 @@ export const connectionsStore = {
 	},
 	getRememberPassword,
 	loadConnections,
+	initializeDemo,
 	createConnection,
 	updateConnection,
 	setReadOnly,

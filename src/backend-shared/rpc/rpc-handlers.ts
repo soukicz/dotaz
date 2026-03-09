@@ -9,6 +9,8 @@ import { createHandlers as createSharedHandlers } from './handlers'
 export interface HandlerOptions {
 	encryption?: EncryptionService
 	emitMessage?: (channel: string, payload: unknown) => void
+	demoDbSourcePath?: string
+	demoDbTargetPath?: string
 }
 
 function requireAppDb(appDb: AppDatabase | undefined): AppDatabase {
@@ -31,6 +33,8 @@ export function createHandlers(
 		Utils,
 		emitMessage: opts?.emitMessage,
 		sessionManager,
+		demoDbSourcePath: opts?.demoDbSourcePath,
+		demoDbTargetPath: opts?.demoDbTargetPath,
 	})
 	return { handlers: createSharedHandlers(adapter), sessionManager, adapter }
 }

@@ -102,6 +102,22 @@
 	background: var(--accent-hover);
 }
 
+.connection-tree__empty-demo {
+	background: transparent;
+	color: var(--ink-muted);
+	border: 1px solid var(--edge);
+	padding: var(--spacing-xs) var(--spacing-md);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: var(--font-size-xs);
+	font-family: var(--font-ui);
+}
+
+.connection-tree__empty-demo:hover {
+	color: var(--ink);
+	border-color: var(--ink-muted);
+}
+
 /* ── TreeItem ────────────────────────────────────────── */
 
 .tree-item {

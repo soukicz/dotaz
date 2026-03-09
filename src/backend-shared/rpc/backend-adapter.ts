@@ -39,6 +39,8 @@ export interface BackendAdapterOptions {
 	Utils?: typeof import('electrobun/bun').Utils
 	emitMessage?: EmitMessage
 	sessionManager?: SessionManager
+	demoDbSourcePath?: string
+	demoDbTargetPath?: string
 }
 
 export class BackendAdapter implements RpcAdapter {
@@ -47,6 +49,8 @@ export class BackendAdapter implements RpcAdapter {
 	private Utils?: typeof import('electrobun/bun').Utils
 	private emitMessage?: EmitMessage
 	private sessionManager?: SessionManager
+	private demoDbSourcePath?: string
+	private demoDbTargetPath?: string
 
 	constructor(
 		private cm: ConnectionManager,
@@ -59,6 +63,8 @@ export class BackendAdapter implements RpcAdapter {
 		this.Utils = opts?.Utils
 		this.emitMessage = opts?.emitMessage
 		this.sessionManager = opts?.sessionManager
+		this.demoDbSourcePath = opts?.demoDbSourcePath
+		this.demoDbTargetPath = opts?.demoDbTargetPath
 	}
 
 	// ── Connections ────────────────────────────────────────
@@ -589,6 +595,27 @@ export class BackendAdapter implements RpcAdapter {
 
 	loadWorkspace(): string | null {
 		return this.appDb.loadWorkspace()
+	}
+
+	// ── Demo ──────────────────────────────────────────────
+
+	async initializeDemo(): Promise<ConnectionInfo> {
+		if (!this.demoDbSourcePath || !this.demoDbTargetPath) {
+			throw new Error('Demo database paths not configured')
+		}
+
+		const srcFile = Bun.file(this.demoDbSourcePath)
+		if (!await srcFile.exists()) {
+			throw new Error('Demo database source not found. Run "bun run seed:sqlite" first.')
+		}
+
+		await Bun.write(this.demoDbTargetPath, srcFile)
+
+		const config = { type: 'sqlite' as const, path: this.demoDbTargetPath }
+		const conn = this.appDb.createConnection({ name: 'Bookstore (Demo)', config })
+
+		await this.cm.connect(conn.id)
+		return conn
 	}
 
 	// ── Session Manager access ────────────────────────────

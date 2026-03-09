@@ -313,5 +313,13 @@ export function createHandlers(adapter: RpcAdapter) {
 			}
 			return adapter.showSaveDialog(params)
 		},
+
+		// ── Demo ──────────────────────────────────────────────
+		'demo.initialize': async () => {
+			if (!adapter.initializeDemo) {
+				throw new Error('Demo initialization is not available')
+			}
+			return adapter.initializeDemo()
+		},
 	} as const
 }

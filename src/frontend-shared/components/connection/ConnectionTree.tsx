@@ -735,6 +735,18 @@ export default function ConnectionTree(props: ConnectionTreeProps) {
 						<button class="connection-tree__empty-cta" onClick={props.onAddConnection}>
 							<Plus size={14} /> Add Connection
 						</button>
+						<button
+							class="connection-tree__empty-demo"
+							onClick={async () => {
+								try {
+									await connectionsStore.initializeDemo()
+								} catch (err) {
+									uiStore.addToast('error', err instanceof Error ? err.message : 'Failed to load demo')
+								}
+							}}
+						>
+							Load Demo Database
+						</button>
 					</div>
 				}
 			>

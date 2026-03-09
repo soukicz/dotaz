@@ -129,4 +129,7 @@ export interface RpcAdapter {
 	// ── Workspace persistence ─────────────────────────────
 	saveWorkspace(data: string): void
 	loadWorkspace(): string | null
+
+	// ── Demo ──────────────────────────────────────────────
+	initializeDemo?(): Promise<ConnectionInfo>
 }
