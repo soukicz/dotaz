@@ -25,6 +25,7 @@ export default {
 		},
 		win: {
 			bundleCEF: false,
+			icon: 'assets/icon.png',
 		},
 	},
 	release: {

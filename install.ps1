@@ -63,7 +63,7 @@ try {
         $Shortcut.WorkingDirectory = $InstallDir
         $Shortcut.Description = "Desktop database client"
 
-        $IconPath = Join-Path $InstallDir "Resources\appIcon.ico"
+        $IconPath = Join-Path $InstallDir "Resources\app.ico"
         if (Test-Path $IconPath) {
             $Shortcut.IconLocation = $IconPath
         }
