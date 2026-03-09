@@ -11,6 +11,8 @@ import { createGridAutoJoinActions } from './gridAutoJoin'
 import { computePinStyles, createGridColumnActions, getOrderedColumns, getVisibleColumns } from './gridColumns'
 import { createDefaultPendingChanges, createGridEditingActions } from './gridEditing'
 import { createGridFkActions } from './gridFk'
+import type { UndoSnapshot } from './gridUndoRedo'
+import { createGridUndoRedoActions } from './gridUndoRedo'
 import { computeHeatmapColor, computeHeatmapStats, createGridHeatmapActions } from './gridHeatmap'
 import { createGridSelectionActions } from './gridSelection'
 import { createGridViewActions } from './gridViews'
@@ -308,6 +310,8 @@ export interface TabGridState {
 	rowColorRules: RowColorRule[]
 	rowColoringEnabled: boolean
 	autoJoins: AutoJoinDef[]
+	undoStack: UndoSnapshot[]
+	redoStack: UndoSnapshot[]
 }
 
 function createDefaultTabState(
@@ -350,6 +354,8 @@ function createDefaultTabState(
 		rowColorRules: [],
 		rowColoringEnabled: true,
 		autoJoins: [],
+		undoStack: [],
+		redoStack: [],
 	}
 }
 
@@ -385,6 +391,8 @@ const editingActions = createGridEditingActions(
 	getVisibleColumns,
 	selectionActions.clearSelection,
 )
+
+const undoRedoActions = createGridUndoRedoActions(state, setState, ensureTab, getTab)
 
 // fetchData is defined before viewActions since viewActions needs it
 async function fetchData(tabId: string) {
@@ -548,6 +556,7 @@ async function fetchData(tabId: string) {
 			selection: createDefaultSelection(),
 			editingCell: null,
 		})
+		undoRedoActions.clearHistory(tabId)
 	} catch (err) {
 		// Ignore errors from stale requests
 		if (latestFetchId.get(tabId) !== requestId) return
@@ -1048,7 +1057,40 @@ function getCurrentSql(tabId: string): string | null {
 function deleteSelectedRows(tabId: string) {
 	const tab = ensureTab(tabId)
 	const selectedIndices = getSelectedRowIndices(tab.selection)
+	undoRedoActions.pushSnapshot(tabId)
 	editingActions.deleteSelectedRows(tabId, selectedIndices)
+}
+
+function setCellValueWithUndo(tabId: string, rowIndex: number, column: string, newValue: unknown) {
+	const tab = getTab(tabId)
+	if (tab) {
+		// Skip snapshot if value isn't actually changing
+		const currentValue = tab.rows[rowIndex]?.[column]
+		if (currentValue === newValue) return
+	}
+	undoRedoActions.pushSnapshot(tabId)
+	editingActions.setCellValue(tabId, rowIndex, column, newValue)
+}
+
+function addNewRowWithUndo(tabId: string): number {
+	undoRedoActions.pushSnapshot(tabId)
+	return editingActions.addNewRow(tabId)
+}
+
+function pasteCellsWithUndo(tabId: string, startRow: number, startColumn: string, data: unknown[][]) {
+	undoRedoActions.withUndoGroup(tabId, () => {
+		editingActions.pasteCells(tabId, startRow, startColumn, data)
+	})
+}
+
+function clearPendingChangesWithUndo(tabId: string) {
+	editingActions.clearPendingChanges(tabId)
+	undoRedoActions.clearHistory(tabId)
+}
+
+function revertChangesWithUndo(tabId: string) {
+	editingActions.revertChanges(tabId)
+	undoRedoActions.clearHistory(tabId)
 }
 
 // ── Export ────────────────────────────────────────────────
@@ -1149,12 +1191,19 @@ export const gridStore = {
 	getSelectedCellData,
 	getSelectionSnapshot,
 
+	// Undo/Redo
+	undo: undoRedoActions.undo,
+	redo: undoRedoActions.redo,
+	canUndo: undoRedoActions.canUndo,
+	canRedo: undoRedoActions.canRedo,
+	withUndoGroup: undoRedoActions.withUndoGroup,
+
 	// Editing
 	startEditing: editingActions.startEditing,
 	stopEditing: editingActions.stopEditing,
-	setCellValue: editingActions.setCellValue,
-	addNewRow: editingActions.addNewRow,
-	pasteCells: editingActions.pasteCells,
+	setCellValue: setCellValueWithUndo,
+	addNewRow: addNewRowWithUndo,
+	pasteCells: pasteCellsWithUndo,
 	deleteSelectedRows,
 	hasPendingChanges: editingActions.hasPendingChanges,
 	pendingChangesCount: editingActions.pendingChangesCount,
@@ -1164,8 +1213,8 @@ export const gridStore = {
 	buildDataChanges: editingActions.buildDataChanges,
 	applyChanges: editingActions.applyChanges,
 	generateSqlPreview: editingActions.generateSqlPreview,
-	revertChanges: editingActions.revertChanges,
-	clearPendingChanges: editingActions.clearPendingChanges,
+	revertChanges: revertChangesWithUndo,
+	clearPendingChanges: clearPendingChangesWithUndo,
 	revertRowUpdate: editingActions.revertRowUpdate,
 	revertNewRow: editingActions.revertNewRow,
 	revertDeletedRow: editingActions.revertDeletedRow,

@@ -96,18 +96,20 @@ export function useDataGridCellEdit(params: UseDataGridCellEditParams) {
 	}
 
 	function handleDuplicateRow(rowIndex: number) {
-		const t = gridStore.getTab(params.tabId)
-		if (!t) return
-		const sourceRow = t.rows[rowIndex]
-		if (!sourceRow) return
-		const newIndex = gridStore.addNewRow(params.tabId)
-		for (const col of t.columns) {
-			if (col.isPrimaryKey) continue
-			const value = sourceRow[col.name]
-			if (value !== null && value !== undefined) {
-				gridStore.setCellValue(params.tabId, newIndex, col.name, value)
+		gridStore.withUndoGroup(params.tabId, () => {
+			const t = gridStore.getTab(params.tabId)
+			if (!t) return
+			const sourceRow = t.rows[rowIndex]
+			if (!sourceRow) return
+			const newIndex = gridStore.addNewRow(params.tabId)
+			for (const col of t.columns) {
+				if (col.isPrimaryKey) continue
+				const value = sourceRow[col.name]
+				if (value !== null && value !== undefined) {
+					gridStore.setCellValue(params.tabId, newIndex, col.name, value)
+				}
 			}
-		}
+		})
 	}
 
 	function getChangedCells(rowIndex: number): Set<string> {

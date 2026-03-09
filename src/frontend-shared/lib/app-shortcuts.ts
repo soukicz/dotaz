@@ -50,4 +50,6 @@ export function registerAppShortcuts(): void {
 		'toggle-value-editor',
 		'data-grid',
 	)
+	keyboardManager.register('Ctrl+Z', 'undo', 'data-grid')
+	keyboardManager.register('Ctrl+Shift+Z', 'redo', 'data-grid')
 }

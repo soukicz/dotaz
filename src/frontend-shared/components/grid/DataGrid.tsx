@@ -1,7 +1,9 @@
 import Check from 'lucide-solid/icons/check'
 import PanelRight from 'lucide-solid/icons/panel-right'
 import Pencil from 'lucide-solid/icons/pencil'
+import Redo2 from 'lucide-solid/icons/redo-2'
 import RotateCcw from 'lucide-solid/icons/rotate-ccw'
+import Undo2 from 'lucide-solid/icons/undo-2'
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, untrack } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import type { ForeignKeyInfo } from '../../../shared/types/database'
@@ -763,6 +765,22 @@ export default function DataGrid(props: DataGridProps) {
 										</span>
 									</Show>
 									<div class="data-grid__pending-bar-actions">
+										<button
+											class="data-grid__pending-bar-btn"
+											onClick={() => gridStore.undo(props.tabId)}
+											disabled={savingChanges() || !gridStore.canUndo(props.tabId)}
+											title="Undo (Ctrl+Z)"
+										>
+											<Undo2 size={12} />
+										</button>
+										<button
+											class="data-grid__pending-bar-btn"
+											onClick={() => gridStore.redo(props.tabId)}
+											disabled={savingChanges() || !gridStore.canRedo(props.tabId)}
+											title="Redo (Ctrl+Shift+Z)"
+										>
+											<Redo2 size={12} />
+										</button>
 										<button
 											class="data-grid__pending-bar-btn"
 											onClick={handleRevertAll}

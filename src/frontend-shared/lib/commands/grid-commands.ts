@@ -100,6 +100,32 @@ export function registerGridCommands(actions: AppCommandActions): void {
 	})
 
 	commandRegistry.register({
+		id: 'undo',
+		label: 'Undo',
+		shortcut: 'Ctrl+Z',
+		category: 'Grid',
+		handler: () => {
+			const tab = tabsStore.activeTab
+			if (tab?.type === 'data-grid') {
+				gridStore.undo(tab.id)
+			}
+		},
+	})
+
+	commandRegistry.register({
+		id: 'redo',
+		label: 'Redo',
+		shortcut: 'Ctrl+Shift+Z',
+		category: 'Grid',
+		handler: () => {
+			const tab = tabsStore.activeTab
+			if (tab?.type === 'data-grid') {
+				gridStore.redo(tab.id)
+			}
+		},
+	})
+
+	commandRegistry.register({
 		id: 'compare-data',
 		label: 'Compare Data',
 		category: 'Grid',

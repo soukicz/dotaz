@@ -88,43 +88,45 @@ export default function BatchEditDialog(props: BatchEditDialogProps) {
 	}
 
 	function handleApply() {
-		const tab = gridStore.getTab(props.tabId)
+		gridStore.withUndoGroup(props.tabId, () => {
+			const tab = gridStore.getTab(props.tabId)
 
-		for (const col of props.columns) {
-			const mode = getMode(col.name)
-			if (mode === 'keep') continue
+			for (const col of props.columns) {
+				const mode = getMode(col.name)
+				if (mode === 'keep') continue
 
-			const delta = (mode === 'inc' || mode === 'dec')
-				? Number(values()[col.name] ?? 1)
-				: 0
+				const delta = (mode === 'inc' || mode === 'dec')
+					? Number(values()[col.name] ?? 1)
+					: 0
 
-			for (const rowIndex of props.selectedRows) {
-				if (gridStore.isRowDeleted(props.tabId, rowIndex)) continue
+				for (const rowIndex of props.selectedRows) {
+					if (gridStore.isRowDeleted(props.tabId, rowIndex)) continue
 
-				let finalValue: unknown
-				switch (mode) {
-					case 'set':
-						finalValue = parseValue(String(values()[col.name] ?? ''), col)
-						break
-					case 'null':
-						finalValue = null
-						break
-					case 'default':
-						finalValue = SQL_DEFAULT
-						break
-					case 'now':
-						finalValue = new Date().toISOString()
-						break
-					case 'inc':
-					case 'dec': {
-						const current = Number(tab?.rows[rowIndex]?.[col.name] ?? 0)
-						finalValue = mode === 'inc' ? current + delta : current - delta
-						break
+					let finalValue: unknown
+					switch (mode) {
+						case 'set':
+							finalValue = parseValue(String(values()[col.name] ?? ''), col)
+							break
+						case 'null':
+							finalValue = null
+							break
+						case 'default':
+							finalValue = SQL_DEFAULT
+							break
+						case 'now':
+							finalValue = new Date().toISOString()
+							break
+						case 'inc':
+						case 'dec': {
+							const current = Number(tab?.rows[rowIndex]?.[col.name] ?? 0)
+							finalValue = mode === 'inc' ? current + delta : current - delta
+							break
+						}
 					}
+					gridStore.setCellValue(props.tabId, rowIndex, col.name, finalValue)
 				}
-				gridStore.setCellValue(props.tabId, rowIndex, col.name, finalValue)
 			}
-		}
+		})
 
 		props.onClose()
 	}
