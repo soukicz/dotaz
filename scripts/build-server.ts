@@ -35,6 +35,7 @@ const serverPkg = {
 	description: 'Desktop database client — server mode',
 	license: pkg.license,
 	author: pkg.author,
+	repository: { type: 'git', url: 'https://github.com/contember/dotaz' },
 	bin: { dotaz: './bin/dotaz.js' },
 	files: ['bin/', 'dist/'],
 }
