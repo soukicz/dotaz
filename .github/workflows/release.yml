@@ -57,11 +57,11 @@ jobs:
             platform: linux-arm64
             artifact: dotaz-linux-arm64
           - os: macos-14
-            platform: mac-arm64
-            artifact: dotaz-mac-arm64
-          - os: macos-13
-            platform: mac-x64
-            artifact: dotaz-mac-x64
+            platform: macos-arm64
+            artifact: dotaz-macos-arm64
+          - os: macos-15-large
+            platform: macos-x64
+            artifact: dotaz-macos-x64
           - os: windows-latest
             platform: win-x64
             artifact: dotaz-win-x64

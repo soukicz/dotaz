@@ -3,6 +3,18 @@ FROM oven/bun:1 AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
+COPY src/shared/package.json src/shared/
+COPY src/backend-shared/package.json src/backend-shared/
+COPY src/backend-types/package.json src/backend-types/
+COPY src/backend-desktop/package.json src/backend-desktop/
+COPY src/backend-web/package.json src/backend-web/
+COPY src/frontend-shared/package.json src/frontend-shared/
+COPY src/frontend-desktop/package.json src/frontend-desktop/
+COPY src/frontend-web/package.json src/frontend-web/
+COPY src/frontend-demo/package.json src/frontend-demo/
+COPY src/frontend-electron/package.json src/frontend-electron/
+COPY src/electron/package.json src/electron/
+COPY src/cli/package.json src/cli/
 RUN bun install --frozen-lockfile
 
 COPY . .
