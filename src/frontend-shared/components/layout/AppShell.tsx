@@ -51,6 +51,7 @@ import QueryHistory from '../history/QueryHistory'
 import SchemaViewer from '../schema/SchemaViewer'
 import DatabaseSearchDialog from '../search/DatabaseSearchDialog'
 import Resizer from './Resizer'
+import TitleBar from './TitleBar'
 import Sidebar, { SidebarExpandButton } from './Sidebar'
 import type { TabStatus } from './TabBar'
 import TabBar from './TabBar'
@@ -449,6 +450,9 @@ export default function AppShell() {
 
 	return (
 		<div class="app-shell">
+			<Show when={getCapabilities().isDesktop}>
+				<TitleBar />
+			</Show>
 			<Show when={updateVersion()}>
 				{(version) => (
 					<div class="update-banner">

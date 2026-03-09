@@ -9,5 +9,5 @@ import { render } from 'solid-js/web'
 
 setTransport(createElectrobunTransport())
 setStorage(new RpcAppStateStorage())
-setCapabilities({ hasFileSystem: true, hasHttpStreaming: false, hasNativeDialogs: true })
+setCapabilities({ hasFileSystem: true, hasHttpStreaming: false, hasNativeDialogs: true, isDesktop: true })
 render(() => <App />, document.getElementById('app')!)

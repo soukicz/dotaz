@@ -58,6 +58,16 @@ const rpc = BrowserView.defineRPC<DotazRPC>({
 			'update.apply': async () => {
 				await Updater.applyUpdate()
 			},
+			'window.minimize': () => {
+				mainWindow.minimize()
+			},
+			'window.maximize': () => {
+				if (mainWindow.isMaximized()) mainWindow.unmaximize()
+				else mainWindow.maximize()
+			},
+			'window.close': () => {
+				mainWindow.close()
+			},
 		},
 		messages: {},
 	},
@@ -67,6 +77,7 @@ const url = await getMainViewUrl()
 
 const mainWindow = new BrowserWindow({
 	title: 'Dotaz',
+	titleBarStyle: 'hidden',
 	url,
 	rpc,
 	frame: {

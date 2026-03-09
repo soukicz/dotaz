@@ -59,3 +59,15 @@ export const messages = {
 export function applyUpdate(): Promise<void> {
 	return call('update.apply', {})
 }
+
+export function minimizeWindow(): Promise<void> {
+	return call('window.minimize', {})
+}
+
+export function maximizeWindow(): Promise<void> {
+	return call('window.maximize', {})
+}
+
+export function closeWindow(): Promise<void> {
+	return call('window.close', {})
+}

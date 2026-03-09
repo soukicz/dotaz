@@ -56,6 +56,9 @@ type DotazRequests = {
 	}
 } & {
 	'update.apply': { params: {}; response: void }
+	'window.minimize': { params: {}; response: void }
+	'window.maximize': { params: {}; response: void }
+	'window.close': { params: {}; response: void }
 }
 
 export type DotazRPC = {
