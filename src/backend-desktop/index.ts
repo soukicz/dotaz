@@ -3,7 +3,7 @@ import { ConnectionManager } from '@dotaz/backend-shared/services/connection-man
 import { createLocalKey } from '@dotaz/backend-shared/services/encryption'
 import { AppDatabase, setDefaultDbPath } from '@dotaz/backend-shared/storage/app-db'
 import type { DotazRPC } from '@dotaz/backend-types'
-import { BrowserView, BrowserWindow, Updater, Utils } from 'electrobun/bun'
+import { ApplicationMenu, BrowserView, BrowserWindow, Updater, Utils } from 'electrobun/bun'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -82,6 +82,102 @@ const rpc = BrowserView.defineRPC<DotazRPC>({
 const url = await getMainViewUrl()
 
 const isMac = process.platform === 'darwin'
+
+// Set up native application menu (macOS only).
+// The Edit menu with roles is required for clipboard shortcuts (Cmd+C/V/X/A)
+// to work in webview text inputs.
+// Items with `action` are forwarded to the frontend via menu.action RPC message.
+if (isMac) {
+	ApplicationMenu.setApplicationMenu([
+		{
+			label: 'Dotaz',
+			submenu: [
+				{ role: 'about' },
+				{ type: 'divider' },
+				{ label: 'Settings', action: 'settings', accelerator: 'Cmd+,' },
+				{ type: 'divider' },
+				{ role: 'hide' },
+				{ role: 'hideOthers' },
+				{ role: 'showAll' },
+				{ type: 'divider' },
+				{ role: 'quit' },
+			],
+		},
+		{
+			label: 'File',
+			submenu: [
+				{ label: 'New SQL Console', action: 'new-sql-console', accelerator: 'Cmd+N' },
+				{ label: 'Close Tab', action: 'close-tab', accelerator: 'Cmd+W' },
+			],
+		},
+		{
+			label: 'Edit',
+			submenu: [
+				{ role: 'undo', accelerator: 'Cmd+Z' },
+				{ role: 'redo', accelerator: 'Cmd+Shift+Z' },
+				{ type: 'divider' },
+				{ role: 'cut', accelerator: 'Cmd+X' },
+				{ role: 'copy', accelerator: 'Cmd+C' },
+				{ role: 'paste', accelerator: 'Cmd+V' },
+				{ role: 'selectAll', accelerator: 'Cmd+A' },
+			],
+		},
+		{
+			label: 'View',
+			submenu: [
+				{ label: 'Toggle Sidebar', action: 'toggle-sidebar', accelerator: 'Cmd+B' },
+				{ label: 'Command Palette', action: 'command-palette', accelerator: 'Cmd+Shift+P' },
+				{ type: 'divider' },
+				{ label: 'Refresh Data', action: 'refresh-data', accelerator: 'F5' },
+				{ type: 'divider' },
+				{ label: 'Zoom In', action: 'zoom-in', accelerator: 'Cmd+=' },
+				{ label: 'Zoom Out', action: 'zoom-out', accelerator: 'Cmd+-' },
+				{ label: 'Reset Zoom', action: 'zoom-reset', accelerator: 'Cmd+0' },
+			],
+		},
+		{
+			label: 'Connection',
+			submenu: [
+				{ label: 'New Connection', action: 'new-connection' },
+				{ label: 'Disconnect', action: 'disconnect' },
+				{ type: 'divider' },
+				{ label: 'Reconnect', action: 'reconnect' },
+			],
+		},
+		{
+			label: 'Query',
+			submenu: [
+				{ label: 'Run Query', action: 'run-query', accelerator: 'Cmd+Enter' },
+				{ label: 'Cancel Query', action: 'cancel-query' },
+				{ type: 'divider' },
+				{ label: 'Format SQL', action: 'format-sql', accelerator: 'Cmd+Shift+F' },
+			],
+		},
+		{
+			label: 'Window',
+			submenu: [
+				{ role: 'minimize' },
+				{ role: 'zoom' },
+				{ role: 'toggleFullScreen' },
+			],
+		},
+		{
+			label: 'Help',
+			submenu: [
+				{ label: 'Keyboard Shortcuts', action: 'keyboard-shortcuts', accelerator: 'Cmd+/' },
+			],
+		},
+	])
+
+	// Forward menu action clicks to the frontend
+	ApplicationMenu.on('application-menu-clicked', (event: any) => {
+		const action = event?.action
+		if (action && emitToFrontend) {
+			emitToFrontend('menu.action', { action })
+		}
+	})
+}
+
 const mainWindow = new BrowserWindow({
 	title: 'Dotaz',
 	titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
