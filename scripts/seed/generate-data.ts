@@ -131,7 +131,6 @@ export interface Review {
 
 const AUTHOR_COUNT = 60
 const PUBLISHER_COUNT = 25
-const CATEGORY_COUNT = 15
 const BOOK_COUNT = 500
 const CUSTOMER_COUNT = 1000
 const ORDER_COUNT = 3000
