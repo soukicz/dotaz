@@ -1,4 +1,3 @@
-import type { GridDataResponse } from '@dotaz/shared/types/grid'
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 
 // ── Mock solid-js/store ──────────────────────────────────
@@ -129,20 +128,6 @@ mock.module('../src/frontend-shared/stores/connections', () => ({
 const { gridStore } = await import('@dotaz/frontend-shared/stores/grid')
 
 // ── Test helpers ─────────────────────────────────────────
-
-function makeResponse(overrides?: Partial<GridDataResponse>): GridDataResponse {
-	return {
-		columns: [
-			{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true },
-			{ name: 'name', dataType: 'text', nullable: true, isPrimaryKey: false },
-		],
-		rows: defaultRows,
-		totalRows: defaultTotalRows,
-		page: 1,
-		pageSize: 100,
-		...overrides,
-	}
-}
 
 function resetState() {
 	storeState.tabs = {}

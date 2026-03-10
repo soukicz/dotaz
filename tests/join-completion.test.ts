@@ -1,5 +1,6 @@
 import { buildJoinCompletions, detectJoinContext, parseTableReferences } from '@dotaz/frontend-shared/lib/join-completion'
 import type { SchemaData } from '@dotaz/shared/types/database'
+import { DatabaseDataType } from '@dotaz/shared/types/database'
 import { describe, expect, it } from 'bun:test'
 
 // ── Helper ────────────────────────────────────────────────
@@ -9,29 +10,29 @@ function createSchemaData(overrides?: Partial<SchemaData>): SchemaData {
 		schemas: [{ name: 'public' }],
 		tables: {
 			public: [
-				{ name: 'orders', type: 'table' },
-				{ name: 'customers', type: 'table' },
-				{ name: 'products', type: 'table' },
-				{ name: 'order_items', type: 'table' },
+				{ name: 'orders', type: 'table', schema: 'public' },
+				{ name: 'customers', type: 'table', schema: 'public' },
+				{ name: 'products', type: 'table', schema: 'public' },
+				{ name: 'order_items', type: 'table', schema: 'public' },
 			],
 		},
 		columns: {
 			'public.orders': [
-				{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true },
-				{ name: 'customer_id', dataType: 'integer', nullable: false, isPrimaryKey: false },
+				{ name: 'id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: true, isAutoIncrement: false },
+				{ name: 'customer_id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: false, isAutoIncrement: false },
 			],
 			'public.customers': [
-				{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true },
-				{ name: 'name', dataType: 'text', nullable: false, isPrimaryKey: false },
+				{ name: 'id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: true, isAutoIncrement: false },
+				{ name: 'name', dataType: DatabaseDataType.Text, nullable: false, defaultValue: null, isPrimaryKey: false, isAutoIncrement: false },
 			],
 			'public.order_items': [
-				{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true },
-				{ name: 'order_id', dataType: 'integer', nullable: false, isPrimaryKey: false },
-				{ name: 'product_id', dataType: 'integer', nullable: false, isPrimaryKey: false },
+				{ name: 'id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: true, isAutoIncrement: false },
+				{ name: 'order_id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: false, isAutoIncrement: false },
+				{ name: 'product_id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: false, isAutoIncrement: false },
 			],
 			'public.products': [
-				{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true },
-				{ name: 'name', dataType: 'text', nullable: false, isPrimaryKey: false },
+				{ name: 'id', dataType: DatabaseDataType.Integer, nullable: false, defaultValue: null, isPrimaryKey: true, isAutoIncrement: false },
+				{ name: 'name', dataType: DatabaseDataType.Text, nullable: false, defaultValue: null, isPrimaryKey: false, isAutoIncrement: false },
 			],
 		},
 		indexes: {},
@@ -283,7 +284,7 @@ describe('buildJoinCompletions', () => {
 	it('handles SQLite mode (no schema prefix)', () => {
 		const sqliteSchema = createSchemaData()
 		// For SQLite, use empty string as default schema but still key by "schema.table"
-		const completions = buildJoinCompletions(
+		buildJoinCompletions(
 			[{ table: 'orders' }],
 			sqliteSchema,
 			true,

@@ -125,9 +125,9 @@ describe('tabs store', () => {
 		})
 
 		test('activates adjacent tab after closing active tab', () => {
-			const id1 = tabsStore.openTab({ type: 'data-grid', title: 'tab1', connectionId: 'c1' })
+			tabsStore.openTab({ type: 'data-grid', title: 'tab1', connectionId: 'c1' })
 			const id2 = tabsStore.openTab({ type: 'sql-console', title: 'tab2', connectionId: 'c1' })
-			const id3 = tabsStore.openTab({ type: 'data-grid', title: 'tab3', connectionId: 'c1' })
+			tabsStore.openTab({ type: 'data-grid', title: 'tab3', connectionId: 'c1' })
 
 			// Close middle tab (active is tab3)
 			tabsStore.setActiveTab(id2)

@@ -10,7 +10,6 @@ import {
 	getStreamTokens,
 	maybeDestroySession,
 	releaseStream,
-	type Session,
 	TOKEN_EXPIRY_MS,
 } from '@dotaz/backend-web/session'
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'

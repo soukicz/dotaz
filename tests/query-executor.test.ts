@@ -501,8 +501,8 @@ describe('MySQL placeholder generation', () => {
 
 	test('buildQuickSearchClause uses ? placeholders', () => {
 		const columns = [
-			{ name: 'name', dataType: 'varchar' },
-			{ name: 'description', dataType: 'text' },
+			{ name: 'name', dataType: DatabaseDataType.Varchar },
+			{ name: 'description', dataType: DatabaseDataType.Text },
 		]
 		const result = buildQuickSearchClause(columns, 'test', driver)
 		expect(result.sql).toBe(
@@ -586,7 +586,7 @@ describe('splitStatements', () => {
 
 function makeSuccessResult(rows: Record<string, unknown>[] = [], durationMs = 0): QueryResult {
 	const columns = rows.length > 0
-		? Object.keys(rows[0]).map((name) => ({ name, dataType: 'unknown' }))
+		? Object.keys(rows[0]).map((name) => ({ name, dataType: DatabaseDataType.Unknown }))
 		: []
 	return { columns, rows, rowCount: rows.length, durationMs }
 }
@@ -626,8 +626,8 @@ describe('QueryExecutor', () => {
 		expect(results).toHaveLength(1)
 		expect(results[0].rows).toEqual(rows)
 		expect(results[0].columns).toEqual([
-			{ name: 'id', dataType: 'unknown' },
-			{ name: 'name', dataType: 'unknown' },
+			{ name: 'id', dataType: DatabaseDataType.Unknown },
+			{ name: 'name', dataType: DatabaseDataType.Unknown },
 		])
 		expect(results[0].error).toBeUndefined()
 		expect(results[0].durationMs).toBeGreaterThanOrEqual(0)
@@ -741,7 +741,7 @@ describe('QueryExecutor', () => {
 	test('stops multi-statement execution on error', async () => {
 		let callCount = 0
 		const driver = makeMockDriver({
-			execute: mock(async (sql: string) => {
+			execute: mock(async (_sql: string) => {
 				callCount++
 				if (callCount === 2) throw new Error('syntax error')
 				return makeSuccessResult([{ n: callCount }])

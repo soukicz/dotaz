@@ -441,10 +441,10 @@ describe('RPC Handlers', () => {
 			const config = {
 				columns: ['id', 'name', 'email'],
 				sort: [{ column: 'name', direction: 'asc' as const }],
-				filters: [{ column: 'active', operator: 'eq', value: true }],
+				filters: [{ column: 'active', operator: 'eq' as const, value: true }],
 				columnWidths: { id: 60, name: 200, email: 300 },
 			}
-			const view = handlers['views.save']({
+			handlers['views.save']({
 				connectionId,
 				schemaName: 'main',
 				tableName: 'users',

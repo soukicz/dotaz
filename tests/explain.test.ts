@@ -1,14 +1,15 @@
 import type { DatabaseDriver } from '@dotaz/backend-shared/db/driver'
 import type { ConnectionManager } from '@dotaz/backend-shared/services/connection-manager'
 import { QueryExecutor } from '@dotaz/backend-shared/services/query-executor'
-import type { ExplainNode, QueryResult } from '@dotaz/shared/types/query'
+import type { QueryResult } from '@dotaz/shared/types/query'
+import { DatabaseDataType } from '@dotaz/shared/types/database'
 import { describe, expect, mock, test } from 'bun:test'
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function makeSuccessResult(rows: Record<string, unknown>[] = [], durationMs = 0): QueryResult {
 	const columns = rows.length > 0
-		? Object.keys(rows[0]).map((name) => ({ name, dataType: 'unknown' }))
+		? Object.keys(rows[0]).map((name) => ({ name, dataType: DatabaseDataType.Unknown }))
 		: []
 	return { columns, rows, rowCount: rows.length, durationMs }
 }

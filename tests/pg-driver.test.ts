@@ -255,13 +255,13 @@ describe('PostgresDriver loadSchema', () => {
 		expect(idCol.nullable).toBe(false)
 
 		const nameCol = columns.find((c) => c.name === 'name')!
-		expect(nameCol.dataType).toBe('text')
+		expect(nameCol.dataType).toBe(DatabaseDataType.Text)
 		expect(nameCol.isPrimaryKey).toBe(false)
 		expect(nameCol.isAutoIncrement).toBe(false)
 		expect(nameCol.nullable).toBe(false)
 
 		const ageCol = columns.find((c) => c.name === 'age')!
-		expect(ageCol.dataType).toBe('integer')
+		expect(ageCol.dataType).toBe(DatabaseDataType.Integer)
 		expect(ageCol.nullable).toBe(true)
 
 		const metadataCol = columns.find((c) => c.name === 'metadata')!

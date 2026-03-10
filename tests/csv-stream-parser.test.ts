@@ -3,7 +3,6 @@ import {
 	type CsvBatch,
 	CsvParseError,
 	type CsvStreamOptions,
-	MAX_BUFFER_SIZE,
 	parseCsvStream,
 } from '@dotaz/backend-shared/services/csv-stream-parser'
 import { describe, expect, test } from 'bun:test'

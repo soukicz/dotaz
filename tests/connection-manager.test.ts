@@ -1,9 +1,8 @@
 import { ConnectionManager } from '@dotaz/backend-shared/services/connection-manager'
 import type { StatusChangeEvent } from '@dotaz/backend-shared/services/connection-manager'
 import { AppDatabase } from '@dotaz/backend-shared/storage/app-db'
-import type { ConnectionConfig, PostgresConnectionConfig, SqliteConnectionConfig } from '@dotaz/shared/types/connection'
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { tmpSqlitePath } from './helpers'
+import type { PostgresConnectionConfig, SqliteConnectionConfig } from '@dotaz/shared/types/connection'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -908,7 +907,7 @@ describe('ConnectionManager', () => {
 		})
 
 		test('password is cached on connect and cleared on disconnect', async () => {
-			const conn = manager.createConnection({
+			manager.createConnection({
 				name: 'PG',
 				config: pgConfig,
 			})
