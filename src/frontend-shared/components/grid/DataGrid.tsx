@@ -116,7 +116,6 @@ export default function DataGrid(props: DataGridProps) {
 		onOpenAdvancedCopy: modals.openAdvancedCopy,
 		onOpenSaveView: () => modals.openSaveView(false),
 		startEditingFocused: cellEdit.startEditingFocused,
-		handleAddNewRow: cellEdit.handleAddNewRow,
 		handleDeleteSelected: cellEdit.handleDeleteSelected,
 		handleCellCancel: cellEdit.handleCellCancel,
 	})

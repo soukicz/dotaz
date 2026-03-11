@@ -13,15 +13,19 @@ interface UseDataGridKeyboardParams {
 	onOpenAdvancedCopy: () => void
 	onOpenSaveView: () => void
 	startEditingFocused: () => void
-	handleAddNewRow: () => void
 	handleDeleteSelected: () => void
 	handleCellCancel: () => void
+}
+
+function isEditableTarget(e: KeyboardEvent): boolean {
+	const el = e.target
+	return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
 }
 
 export function useDataGridKeyboard(params: UseDataGridKeyboardParams) {
 	const tab = () => gridStore.getTab(params.tabId)
 
-	const handleKeyDown = createKeyHandler([
+	const rawHandler = createKeyHandler([
 		{
 			key: 'c',
 			ctrl: true,
@@ -285,14 +289,6 @@ export function useDataGridKeyboard(params: UseDataGridKeyboardParams) {
 			},
 		},
 		{
-			key: 'Insert',
-			ctrl: true,
-			handler(e) {
-				e.preventDefault()
-				params.handleAddNewRow()
-			},
-		},
-		{
 			key: 'Delete',
 			handler(e) {
 				e.preventDefault()
@@ -331,6 +327,11 @@ export function useDataGridKeyboard(params: UseDataGridKeyboardParams) {
 			},
 		},
 	])
+
+	const handleKeyDown = (e: KeyboardEvent) => {
+		if (isEditableTarget(e)) return
+		rawHandler(e)
+	}
 
 	return { handleKeyDown }
 }
