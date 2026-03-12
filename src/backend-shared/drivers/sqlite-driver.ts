@@ -75,6 +75,7 @@ export class SqliteDriver implements DatabaseDriver {
 	private db: SQL | null = null
 	private connected = false
 	private txActive = false
+	private txOwnerSession: string | null = null
 	private sessionIds = new Set<string>()
 
 	async connect(config: ConnectionConfig): Promise<void> {
@@ -98,6 +99,7 @@ export class SqliteDriver implements DatabaseDriver {
 			this.db = null
 			this.connected = false
 			this.txActive = false
+			this.txOwnerSession = null
 			this.sessionIds.clear()
 		}
 	}
@@ -111,6 +113,11 @@ export class SqliteDriver implements DatabaseDriver {
 	}
 
 	async releaseSession(sessionId: string): Promise<void> {
+		if (this.txActive && this.txOwnerSession === sessionId) {
+			try { await this.db!.unsafe('ROLLBACK') } catch { /* ignore */ }
+			this.txActive = false
+			this.txOwnerSession = null
+		}
 		this.sessionIds.delete(sessionId)
 	}
 
@@ -118,8 +125,9 @@ export class SqliteDriver implements DatabaseDriver {
 		return [...this.sessionIds]
 	}
 
-	async execute(sql: string, params?: unknown[], _sessionId?: string): Promise<QueryResult> {
+	async execute(sql: string, params?: unknown[], sessionId?: string): Promise<QueryResult> {
 		this.ensureConnected()
+		this.ensureSessionCanExecute(sessionId)
 		const start = performance.now()
 		try {
 			const result = await this.db!.unsafe(sql, params ?? [])
@@ -297,9 +305,10 @@ export class SqliteDriver implements DatabaseDriver {
 		params?: unknown[],
 		batchSize = 1000,
 		signal?: AbortSignal,
-		_sessionId?: string,
+		sessionId?: string,
 	): AsyncGenerator<Record<string, unknown>[]> {
 		this.ensureConnected()
+		this.ensureSessionCanExecute(sessionId)
 		if (this.txActive) throw new Error('Cannot iterate with an active transaction')
 		await this.db!.unsafe('BEGIN')
 		try {
@@ -329,7 +338,7 @@ export class SqliteDriver implements DatabaseDriver {
 		qualifiedTable: string,
 		columns: string[],
 		rows: Record<string, unknown>[],
-		_sessionId?: string,
+		sessionId?: string,
 	): Promise<number> {
 		this.ensureConnected()
 		if (rows.length === 0) return 0
@@ -345,32 +354,47 @@ export class SqliteDriver implements DatabaseDriver {
 			valueTuples.push(`(${placeholders.join(', ')})`)
 		}
 		const sql = `INSERT INTO ${qualifiedTable} (${quotedCols}) VALUES ${valueTuples.join(', ')}`
-		const result = await this.execute(sql, allParams)
+		const result = await this.execute(sql, allParams, sessionId)
 		return result.affectedRows ?? rows.length
 	}
 
-	async beginTransaction(_sessionId?: string): Promise<void> {
+	async beginTransaction(sessionId?: string): Promise<void> {
 		this.ensureConnected()
+		if (this.txActive) {
+			throw new Error(
+				sessionId && this.txOwnerSession !== sessionId
+					? `Another session ("${this.txOwnerSession}") already has an active transaction`
+					: 'A transaction is already active',
+			)
+		}
 		await this.db!.unsafe('BEGIN')
 		this.txActive = true
+		this.txOwnerSession = sessionId ?? null
 	}
 
-	async commit(_sessionId?: string): Promise<void> {
+	async commit(sessionId?: string): Promise<void> {
 		this.ensureConnected()
+		this.ensureSessionOwnsTx(sessionId)
 		await this.db!.unsafe('COMMIT')
 		this.txActive = false
+		this.txOwnerSession = null
 	}
 
-	async rollback(_sessionId?: string): Promise<void> {
+	async rollback(sessionId?: string): Promise<void> {
 		this.ensureConnected()
+		this.ensureSessionOwnsTx(sessionId)
 		try {
 			await this.db!.unsafe('ROLLBACK')
 		} finally {
 			this.txActive = false
+			this.txOwnerSession = null
 		}
 	}
 
-	inTransaction(_sessionId?: string): boolean {
+	inTransaction(sessionId?: string): boolean {
+		if (sessionId !== undefined) {
+			return this.txActive && this.txOwnerSession === sessionId
+		}
 		return this.txActive
 	}
 
@@ -393,6 +417,22 @@ export class SqliteDriver implements DatabaseDriver {
 
 	placeholder(index: number): string {
 		return `$${index}`
+	}
+
+	private ensureSessionCanExecute(sessionId?: string): void {
+		if (this.txActive && sessionId !== undefined && this.txOwnerSession !== null && sessionId !== this.txOwnerSession) {
+			throw new Error(
+				`Cannot execute: session "${this.txOwnerSession}" has an active transaction. SQLite uses a single connection shared by all sessions.`,
+			)
+		}
+	}
+
+	private ensureSessionOwnsTx(sessionId?: string): void {
+		if (this.txActive && sessionId !== undefined && this.txOwnerSession !== null && sessionId !== this.txOwnerSession) {
+			throw new Error(
+				`Cannot modify transaction owned by session "${this.txOwnerSession}" from session "${sessionId}"`,
+			)
+		}
 	}
 
 	private ensureConnected(): void {
