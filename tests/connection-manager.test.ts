@@ -36,6 +36,7 @@ function createMockDriver() {
 		inTransaction: () => false,
 		rollback: async () => {},
 		cancel: async () => {},
+		getSessionIds: () => [] as string[],
 		execute: async () => ({ rows: [], columns: [] }),
 		beginTransaction: async () => {},
 		commit: async () => {},

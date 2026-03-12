@@ -574,6 +574,14 @@ export class ConnectionManager {
 
 		for (const [dbName, driver] of driverMap) {
 			try {
+				// Cancel and rollback all user sessions first
+				for (const sid of driver.getSessionIds()) {
+					try { await driver.cancel(sid) } catch { /* best-effort */ }
+					if (driver.inTransaction(sid)) {
+						try { await driver.rollback(sid) } catch { /* best-effort */ }
+					}
+				}
+				// Then handle default session / pool queries
 				if (driver.inTransaction()) {
 					try {
 						await driver.rollback()
