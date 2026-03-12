@@ -363,8 +363,11 @@ export class SqliteDriver implements DatabaseDriver {
 
 	async rollback(_sessionId?: string): Promise<void> {
 		this.ensureConnected()
-		await this.db!.unsafe('ROLLBACK')
-		this.txActive = false
+		try {
+			await this.db!.unsafe('ROLLBACK')
+		} finally {
+			this.txActive = false
+		}
 	}
 
 	inTransaction(_sessionId?: string): boolean {
