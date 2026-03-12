@@ -460,7 +460,9 @@ export class ConnectionManager {
 
 			// Connection lost — stop health checks and begin auto-reconnect
 			this.stopHealthCheck(connectionId)
-			await this.disconnectAllDrivers(connectionId)
+			try {
+				await this.disconnectAllDrivers(connectionId)
+			} catch { /* best effort */ }
 			await this.setConnectionState(connectionId, 'disconnected', 'Connection lost')
 			this.startAutoReconnect(connectionId, hadTransaction)
 		}

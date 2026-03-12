@@ -399,7 +399,7 @@ export class SqliteDriver implements DatabaseDriver {
 		if (sessionId !== undefined) {
 			return this.txActive && this.txOwnerSession === sessionId
 		}
-		return this.txActive
+		return this.txActive && this.txOwnerSession === null
 	}
 
 	getDriverType(): 'sqlite' {
@@ -424,7 +424,13 @@ export class SqliteDriver implements DatabaseDriver {
 	}
 
 	private ensureSessionCanExecute(sessionId?: string): void {
-		if (this.txActive && sessionId !== undefined && this.txOwnerSession !== null && sessionId !== this.txOwnerSession) {
+		if (!this.txActive || this.txOwnerSession === null) return
+		if (sessionId === undefined) {
+			throw new Error(
+				`Cannot execute: session "${this.txOwnerSession}" has an active transaction. SQLite uses a single connection shared by all sessions.`,
+			)
+		}
+		if (sessionId !== this.txOwnerSession) {
 			throw new Error(
 				`Cannot execute: session "${this.txOwnerSession}" has an active transaction. SQLite uses a single connection shared by all sessions.`,
 			)
