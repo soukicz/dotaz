@@ -148,7 +148,8 @@ export class QueryExecutor {
 			if (searchPath && effectiveSessionId !== undefined) {
 				const spResult = await driver.execute('SHOW search_path', undefined, effectiveSessionId)
 				savedSearchPath = spResult.rows[0]?.['search_path'] as string | undefined
-				await driver.execute(`SET search_path TO ${searchPath}`, undefined, effectiveSessionId)
+				const quotedSearchPath = searchPath.split(',').map(s => driver.quoteIdentifier(s.trim())).join(', ')
+				await driver.execute(`SET search_path TO ${quotedSearchPath}`, undefined, effectiveSessionId)
 			}
 
 			for (const stmt of statements) {
@@ -270,7 +271,8 @@ export class QueryExecutor {
 			if (searchPath && effectiveSessionId !== undefined) {
 				const spResult = await driver.execute('SHOW search_path', undefined, effectiveSessionId)
 				savedSearchPath = spResult.rows[0]?.['search_path'] as string | undefined
-				await driver.execute(`SET search_path TO ${searchPath}`, undefined, effectiveSessionId)
+				const quotedSearchPath = searchPath.split(',').map(s => driver.quoteIdentifier(s.trim())).join(', ')
+				await driver.execute(`SET search_path TO ${quotedSearchPath}`, undefined, effectiveSessionId)
 			}
 			if (driverType === 'sqlite') {
 				const result = effectiveSessionId !== undefined
