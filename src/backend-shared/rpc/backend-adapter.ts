@@ -456,7 +456,7 @@ export class BackendAdapter implements RpcAdapter {
 
 	private resolveImportStream(filePath?: string, fileContent?: string): ReadableStream<Uint8Array> {
 		if (filePath) {
-			return Bun.file(filePath).stream()
+			return Bun.file(filePath).stream() as unknown as ReadableStream<Uint8Array>
 		}
 		if (fileContent !== undefined) {
 			return new ReadableStream<Uint8Array>({
@@ -473,7 +473,7 @@ export class BackendAdapter implements RpcAdapter {
 		if (filePath) {
 			// Read first 64KB from file for preview
 			const file = Bun.file(filePath)
-			const fullStream = file.stream()
+			const fullStream = file.stream() as unknown as ReadableStream<Uint8Array>
 			const reader = fullStream.getReader()
 			const PREVIEW_BYTES = 64 * 1024
 			let bytesRead = 0
