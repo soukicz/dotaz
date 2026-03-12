@@ -83,6 +83,7 @@ interface PgMatviewColumnRow {
 interface SessionState {
 	conn: ReservedSQL
 	txActive: boolean
+	iterating: boolean
 	activeQueries: Set<ReturnType<SQL['unsafe']>>
 }
 
@@ -204,7 +205,7 @@ export class PostgresDriver implements DatabaseDriver {
 			throw new Error(`Session "${sessionId}" already exists`)
 		}
 		const conn = await this.db!.reserve()
-		this.sessions.set(sessionId, { conn, txActive: false, activeQueries: new Set() })
+		this.sessions.set(sessionId, { conn, txActive: false, iterating: false, activeQueries: new Set() })
 	}
 
 	async releaseSession(sessionId: string): Promise<void> {
@@ -626,7 +627,7 @@ export class PostgresDriver implements DatabaseDriver {
 				conn.release()
 				throw err
 			}
-			this.sessions.set(DEFAULT_SESSION, { conn, txActive: true, activeQueries: new Set() })
+			this.sessions.set(DEFAULT_SESSION, { conn, txActive: true, iterating: false, activeQueries: new Set() })
 		}
 	}
 
@@ -635,6 +636,7 @@ export class PostgresDriver implements DatabaseDriver {
 		const id = sessionId ?? DEFAULT_SESSION
 		const session = this.sessions.get(id)
 		if (!session) throw new Error('No active transaction')
+		if (session.iterating) throw new Error('Cannot commit during active iteration')
 		try {
 			await session.conn.unsafe('COMMIT')
 		} catch (err) {
@@ -660,6 +662,7 @@ export class PostgresDriver implements DatabaseDriver {
 		const id = sessionId ?? DEFAULT_SESSION
 		const session = this.sessions.get(id)
 		if (!session) throw new Error('No active transaction')
+		if (session.iterating) throw new Error('Cannot rollback during active iteration')
 		try {
 			await session.conn.unsafe('ROLLBACK')
 		} finally {
@@ -714,7 +717,10 @@ export class PostgresDriver implements DatabaseDriver {
 
 		const conn = session ? session.conn : await this.db!.reserve()
 		const ownConn = !session // we own the connection if not using a session
-		if (session) session.txActive = true
+		if (session) {
+			session.txActive = true
+			session.iterating = true
+		}
 		try {
 			await conn.unsafe('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
 			await conn.unsafe(
@@ -744,7 +750,10 @@ export class PostgresDriver implements DatabaseDriver {
 			} catch { /* ignore rollback errors */ }
 			throw err
 		} finally {
-			if (session) session.txActive = false
+			if (session) {
+				session.txActive = false
+				session.iterating = false
+			}
 			if (ownConn) {
 				try { await (conn as ReservedSQL).unsafe('ROLLBACK') } catch { /* already committed or rolled back */ }
 				try { await (conn as ReservedSQL).unsafe('DISCARD ALL') } catch { /* best effort */ }
