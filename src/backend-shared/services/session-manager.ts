@@ -16,6 +16,8 @@ export class SessionManager {
 	private sessions = new Map<string, Map<string, SessionInfo>>()
 	// Track label counters per connection for auto-naming
 	private labelCounters = new Map<string, number>()
+	// Saved session metadata for restoration after reconnect
+	private pendingRestore = new Map<string, Array<{ database?: string; label: string }>>()
 
 	constructor(cm: ConnectionManager, appDb: AppDatabase) {
 		this.cm = cm
@@ -109,7 +111,50 @@ export class SessionManager {
 	}
 
 	handleConnectionLost(connectionId: string): void {
+		const connSessions = this.sessions.get(connectionId)
+		if (connSessions && connSessions.size > 0) {
+			this.pendingRestore.set(
+				connectionId,
+				Array.from(connSessions.values()).map((s) => ({ database: s.database, label: s.label })),
+			)
+		}
 		this.sessions.delete(connectionId)
+	}
+
+	async handleConnectionRestored(connectionId: string): Promise<SessionInfo[]> {
+		const specs = this.pendingRestore.get(connectionId)
+		this.pendingRestore.delete(connectionId)
+		if (!specs || specs.length === 0) return []
+
+		const restored: SessionInfo[] = []
+		for (const spec of specs) {
+			try {
+				const driver = this.cm.getDriver(connectionId, spec.database)
+				const sessionId = crypto.randomUUID()
+				await driver.reserveSession(sessionId)
+
+				const counter = (this.labelCounters.get(connectionId) ?? 0) + 1
+				this.labelCounters.set(connectionId, counter)
+
+				const info: SessionInfo = {
+					sessionId,
+					connectionId,
+					database: spec.database,
+					label: spec.label,
+					inTransaction: false,
+					createdAt: Date.now(),
+				}
+
+				if (!this.sessions.has(connectionId)) {
+					this.sessions.set(connectionId, new Map())
+				}
+				this.sessions.get(connectionId)!.set(sessionId, info)
+				restored.push(info)
+			} catch {
+				// Session restoration is best-effort — skip on failure
+			}
+		}
+		return restored
 	}
 
 	private findSession(sessionId: string): SessionInfo | undefined {

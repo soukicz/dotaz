@@ -106,6 +106,19 @@ export function createSession(
 				}))
 			}
 		}
+
+		// Restore sessions after successful reconnect
+		if (event.state === 'connected') {
+			sessionManager.handleConnectionRestored(event.connectionId).then((restored) => {
+				if (restored.length > 0 && session.ws) {
+					session.ws.send(JSON.stringify({
+						type: 'message',
+						channel: 'session.changed',
+						payload: { connectionId: event.connectionId, sessions: restored },
+					}))
+				}
+			})
+		}
 	})
 
 	const session: Session = {

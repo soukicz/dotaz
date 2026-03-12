@@ -221,6 +221,18 @@ connectionManager.onStatusChanged((event) => {
 			sessions: [],
 		})
 	}
+
+	// Restore sessions after successful reconnect
+	if (event.state === 'connected') {
+		sessionManager.handleConnectionRestored(event.connectionId).then((restored) => {
+			if (restored.length > 0) {
+				emitToFrontend!('session.changed', {
+					connectionId: event.connectionId,
+					sessions: restored,
+				})
+			}
+		})
+	}
 })
 
 // ── Auto-update ──────────────────────────────────────────

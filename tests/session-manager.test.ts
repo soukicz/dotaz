@@ -174,4 +174,48 @@ describe('SessionManager', () => {
 		expect(sm.listSessions(connectionId)).toEqual([])
 		expect(sm.listSessions(conn2.id).length).toBe(1)
 	})
+
+	// ── handleConnectionRestored ─────────────────────────────
+
+	test('handleConnectionRestored recreates sessions after disconnect', async () => {
+		const s1 = await sm.createSession(connectionId)
+		const s2 = await sm.createSession(connectionId)
+
+		sm.handleConnectionLost(connectionId)
+		expect(sm.listSessions(connectionId)).toEqual([])
+
+		const restored = await sm.handleConnectionRestored(connectionId)
+		expect(restored.length).toBe(2)
+		expect(restored[0].label).toBe(s1.label)
+		expect(restored[1].label).toBe(s2.label)
+		expect(restored[0].connectionId).toBe(connectionId)
+		expect(restored[0].inTransaction).toBe(false)
+	})
+
+	test('handleConnectionRestored reserves sessions on driver', async () => {
+		await sm.createSession(connectionId)
+
+		sm.handleConnectionLost(connectionId)
+		const restored = await sm.handleConnectionRestored(connectionId)
+
+		const driver = cm.getDriver(connectionId)
+		expect(driver.getSessionIds()).toContain(restored[0].sessionId)
+	})
+
+	test('handleConnectionRestored returns empty if no prior sessions', async () => {
+		sm.handleConnectionLost(connectionId)
+		const restored = await sm.handleConnectionRestored(connectionId)
+		expect(restored).toEqual([])
+	})
+
+	test('handleConnectionRestored is idempotent', async () => {
+		await sm.createSession(connectionId)
+
+		sm.handleConnectionLost(connectionId)
+		const first = await sm.handleConnectionRestored(connectionId)
+		const second = await sm.handleConnectionRestored(connectionId)
+
+		expect(first.length).toBe(1)
+		expect(second).toEqual([])
+	})
 })
