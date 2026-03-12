@@ -306,18 +306,23 @@ export class QueryExecutor {
 			const planArray = Array.isArray(plan) ? plan : [plan]
 			const nodes = planArray.map((p: Record<string, unknown>) => parsePostgresNode(p.Plan as Record<string, unknown> ?? p))
 
-			// Build raw text by re-running with TEXT format (fallback to JSON)
+			// Build raw text — re-run only for non-ANALYZE (no side effects).
+			// For ANALYZE, format the JSON result as text to avoid executing the query twice
+			// (EXPLAIN ANALYZE on DML would double the side effects).
 			let rawText: string
-			try {
-				const textPrefix = analyze ? 'EXPLAIN (ANALYZE)' : 'EXPLAIN'
-				const textResult = effectiveSessionId !== undefined
-					? await driver.execute(`${textPrefix} ${sql}`, undefined, effectiveSessionId)
-					: await driver.execute(`${textPrefix} ${sql}`)
-				rawText = textResult.rows
-					.map((r) => Object.values(r)[0])
-					.join('\n')
-			} catch {
+			if (analyze) {
 				rawText = JSON.stringify(plan, null, 2)
+			} else {
+				try {
+					const textResult = effectiveSessionId !== undefined
+						? await driver.execute(`EXPLAIN ${sql}`, undefined, effectiveSessionId)
+						: await driver.execute(`EXPLAIN ${sql}`)
+					rawText = textResult.rows
+						.map((r) => Object.values(r)[0])
+						.join('\n')
+				} catch {
+					rawText = JSON.stringify(plan, null, 2)
+				}
 			}
 
 			return { nodes, rawText, durationMs }
