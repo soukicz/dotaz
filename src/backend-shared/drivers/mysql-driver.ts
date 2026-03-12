@@ -128,7 +128,7 @@ export class MysqlDriver implements DatabaseDriver {
 	private db: SQL | null = null
 	private connected = false
 	private sessions = new Map<string, SessionState>()
-	private poolActiveQuery: ReturnType<SQL['unsafe']> | null = null
+	private poolActiveQueries = new Map<symbol, ReturnType<SQL['unsafe']>>()
 
 	async connect(config: ConnectionConfig): Promise<void> {
 		if (config.type !== 'mysql') {
@@ -206,10 +206,11 @@ export class MysqlDriver implements DatabaseDriver {
 		const conn = session ? session.conn : this.db!
 		const start = performance.now()
 		const query = conn.unsafe(sql, params ?? [])
+		const queryKey = session ? undefined : Symbol()
 		if (session) {
 			session.activeQuery = query
 		} else {
-			this.poolActiveQuery = query
+			this.poolActiveQueries.set(queryKey!, query)
 		}
 		try {
 			const result = await query
@@ -236,7 +237,7 @@ export class MysqlDriver implements DatabaseDriver {
 			if (session) {
 				session.activeQuery = null
 			} else {
-				this.poolActiveQuery = null
+				this.poolActiveQueries.delete(queryKey!)
 			}
 		}
 	}
@@ -249,10 +250,10 @@ export class MysqlDriver implements DatabaseDriver {
 				session.activeQuery = null
 			}
 		} else {
-			if (this.poolActiveQuery) {
-				this.poolActiveQuery.cancel()
-				this.poolActiveQuery = null
+			for (const query of this.poolActiveQueries.values()) {
+				query.cancel()
 			}
+			this.poolActiveQueries.clear()
 		}
 	}
 
