@@ -451,10 +451,11 @@ export class ConnectionManager {
 			// Check if any driver had an active transaction before disconnecting
 			let hadTransaction = false
 			for (const d of driverMap.values()) {
-				if (d.inTransaction()) {
-					hadTransaction = true
-					break
+				if (d.inTransaction()) { hadTransaction = true; break }
+				for (const sid of d.getSessionIds()) {
+					if (d.inTransaction(sid)) { hadTransaction = true; break }
 				}
+				if (hadTransaction) break
 			}
 
 			// Connection lost — stop health checks and begin auto-reconnect
