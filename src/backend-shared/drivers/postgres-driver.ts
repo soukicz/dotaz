@@ -686,6 +686,7 @@ export class PostgresDriver implements DatabaseDriver {
 		// If sessionId provided, use that session's conn (no separate reserve)
 		const session = sessionId ? this.sessions.get(sessionId) : undefined
 		if (sessionId && !session) throw new Error(`Session "${sessionId}" not found`)
+		if (session?.txActive) throw new Error('Cannot iterate on a session with an active transaction')
 
 		const conn = session ? session.conn : await this.db!.reserve()
 		const ownConn = !session // we own the connection if not using a session
