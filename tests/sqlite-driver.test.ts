@@ -515,20 +515,22 @@ describe('SqliteDriver session isolation', () => {
 
 		expect(driver.inTransaction('session-a')).toBe(true)
 		expect(driver.inTransaction('session-b')).toBe(false)
-		expect(driver.inTransaction()).toBe(true) // no sessionId → global check
+		// no sessionId + session-owned tx → false (pool caller shouldn't see session's tx)
+		expect(driver.inTransaction()).toBe(false)
 
 		await driver.rollback('session-a')
 		await driver.releaseSession('session-a')
 		await driver.releaseSession('session-b')
 	})
 
-	test('queries without sessionId work during a session transaction', async () => {
+	test('queries without sessionId are blocked during a session transaction', async () => {
 		await driver.reserveSession('session-a')
 		await driver.beginTransaction('session-a')
 
-		// No sessionId → allowed (e.g. internal queries, schema loading)
-		const result = await driver.execute('SELECT count(*) as cnt FROM users')
-		expect(result.rows[0].cnt).toBe(3)
+		// No sessionId → blocked to prevent silent execution inside session's tx
+		await expect(driver.execute('SELECT count(*) as cnt FROM users')).rejects.toThrow(
+			/has an active transaction/,
+		)
 
 		await driver.rollback('session-a')
 		await driver.releaseSession('session-a')
