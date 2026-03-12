@@ -68,6 +68,14 @@ export function mapPostgresError(err: unknown): DatabaseError {
 		return new DatabaseError('PERMISSION_DENIED', message, { cause: err })
 	}
 
+	// Serialization failure (PG SQLSTATE 40001) and deadlock (40P01)
+	if (pgCode === '40001') {
+		return new QueryError('SERIALIZATION_FAILURE', message, { cause: err })
+	}
+	if (pgCode === '40P01') {
+		return new QueryError('DEADLOCK_DETECTED', message, { cause: err })
+	}
+
 	// Generic query class errors (PG SQLSTATE 42xxx = syntax/access, 22xxx = data exception)
 	if (pgCode?.startsWith('42') || pgCode?.startsWith('22')) {
 		return new QueryError('QUERY_EXECUTION', message, { cause: err })
@@ -165,6 +173,14 @@ export function mapMysqlError(err: unknown): DatabaseError {
 	}
 	if (errno === 1048 || /cannot be null/i.test(message)) {
 		return new ConstraintError('CONSTRAINT_NOT_NULL', message, { cause: err })
+	}
+
+	// Deadlock / lock timeout
+	if (errno === 1213 || /deadlock found/i.test(message)) {
+		return new QueryError('DEADLOCK_DETECTED', message, { cause: err })
+	}
+	if (errno === 1205 || /lock wait timeout exceeded/i.test(message)) {
+		return new QueryError('SERIALIZATION_FAILURE', message, { cause: err })
 	}
 
 	// Query errors

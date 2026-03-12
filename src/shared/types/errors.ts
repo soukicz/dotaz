@@ -18,6 +18,8 @@ export type DatabaseErrorCode =
 	| 'CONSTRAINT_CHECK'
 	| 'CONSTRAINT_NOT_NULL'
 	| 'PERMISSION_DENIED'
+	| 'SERIALIZATION_FAILURE'
+	| 'DEADLOCK_DETECTED'
 	| 'COMMIT_UNCERTAIN'
 	| 'UNKNOWN'
 
@@ -108,6 +110,10 @@ export function friendlyMessageForCode(code: DatabaseErrorCode, rawMessage: stri
 		case 'CONSTRAINT_CHECK':
 		case 'CONSTRAINT_NOT_NULL':
 			return rawMessage
+		case 'SERIALIZATION_FAILURE':
+			return 'Transaction failed due to a serialization conflict — retry the transaction'
+		case 'DEADLOCK_DETECTED':
+			return 'Transaction aborted due to a deadlock — retry the transaction'
 		case 'COMMIT_UNCERTAIN':
 			return 'Commit status unknown — the connection was lost before confirmation. Your data may have been saved. Please verify before retrying.'
 		case 'UNKNOWN':
