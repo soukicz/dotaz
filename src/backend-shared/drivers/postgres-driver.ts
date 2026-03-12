@@ -659,7 +659,7 @@ export class PostgresDriver implements DatabaseDriver {
 			session.txActive = false
 			if (id === DEFAULT_SESSION) {
 				try { await session.conn.unsafe('DISCARD ALL') } catch { /* best effort — connection may be broken */ }
-				session.conn.release()
+				try { session.conn.release() } catch { /* connection may be broken */ }
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}
@@ -677,7 +677,7 @@ export class PostgresDriver implements DatabaseDriver {
 			session.txActive = false
 			if (id === DEFAULT_SESSION) {
 				try { await session.conn.unsafe('DISCARD ALL') } catch { /* best effort — connection may be broken */ }
-				session.conn.release()
+				try { session.conn.release() } catch { /* connection may be broken */ }
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}

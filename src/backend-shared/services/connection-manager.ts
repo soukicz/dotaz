@@ -505,7 +505,7 @@ export class ConnectionManager {
 
 		rs.timer = setTimeout(() => {
 			if (rs.cancelled) return
-			this.attemptReconnect(connectionId, rs)
+			this.attemptReconnect(connectionId, rs).catch(() => {})
 		}, delay)
 	}
 
