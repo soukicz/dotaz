@@ -719,6 +719,7 @@ export class PostgresDriver implements DatabaseDriver {
 			throw err
 		} finally {
 			if (ownConn) {
+				try { await (conn as ReservedSQL).unsafe('ROLLBACK') } catch { /* already committed or rolled back */ }
 				;(conn as ReservedSQL).release()
 			}
 		}
