@@ -440,31 +440,30 @@ export class ConnectionManager {
 		const driverMap = this.drivers.get(connectionId)
 		if (!driverMap) return
 
-		// Health-check the default driver
-		const defaultDb = this.getDefaultDatabaseName(connectionId)
-		const driver = driverMap.get(defaultDb)
-		if (!driver) return
-
-		try {
-			await driver.execute('SELECT 1')
-		} catch {
-			// Check if any driver had an active transaction before disconnecting
-			let hadTransaction = false
-			for (const d of driverMap.values()) {
-				if (d.inTransaction()) { hadTransaction = true; break }
-				for (const sid of d.getSessionIds()) {
-					if (d.inTransaction(sid)) { hadTransaction = true; break }
-				}
-				if (hadTransaction) break
-			}
-
-			// Connection lost — stop health checks and begin auto-reconnect
-			this.stopHealthCheck(connectionId)
+		// Health-check all active database drivers (not just the default)
+		for (const driver of driverMap.values()) {
 			try {
-				await this.disconnectAllDrivers(connectionId)
-			} catch { /* best effort */ }
-			await this.setConnectionState(connectionId, 'disconnected', 'Connection lost')
-			this.startAutoReconnect(connectionId, hadTransaction)
+				await driver.execute('SELECT 1')
+			} catch {
+				// Check if any driver had an active transaction before disconnecting
+				let hadTransaction = false
+				for (const d of driverMap.values()) {
+					if (d.inTransaction()) { hadTransaction = true; break }
+					for (const sid of d.getSessionIds()) {
+						if (d.inTransaction(sid)) { hadTransaction = true; break }
+					}
+					if (hadTransaction) break
+				}
+
+				// Connection lost — stop health checks and begin auto-reconnect
+				this.stopHealthCheck(connectionId)
+				try {
+					await this.disconnectAllDrivers(connectionId)
+				} catch { /* best effort */ }
+				await this.setConnectionState(connectionId, 'disconnected', 'Connection lost')
+				this.startAutoReconnect(connectionId, hadTransaction)
+				return
+			}
 		}
 	}
 
