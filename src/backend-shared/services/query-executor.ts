@@ -182,6 +182,9 @@ export class QueryExecutor {
 			}
 			this.runningQueries.delete(id)
 			if (ephemeralSessionId) {
+				// Cancel any still-running query before releasing to avoid
+				// ROLLBACK/DISCARD ALL blocking behind a timed-out query
+				try { await driver.cancel(ephemeralSessionId) } catch { /* best effort */ }
 				await driver.releaseSession(ephemeralSessionId)
 			}
 			this.logHistory(connectionId, sql, results, database)
