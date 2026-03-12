@@ -20,6 +20,7 @@ export type DatabaseErrorCode =
 	| 'PERMISSION_DENIED'
 	| 'SERIALIZATION_FAILURE'
 	| 'DEADLOCK_DETECTED'
+	| 'TRANSACTION_ABORTED'
 	| 'COMMIT_UNCERTAIN'
 	| 'UNKNOWN'
 
@@ -114,6 +115,8 @@ export function friendlyMessageForCode(code: DatabaseErrorCode, rawMessage: stri
 			return 'Transaction failed due to a serialization conflict — retry the transaction'
 		case 'DEADLOCK_DETECTED':
 			return 'Transaction aborted due to a deadlock — retry the transaction'
+		case 'TRANSACTION_ABORTED':
+			return 'Transaction is aborted — rollback before executing new statements'
 		case 'COMMIT_UNCERTAIN':
 			return 'Commit status unknown — the connection was lost before confirmation. Your data may have been saved. Please verify before retrying.'
 		case 'UNKNOWN':

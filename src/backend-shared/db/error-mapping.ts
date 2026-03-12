@@ -76,6 +76,11 @@ export function mapPostgresError(err: unknown): DatabaseError {
 		return new QueryError('DEADLOCK_DETECTED', message, { cause: err })
 	}
 
+	// Aborted transaction state (PG SQLSTATE 25P02) — user must ROLLBACK
+	if (pgCode === '25P02') {
+		return new QueryError('TRANSACTION_ABORTED', message, { cause: err })
+	}
+
 	// Generic query class errors (PG SQLSTATE 42xxx = syntax/access, 22xxx = data exception)
 	if (pgCode?.startsWith('42') || pgCode?.startsWith('22')) {
 		return new QueryError('QUERY_EXECUTION', message, { cause: err })
