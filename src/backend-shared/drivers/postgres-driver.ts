@@ -83,7 +83,7 @@ interface PgMatviewColumnRow {
 interface SessionState {
 	conn: ReservedSQL
 	txActive: boolean
-	activeQuery: ReturnType<SQL['unsafe']> | null
+	activeQueries: Set<ReturnType<SQL['unsafe']>>
 }
 
 /** Internal session ID used for backward-compatible beginTransaction() without sessionId */
@@ -195,7 +195,7 @@ export class PostgresDriver implements DatabaseDriver {
 			throw new Error(`Session "${sessionId}" already exists`)
 		}
 		const conn = await this.db!.reserve()
-		this.sessions.set(sessionId, { conn, txActive: false, activeQuery: null })
+		this.sessions.set(sessionId, { conn, txActive: false, activeQueries: new Set() })
 	}
 
 	async releaseSession(sessionId: string): Promise<void> {
@@ -226,7 +226,7 @@ export class PostgresDriver implements DatabaseDriver {
 		const query = conn.unsafe(sql, params ?? [])
 		const queryKey = session ? undefined : Symbol()
 		if (session) {
-			session.activeQuery = query
+			session.activeQueries.add(query)
 		} else {
 			this.poolActiveQueries.set(queryKey!, query)
 		}
@@ -253,7 +253,7 @@ export class PostgresDriver implements DatabaseDriver {
 			throw err instanceof DatabaseError ? err : mapPostgresError(err)
 		} finally {
 			if (session) {
-				session.activeQuery = null
+				session.activeQueries.delete(query)
 			} else {
 				this.poolActiveQueries.delete(queryKey!)
 			}
@@ -263,9 +263,11 @@ export class PostgresDriver implements DatabaseDriver {
 	async cancel(sessionId?: string): Promise<void> {
 		if (sessionId) {
 			const session = this.sessions.get(sessionId)
-			if (session?.activeQuery) {
-				session.activeQuery.cancel()
-				session.activeQuery = null
+			if (session) {
+				for (const query of session.activeQueries) {
+					query.cancel()
+				}
+				session.activeQueries.clear()
 			}
 		} else {
 			for (const query of this.poolActiveQueries.values()) {
@@ -609,7 +611,7 @@ export class PostgresDriver implements DatabaseDriver {
 				conn.release()
 				throw err
 			}
-			this.sessions.set(DEFAULT_SESSION, { conn, txActive: true, activeQuery: null })
+			this.sessions.set(DEFAULT_SESSION, { conn, txActive: true, activeQueries: new Set() })
 		}
 	}
 
