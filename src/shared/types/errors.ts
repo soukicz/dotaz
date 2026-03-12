@@ -18,6 +18,7 @@ export type DatabaseErrorCode =
 	| 'CONSTRAINT_CHECK'
 	| 'CONSTRAINT_NOT_NULL'
 	| 'PERMISSION_DENIED'
+	| 'COMMIT_UNCERTAIN'
 	| 'UNKNOWN'
 
 /** Base domain error with a typed code for programmatic handling */
@@ -107,6 +108,8 @@ export function friendlyMessageForCode(code: DatabaseErrorCode, rawMessage: stri
 		case 'CONSTRAINT_CHECK':
 		case 'CONSTRAINT_NOT_NULL':
 			return rawMessage
+		case 'COMMIT_UNCERTAIN':
+			return 'Commit status unknown — the connection was lost before confirmation. Your data may have been saved. Please verify before retrying.'
 		case 'UNKNOWN':
 			return rawMessage || 'An unexpected error occurred'
 	}
