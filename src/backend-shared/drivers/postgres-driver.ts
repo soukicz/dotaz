@@ -221,10 +221,14 @@ export class PostgresDriver implements DatabaseDriver {
 				await session.conn.unsafe('ROLLBACK')
 			} catch { /* ignore */ }
 		}
+		let cleaned = false
 		try {
 			await session.conn.unsafe('DISCARD ALL')
-		} catch { /* best effort — connection may be broken */ }
-		try { session.conn.release() } catch { /* broken connection */ }
+			cleaned = true
+		} catch { /* connection may be dirty */ }
+		if (cleaned) {
+			try { session.conn.release() } catch { /* broken connection */ }
+		}
 		this.sessions.delete(sessionId)
 	}
 
@@ -674,12 +678,16 @@ export class PostgresDriver implements DatabaseDriver {
 			throw err
 		} finally {
 			if (id === DEFAULT_SESSION) {
+				let cleaned = false
 				try {
 					await session.conn.unsafe('DISCARD ALL')
-				} catch { /* best effort — connection may be broken */ }
-				try {
-					session.conn.release()
-				} catch { /* connection may be broken */ }
+					cleaned = true
+				} catch { /* connection may be dirty */ }
+				if (cleaned) {
+					try {
+						session.conn.release()
+					} catch { /* connection may be broken */ }
+				}
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}
@@ -702,12 +710,16 @@ export class PostgresDriver implements DatabaseDriver {
 			throw err
 		} finally {
 			if (id === DEFAULT_SESSION) {
+				let cleaned = false
 				try {
 					await session.conn.unsafe('DISCARD ALL')
-				} catch { /* best effort — connection may be broken */ }
-				try {
-					session.conn.release()
-				} catch { /* connection may be broken */ }
+					cleaned = true
+				} catch { /* connection may be dirty */ }
+				if (cleaned) {
+					try {
+						session.conn.release()
+					} catch { /* connection may be broken */ }
+				}
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}

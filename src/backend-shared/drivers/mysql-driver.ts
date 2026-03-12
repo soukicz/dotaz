@@ -210,8 +210,11 @@ export class MysqlDriver implements DatabaseDriver {
 				await session.conn.unsafe('ROLLBACK')
 			} catch { /* ignore */ }
 		}
-		try { await this.resetConnection(session.conn) } catch { /* connection may be broken */ }
-		session.conn.release()
+		let cleaned = false
+		try { await this.resetConnection(session.conn); cleaned = true } catch { /* connection may be dirty */ }
+		if (cleaned) {
+			try { session.conn.release() } catch { /* broken connection */ }
+		}
 		this.sessions.delete(sessionId)
 	}
 
@@ -600,12 +603,16 @@ export class MysqlDriver implements DatabaseDriver {
 			throw err
 		} finally {
 			if (id === DEFAULT_SESSION) {
+				let cleaned = false
 				try {
 					await this.resetConnection(session.conn)
-				} catch { /* connection may be broken */ }
-				try {
-					session.conn.release()
-				} catch { /* connection may be broken */ }
+					cleaned = true
+				} catch { /* connection may be dirty */ }
+				if (cleaned) {
+					try {
+						session.conn.release()
+					} catch { /* connection may be broken */ }
+				}
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}
@@ -627,12 +634,16 @@ export class MysqlDriver implements DatabaseDriver {
 			throw err
 		} finally {
 			if (id === DEFAULT_SESSION) {
+				let cleaned = false
 				try {
 					await this.resetConnection(session.conn)
-				} catch { /* connection may be broken */ }
-				try {
-					session.conn.release()
-				} catch { /* connection may be broken */ }
+					cleaned = true
+				} catch { /* connection may be dirty */ }
+				if (cleaned) {
+					try {
+						session.conn.release()
+					} catch { /* connection may be broken */ }
+				}
 				this.sessions.delete(DEFAULT_SESSION)
 			}
 		}
