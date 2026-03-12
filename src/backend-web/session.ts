@@ -78,7 +78,7 @@ export function createSession(
 		}
 	}
 
-	const unsubscribe = connectionManager.onStatusChanged((event) => {
+	const unsubscribe = connectionManager.onStatusChanged(async (event) => {
 		if (session.ws) {
 			session.ws.send(JSON.stringify({
 				type: 'message',
@@ -107,7 +107,8 @@ export function createSession(
 
 		// Restore sessions after successful reconnect
 		if (event.state === 'connected') {
-			sessionManager.handleConnectionRestored(event.connectionId).then((restored) => {
+			try {
+				const restored = await sessionManager.handleConnectionRestored(event.connectionId)
 				if (restored.length > 0 && session.ws) {
 					session.ws.send(JSON.stringify({
 						type: 'message',
@@ -115,9 +116,9 @@ export function createSession(
 						payload: { connectionId: event.connectionId, sessions: restored },
 					}))
 				}
-			}).catch((err) => {
+			} catch (err) {
 				console.warn('Session restoration failed:', err instanceof Error ? err.message : err)
-			})
+			}
 		}
 	})
 
