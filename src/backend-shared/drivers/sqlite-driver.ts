@@ -359,6 +359,7 @@ export class SqliteDriver implements DatabaseDriver {
 			} catch { /* ignore */ }
 			throw err
 		} finally {
+			try { await readConn.unsafe('ROLLBACK') } catch { /* ignore */ }
 			if (useMainConn) {
 				this.txActive = false
 				this.txOwnerSession = null
