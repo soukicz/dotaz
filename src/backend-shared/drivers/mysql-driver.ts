@@ -572,6 +572,7 @@ export class MysqlDriver implements DatabaseDriver {
 		} finally {
 			session.txActive = false
 			if (id === DEFAULT_SESSION) {
+				await this.resetConnection(session.conn)
 				session.conn.release()
 				this.sessions.delete(DEFAULT_SESSION)
 			}
@@ -589,6 +590,7 @@ export class MysqlDriver implements DatabaseDriver {
 		} finally {
 			session.txActive = false
 			if (id === DEFAULT_SESSION) {
+				await this.resetConnection(session.conn)
 				session.conn.release()
 				this.sessions.delete(DEFAULT_SESSION)
 			}
