@@ -631,8 +631,15 @@ export class MysqlDriver implements DatabaseDriver {
 		try {
 			await conn.unsafe('RESET CONNECTION')
 		} catch {
-			// Fallback for older MySQL versions without RESET CONNECTION
-			const fallbacks = ['UNLOCK TABLES', 'ROLLBACK']
+			// Fallback for older MySQL versions without RESET CONNECTION.
+			// RESET CONNECTION would also clear user variables, session variables,
+			// prepared statements, and temp tables — best-effort approximation:
+			const fallbacks = [
+				'ROLLBACK',
+				'UNLOCK TABLES',
+				'SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ',
+				'SET NAMES utf8mb4',
+			]
 			for (const sql of fallbacks) {
 				try { await conn.unsafe(sql) } catch { /* best effort */ }
 			}
