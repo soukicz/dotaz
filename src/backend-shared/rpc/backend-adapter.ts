@@ -2,7 +2,7 @@ import type { ConnectionConfig, ConnectionInfo } from '@dotaz/shared/types/conne
 import type { DatabaseInfo } from '@dotaz/shared/types/database'
 import type { ExportOptions, ExportPreviewRequest, ExportRawPreviewRequest, ExportRawPreviewResponse, ExportResult } from '@dotaz/shared/types/export'
 import type { ImportOptions, ImportPreviewRequest, ImportPreviewResult, ImportResult } from '@dotaz/shared/types/import'
-import type { ExplainResult, QueryHistoryEntry, QueryResult } from '@dotaz/shared/types/query'
+import type { QueryHistoryEntry, QueryResult } from '@dotaz/shared/types/query'
 import type {
 	AiGenerateSqlParams,
 	AiGenerateSqlResult,
@@ -318,17 +318,6 @@ export class BackendAdapter implements RpcAdapter {
 
 	async cancelQuery(queryId: string): Promise<void> {
 		await this.queryExecutor.cancelQuery(queryId)
-	}
-
-	async explainQuery(
-		connectionId: string,
-		sql: string,
-		analyze: boolean,
-		database?: string,
-		sessionId?: string,
-		searchPath?: string,
-	): Promise<ExplainResult> {
-		return this.queryExecutor.explainQuery(connectionId, sql, analyze, database, sessionId, searchPath)
 	}
 
 	// ── Transactions ──────────────────────────────────────

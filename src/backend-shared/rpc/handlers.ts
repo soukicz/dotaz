@@ -138,17 +138,6 @@ export function createHandlers(adapter: RpcAdapter) {
 		'query.format': ({ sql }: { sql: string }) => {
 			return { sql: adapter.formatSql(sql) }
 		},
-		'query.explain': async ({ connectionId, sql, analyze, database, sessionId, searchPath }: {
-			connectionId: string
-			sql: string
-			analyze?: boolean
-			database?: string
-			sessionId?: string
-			searchPath?: string
-		}) => {
-			return adapter.explainQuery(connectionId, sql, analyze ?? false, database, sessionId, searchPath)
-		},
-
 		// ── Transactions ─────────────────────────────────
 		'tx.begin': async ({ connectionId, database, sessionId }: { connectionId: string; database?: string; sessionId?: string }) => {
 			await adapter.beginTransaction(connectionId, database, sessionId)
