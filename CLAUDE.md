@@ -6,12 +6,12 @@ See also: `src/frontend-shared/CLAUDE.md` (frontend), `src/shared/CLAUDE.md` (sh
 
 ## Project
 
-Dotaz is a desktop database client built on **Electrobun** (Bun backend + system webview) with a **Solid.js** frontend. It supports PostgreSQL and SQLite, focused on DML operations (viewing, editing, querying data) — no DDL/schema management.
+Dotaz is a database client built on **Electrobun** (Bun backend + system webview) with a **Solid.js** frontend. It supports PostgreSQL and SQLite, focused on DML operations (viewing, editing, querying data) — no DDL/schema management.
 
 Runs in three modes:
 
 - **Desktop** (Electrobun) — native window with RPC transport, app state in backend SQLite
-- **Web** — standalone Bun HTTP/WebSocket server (`bun run dev:web`), app state in browser IndexedDB
+- **Web** — standalone Bun HTTP/WebSocket server (`bun run dev:web`), app state in browser IndexedDB. Can also be started via CLI (`bunx @dotaz/server`, see `src/cli/`)
 - **Demo** — browser-only with WASM SQLite, no server needed (`bun run dev:demo`)
 
 ## Commands
@@ -26,11 +26,20 @@ bun run dev:web
 # Development — demo mode (browser-only WASM SQLite)
 bun run dev:demo
 
-# Production build (desktop)
+# Production build (desktop / Electrobun)
 bun run build:canary
+
+# Production build (web server)
+bun run build:server
 
 # Type checking (must pass with zero errors)
 bunx tsc --noEmit
+
+# Lint & format
+bun run lint          # check lint (biome)
+bun run lint:fix      # auto-fix lint
+bun run format        # format (dprint)
+bun run format:check  # check formatting
 
 # Run all tests
 bun test
@@ -61,6 +70,7 @@ src/
   backend-types/       ← Type-only re-exports for frontend (import type from backend-shared)
   backend-desktop/     ← Electrobun backend entry point
   backend-web/         ← HTTP/WebSocket server entry point
+  cli/                 ← CLI entry point (bunx @dotaz/server)
   frontend-shared/     ← Solid.js UI: components, stores, lib (transport/storage registries)
   frontend-desktop/    ← Desktop entry: setTransport(electrobun) + setStorage(rpc)
   frontend-web/        ← Web entry: setTransport(websocket) + setStorage(indexeddb)
@@ -79,6 +89,7 @@ frontend-web         ← frontend-shared
 frontend-demo        ← frontend-shared + backend-shared (runtime — createHandlers/RpcAdapter)
 backend-desktop      ← backend-shared
 backend-web          ← backend-shared
+cli                  ← backend-web (starts server with CLI argument parsing)
 ```
 
 ### Transport & storage — registration pattern

@@ -14,16 +14,35 @@ App.tsx                          ← Root component
 │   ├── edit/                    ← InlineEditor, RowDetailDialog, PendingChanges
 │   ├── schema/                  ← SchemaViewer, ColumnList, IndexList
 │   ├── export/                  ← ExportDialog
+│   ├── import/                  ← ImportDialog
 │   ├── history/                 ← QueryHistory
+│   ├── bookmarks/               ← BookmarksDialog
+│   ├── comparison/              ← ComparisonDialog, ComparisonView
+│   ├── er-diagram/              ← ErDiagram (entity-relationship visualization)
+│   ├── search/                  ← DatabaseSearchDialog
 │   ├── views/                   ← SaveViewDialog
 │   └── common/                  ← CommandPalette, ContextMenu, Dialog, Toast, Icon
 ├── stores/                      ← Solid.js reactive state
 │   ├── connections.ts           ← Connection list, state, active connection, schema trees
 │   ├── tabs.ts                  ← Open tabs, active tab
-│   ├── grid.ts                  ← Per-tab grid data, pagination, sort, filter, selection, pending changes
+│   ├── navigation.ts            ← Navigation actions (open table, open query, etc.)
+│   ├── session.ts               ← Session state
+│   ├── settings.ts              ← User settings
+│   ├── grid.ts                  ← Per-tab grid data, pagination, sort, filter
+│   ├── gridColumns.ts           ← Grid column configuration
+│   ├── gridEditing.ts           ← Inline editing, pending changes
+│   ├── gridSelection.ts         ← Row/cell selection
+│   ├── gridUndoRedo.ts          ← Undo/redo for grid edits
+│   ├── gridFk.ts                ← Foreign key navigation
+│   ├── gridAutoJoin.ts          ← Auto-join related tables
+│   ├── gridHeatmap.ts           ← Heatmap visualization for grid
+│   ├── gridViews.ts             ← Saved views per table
 │   ├── editor.ts                ← SQL content, query results, transaction state
+│   ├── editorAi.ts              ← AI-assisted SQL editing
+│   ├── editorTransactionLog.ts  ← Transaction log tracking
+│   ├── comparison.ts            ← Data comparison
 │   ├── ui.ts                    ← Sidebar width, dialogs, toasts, command palette
-│   └── views.ts                 ← Saved views per table
+│   └── views.ts                 ← Saved views
 ├── lib/
 │   ├── rpc.ts                   ← Typed RPC client (namespace access: rpc.connections.list())
 │   ├── rpc-errors.ts            ← RPC error handling and user-friendly messages

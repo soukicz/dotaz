@@ -8,6 +8,10 @@ Pure types and browser-safe utilities shared across all layers. No backend conce
 src/shared/
   types/           ← Domain types shared across all layers
   sql/             ← SQL building (dialect interface, query builders, statement splitting)
+  export/          ← Export formatters
+  clipboard-paste.ts  ← Clipboard paste parsing
+  column-types.ts     ← Column type utilities
+  comparison.ts       ← Data comparison logic
 ```
 
 ## Types (`src/shared/types/`)
@@ -21,6 +25,11 @@ src/shared/
 | `query.ts`      | `QueryResult`, `QueryHistoryEntry`                                                             |
 | `tab.ts`        | Tab types (data grid, SQL console, schema viewer)                                              |
 | `export.ts`     | `ExportOptions`, `ExportResult`, export format definitions                                     |
+| `import.ts`     | Import-related types                                                                           |
+| `errors.ts`     | Shared error types                                                                             |
+| `settings.ts`   | User settings types                                                                            |
+| `workspace.ts`  | Workspace types                                                                                |
+| `comparison.ts` | Data comparison types                                                                          |
 
 ### Adding a new RPC method
 
@@ -38,6 +47,8 @@ src/shared/
 | `dialects.ts`   | `PostgresDialect`, `SqliteDialect`, `MysqlDialect` implementations        |
 | `builders.ts`   | `buildSelectQuery()`, `buildCountQuery()`, `generateChangeSql()`, etc.    |
 | `statements.ts` | `splitStatements()`, `parseErrorPosition()` — zero-dependency SQL parsing |
+| `editability.ts`| Query editability analysis                                                 |
+| `index.ts`      | Barrel re-exports                                                          |
 
 ## Conventions
 
